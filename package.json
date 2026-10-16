@@ -12,6 +12,7 @@
     "test": "./scripts/check-forbidden.sh && pnpm --filter agent check:chain && pnpm -r --if-present test",
     "risk-intel:dev": "pnpm --filter risk-intel dev",
     "eval": "pnpm --filter eval eval"
+    ,"attacks": "pnpm --filter agent exec tsx ../scripts/attacks.ts"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

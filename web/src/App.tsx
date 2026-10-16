@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState, type FormEvent, type ReactNode } from "react";
+import { AttackLab } from "./AttackLab";
 
 const API = import.meta.env.VITE_AGENT_API_URL ?? "http://127.0.0.1:8787";
 const footer = "Simulated ledger, demo units, no real money. Permissioned chain operated by the team. Research prototype.";
@@ -42,7 +43,7 @@ export default function App() {
         {error && <div className="mb-5 rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-200">Connection notice: {error}</div>}
         {route === "/" && <Dashboard state={state} pending={pending} audit={audit} refresh={refresh} />}
         {route === "/policy" && <Policy state={state} contacts={contacts} refresh={refresh} />}
-        {route === "/attack-lab" && <Placeholder eyebrow="Safety workspace" title="Attack Lab" text="Scenario controls and adversarial evidence will be added in the next build." />}
+        {route === "/attack-lab" && <AttackLab api={api} />}
         {route === "/value" && <Placeholder eyebrow="Outcome reporting" title="Value Dashboard" text="Time saved, prevented loss, and savings metrics will be added in the next build." />}
       </main>
       <footer className="border-t border-slate-200 bg-white/80 px-6 py-5 text-center text-sm font-medium text-slate-500 dark:border-white/10 dark:bg-[#0b1714] dark:text-slate-400">{footer}</footer>

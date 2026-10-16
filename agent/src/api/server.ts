@@ -12,6 +12,8 @@ import type { LlmAdapter } from "../llm/adapter.js";
 import { PlanManager, PlanStepsSchema } from "../planner/planner.js";
 import { RecurringScheduler } from "../scheduler/scheduler.js";
 import type { RiskIntelGateway } from "../riskIntel/client.js";
+import { AttackLab } from "../attack/attackLab.js";
+import { attackIds, type AttackId } from "../attack/types.js";
 import { z } from "zod";
 
 type ServerOptions = {
@@ -62,6 +64,7 @@ export function buildServer(config: Config, options: ServerOptions = {}): Fastif
   const state = new ChainStateReader(clients.publicClient, deployment, contacts);
   const plans = new PlanManager(pipeline, audit);
   const scheduler = new RecurringScheduler(pipeline, audit);
+  const attackLab = new AttackLab(config, environment, { audit });
   scheduler.start();
 
   app.get("/health", async () => ({
@@ -91,6 +94,16 @@ export function buildServer(config: Config, options: ServerOptions = {}): Fastif
   app.get("/pending", async () => state.pending());
   app.get("/audit", async () => audit.list());
   app.get("/audit/verify", async () => audit.verify());
+  app.get("/attack-lab", async () => attackLab.list());
+  app.post<{ Params: { id: string } }>("/attack-lab/run/:id", async (request, reply) => {
+    if (!attackIds.includes(request.params.id as AttackId)) return reply.code(404).send({ error: "ATTACK_NOT_FOUND" });
+    try { return await attackLab.run(request.params.id as AttackId); }
+    catch (error) { return reply.code(500).send({ error: "ATTACK_RUN_FAILED", message: errorMessage(error) }); }
+  });
+  app.post("/attack-lab/run-all", async (_request, reply) => {
+    try { return await attackLab.runAll(); }
+    catch (error) { return reply.code(500).send({ error: "ATTACK_RUN_FAILED", message: errorMessage(error) }); }
+  });
   app.get<{ Params: { hash: string } }>("/receipt/:hash", async (request, reply) => {
     if (!/^0x[0-9a-fA-F]{64}$/.test(request.params.hash)) return reply.code(400).send({ error: "INVALID_HASH" });
     try { return serializeReceipt(await chain.getReceipt(request.params.hash as Hex)); }

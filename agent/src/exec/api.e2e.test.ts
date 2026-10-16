@@ -230,6 +230,20 @@ describe("agent API pipeline", () => {
     });
   });
 
+  it("serves the Attack Lab and runs a scenario with one request", async () => {
+    const catalog = await app.inject({ method: "GET", url: "/attack-lab" });
+    expect(catalog.statusCode).toBe(200);
+    expect(catalog.json()).toHaveLength(11);
+    expect((await app.inject({ method: "POST", url: "/attack-lab/run/A99", payload: {} })).statusCode).toBe(404);
+    const run = await app.inject({ method: "POST", url: "/attack-lab/run/A2", payload: {} });
+    expect(run.statusCode).toBe(200);
+    expect(run.json()).toMatchObject({ id: "A2", status: "BLOCKED", blockedBy: "on-chain contract", transactionHash: expect.stringMatching(/^0x[0-9a-f]{64}$/), directProof: { transactionHash: expect.stringMatching(/^0x[0-9a-f]{64}$/) } });
+    expect((await app.inject({ method: "GET", url: "/attack-lab" })).json()[1]).toMatchObject({ id: "A2", status: "BLOCKED" });
+    const audit = (await app.inject({ method: "GET", url: "/audit" })).json() as Array<{ kind: string }>;
+    expect(audit.some((entry) => entry.kind === "attack_lab_result")).toBe(true);
+    expect((await app.inject({ method: "GET", url: "/audit/verify" })).json()).toMatchObject({ valid: true });
+  }, 30_000);
+
   function appConfig(): Config {
     return {
       CHAIN_BACKEND: "evm-local",

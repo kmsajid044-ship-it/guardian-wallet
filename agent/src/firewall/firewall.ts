@@ -6,9 +6,10 @@ export type FirewallFlag = "ADDRESS_INJECTION" | "INSTRUCTION_INJECTION" | "UNKN
 export type FirewallResult = { blocked: boolean; flags: FirewallFlag[]; injectionPatternFound: boolean; amountOutlier: boolean };
 
 const instructionPatterns = [
-  /ignore\s+(?:all\s+)?(?:previous|prior)\s+instructions/i,
+  /ignore\s+(?:all\s+)?(?:previous|prior)\s+(?:instructions|rules)/i,
   /system\s+(?:message|prompt)/i,
   /act\s+as\s+(?:the\s+)?owner/i,
+  /\b(?:i am|i'm|this is|from)\s+(?:the\s+)?owner\b/i,
   /override\s+(?:the\s+)?policy/i,
   /disregard\s+(?:all\s+)?(?:previous|prior|system)/i,
   /developer\s+message/i,
@@ -31,7 +32,10 @@ export function inspectProposal(
   const injectionPatternFound = (source === "untrusted" && instructionPatterns.some((pattern) => pattern.test(message)))
     || untrustedFields.some((value) => instructionPatterns.some((pattern) => pattern.test(value)));
   if (injectionPatternFound) flags.push("INSTRUCTION_INJECTION");
-  if (source === "untrusted" && (message.match(addressPattern) ?? []).some((address) => isAddress(address))) flags.push("ADDRESS_INJECTION");
+  const knownAddresses = new Set(Object.values(contacts).map((address) => address.toLowerCase()));
+  const embeddedAddresses = [context.memo, context.payeeName].flatMap((value) => value?.match(addressPattern) ?? []);
+  if ((source === "untrusted" && (message.match(addressPattern) ?? []).some((address) => isAddress(address)))
+    || embeddedAddresses.some((address) => isAddress(address, { strict: false }) && !knownAddresses.has(address.toLowerCase()))) flags.push("ADDRESS_INJECTION");
   if (source === "untrusted" && /\b(?:new|unknown|unapproved)\s+(?:vendor|recipient|payee)\b/i.test(message)) flags.push("UNKNOWN_CONTACT");
   if ((proposal.kind === "pay" || proposal.kind === "schedule_recurring") && (!proposal.recipientContactId || !contacts[proposal.recipientContactId])) flags.push("UNKNOWN_CONTACT");
   if (context.expectedRecipientContactId && proposal.recipientContactId !== context.expectedRecipientContactId.toLowerCase()) flags.push("RECIPIENT_SWAP");

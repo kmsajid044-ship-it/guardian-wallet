@@ -99,21 +99,21 @@ class ViemChainAdapter implements ChainAdapter {
   async deploy(request: DeployRequest): Promise<Deployment> {
     const wallet = this.wallet(request.owner);
     const transactionOptions = this.transactionOptions();
-    const ledgerHash = await wallet.deployContract({
+    const ledgerHash = await this.withNonceRetry(() => wallet.deployContract({
       abi: demoLedgerConstructorAbi,
       bytecode: bytecode("contracts/out/DemoLedger.sol/DemoLedger.json"),
       args: [request.owner.address],
       ...transactionOptions,
-    });
+    }));
     const ledgerReceipt = await this.client.waitForTransactionReceipt({ hash: ledgerHash });
     if (!ledgerReceipt.contractAddress || ledgerReceipt.status !== "success") throw new Error("DemoLedger deployment failed");
     const ledgerAddress = getAddress(ledgerReceipt.contractAddress);
-    const walletHash = await wallet.deployContract({
+    const walletHash = await this.withNonceRetry(() => wallet.deployContract({
       abi: guardianWalletConstructorAbi,
       bytecode: bytecode("contracts/out/GuardianWallet.sol/GuardianWallet.json"),
       args: [request.owner.address, request.agent, request.guardian, ledgerAddress, request.feeAccount, request.policy],
       ...transactionOptions,
-    });
+    }));
     const walletReceipt = await this.client.waitForTransactionReceipt({ hash: walletHash });
     if (!walletReceipt.contractAddress || walletReceipt.status !== "success") throw new Error("GuardianWallet deployment failed");
     const block = await this.client.getBlock({ blockNumber: walletReceipt.blockNumber });
@@ -155,7 +155,7 @@ class ViemChainAdapter implements ChainAdapter {
     if (getAddress(signer.address) !== getAddress(deployment.agent)) throw new Error("signer is not the configured agent");
     const call = agentCall(action);
     const data = encodeFunctionData({ abi: guardianWalletAbi, ...call });
-    return this.wallet(signer).sendTransaction({ to: getAddress(deployment.guardianWallet), data, ...this.transactionOptions() });
+    return this.withNonceRetry(() => this.wallet(signer).sendTransaction({ to: getAddress(deployment.guardianWallet), data, ...this.transactionOptions() }));
   }
 
   async ownerTx(action: OwnerAction, signer: Account): Promise<Hex> {
@@ -164,7 +164,7 @@ class ViemChainAdapter implements ChainAdapter {
     if (action.kind === "mint") return this.writeLedger("mint", [action.account, action.currency, action.amount], signer);
     const call = ownerCall(action);
     const data = encodeFunctionData({ abi: guardianWalletAbi, ...call });
-    return this.wallet(signer).sendTransaction({ to: getAddress(deployment.guardianWallet), data, ...this.transactionOptions() });
+    return this.withNonceRetry(() => this.wallet(signer).sendTransaction({ to: getAddress(deployment.guardianWallet), data, ...this.transactionOptions() }));
   }
 
   async getReceipt(hash: Hex): Promise<Receipt> {
@@ -218,8 +218,24 @@ class ViemChainAdapter implements ChainAdapter {
 
   private async writeLedger(functionName: "setController" | "mint", args: readonly [Address] | readonly [Address, 0 | 1, bigint], signer: Account): Promise<Hex> {
     const deployment = this.requireDeployment();
-    return this.wallet(signer).writeContract({ address: getAddress(deployment.demoLedger), abi: demoLedgerAbi, functionName, args: args as never, ...this.transactionOptions() });
+    return this.withNonceRetry(() => this.wallet(signer).writeContract({ address: getAddress(deployment.demoLedger), abi: demoLedgerAbi, functionName, args: args as never, ...this.transactionOptions() }));
   }
+
+  // FISCO BCOS can report a just-mined nonce as unused for a moment; it then rejects the
+  // transaction with NonceCheckFail before accepting it, so resending cannot duplicate it.
+  private async withNonceRetry<T>(send: () => Promise<T>): Promise<T> {
+    for (let attempt = 1; ; attempt += 1) {
+      try { return await send(); }
+      catch (error) {
+        if (this.backend !== "fisco" || attempt >= 6 || !isNonceRejection(error)) throw error;
+        await new Promise((resolveWait) => setTimeout(resolveWait, 150 * attempt));
+      }
+    }
+  }
+}
+
+export function isNonceRejection(error: unknown): boolean {
+  return error instanceof Error && /NonceCheckFail/i.test(error.message);
 }
 
 function agentCall(action: AgentAction) {
