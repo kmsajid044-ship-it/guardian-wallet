@@ -18,6 +18,7 @@ import { z } from "zod";
 import { guardianWalletAbi } from "../chain/abi.js";
 import { createChainAdapter, isNonceRejection, type ChainAdapter, type OwnerAction } from "../chain/ChainAdapter.js";
 import type { Config, Deployment } from "../config.js";
+import { currencies } from "../currency/registry.js";
 import { policyReasons, type AgentAction, type Policy } from "../policy/types.js";
 
 const EnvironmentSchema = z.object({
@@ -100,8 +101,10 @@ export class AttackExecutor {
     const adapter = createChainAdapter(this.config);
     const deployment = await adapter.deploy({ owner: this.owner, agent: this.agent.address, guardian: zero, feeAccount, policy: base });
     const fixture = new AttackFixture(adapter, deployment, policy, this.client, this.chain, this.config, this.owner, this.agent);
-    await fixture.owner({ kind: "mint", account: getAddress(deployment.guardianWallet), currency: 0, amount: 2_000n * UNIT });
-    await fixture.owner({ kind: "mint", account: getAddress(deployment.guardianWallet), currency: 1, amount: 200_000n * UNIT });
+    // Every configured demo unit: 2,000 USD for policy scenarios, 20,000 of each other unit.
+    for (const unit of currencies()) {
+      await fixture.owner({ kind: "mint", account: getAddress(deployment.guardianWallet), currency: unit.code, amount: (unit.code === "USD" ? 2_000n : 20_000n) * 10n ** BigInt(unit.decimals) });
+    }
     for (const entry of options.allowlist) await fixture.owner({ kind: "set_recipient", recipient: entry.address, allowed: true, label: entry.label });
     if (policy.recipientCooldown !== base.recipientCooldown) await fixture.owner({ kind: "set_policy", policy });
     return fixture;

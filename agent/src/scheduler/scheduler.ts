@@ -7,7 +7,8 @@ export type RecurringPayment = {
   id: string;
   contactId: string;
   amount: string;
-  currency: "USD" | "BDT";
+  /** ISO 4217 code of a configured demo unit. */
+  currency: string;
   intervalSeconds: number;
   nextRunAt: number;
   active: boolean;
@@ -21,7 +22,7 @@ export class RecurringScheduler {
 
   constructor(private readonly runner: ScheduledActionRunner, private readonly audit: AuditLog) {}
 
-  add(input: { contactId: string; amount: string; currency?: "USD" | "BDT"; intervalSeconds: number; nextRunAt?: number }): RecurringPayment {
+  add(input: { contactId: string; amount: string; currency?: string; intervalSeconds: number; nextRunAt?: number }): RecurringPayment {
     const job: RecurringPayment = {
       id: randomUUID(),
       contactId: input.contactId.toLowerCase(),

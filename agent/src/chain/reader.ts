@@ -2,6 +2,7 @@ import { getAddress, type Address, type Chain, type Hex, type PublicClient, type
 import type { PolicyReader } from "../policy/precheck.js";
 import type { Policy, Recipient } from "../policy/types.js";
 import { demoLedgerAbi, guardianWalletAbi } from "./abi.js";
+import { toCurrencyCode } from "../currency/registry.js";
 
 export class GuardianReader implements PolicyReader {
   constructor(
@@ -17,6 +18,7 @@ export class GuardianReader implements PolicyReader {
   async getTimestamp(): Promise<bigint> { return this.timestampSource ? this.timestampSource() : (await this.client.getBlock()).timestamp; }
   async getSpentToday(): Promise<bigint> { return this.client.readContract({ address: this.walletAddress, abi: guardianWalletAbi, functionName: "spentToday" }); }
   async getOpsSpentToday(): Promise<bigint> { return this.client.readContract({ address: this.walletAddress, abi: guardianWalletAbi, functionName: "opsSpentToday" }); }
-  async getBalance(currency: 0 | 1): Promise<bigint> { return this.client.readContract({ address: this.ledgerAddress, abi: demoLedgerAbi, functionName: "balanceOf", args: [this.walletAddress, currency] }); }
+  async getBalance(currency: string): Promise<bigint> { return this.client.readContract({ address: this.ledgerAddress, abi: demoLedgerAbi, functionName: "balanceOf", args: [this.walletAddress, toCurrencyCode(currency)] }); }
+  async isCurrency(currency: string): Promise<boolean> { return this.client.readContract({ address: this.ledgerAddress, abi: demoLedgerAbi, functionName: "isCurrency", args: [toCurrencyCode(currency)] }); }
   async getFeeAccount(): Promise<Address> { return getAddress(await this.client.readContract({ address: this.walletAddress, abi: guardianWalletAbi, functionName: "feeAccount" })); }
 }

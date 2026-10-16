@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Produce on-chain execution evidence on the running local FISCO BCOS network:
 # scenarios -> evidence/evidence.json + evidence/receipts/, a node data snapshot, and
-# docs/EXECUTION_EVIDENCE.md. Research prototype; USD and BDT demo balances, no real money.
+# docs/EXECUTION_EVIDENCE.md. Research prototype; USD and CNY demo balances, no real money.
 set -euo pipefail
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"

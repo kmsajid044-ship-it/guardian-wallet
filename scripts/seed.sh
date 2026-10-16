@@ -20,4 +20,4 @@ for name in OWNER_PRIVATE_KEY DEMO_CONTACT_1_ADDRESS DEMO_CONTACT_2_ADDRESS DEMO
 done
 
 (cd "$repo_root/contracts" && forge script script/SeedFisco.s.sol:SeedFisco --rpc-url "$rpc_url" --broadcast --slow --legacy)
-echo "Seeded synthetic USD and BDT demo balances, policy, and contacts."
+echo "Seeded synthetic demo balances from config/currencies.json, policy, and contacts."

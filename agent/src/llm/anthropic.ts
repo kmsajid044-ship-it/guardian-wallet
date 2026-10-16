@@ -22,7 +22,7 @@ export class AnthropicAdapter implements LlmAdapter {
       max_tokens: 700,
       system: buildSystemPrompt(contactIds),
       messages: [{ role: "user", content: buildUserPrompt(intake) }],
-      tools: [{ name: "propose_action", description: "Return the single validated wallet action proposal.", input_schema: actionProposalJsonSchema }],
+      tools: [{ name: "propose_action", description: "Return the single validated wallet action proposal.", input_schema: actionProposalJsonSchema() }],
       tool_choice: { type: "tool", name: "propose_action" },
     });
     const tool = body.content.find((item) => item.type === "tool_use" && item.name === "propose_action");

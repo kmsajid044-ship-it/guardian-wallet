@@ -69,9 +69,9 @@ function generatedAction(index: number, policy: Awaited<ReturnType<ChainAdapter[
   const amount = amounts[(index * 11) % amounts.length]!;
   const to = index % 5 === 0 ? blockedRecipient : recipient;
   switch (index % 4) {
-    case 0: return { kind: "pay", currency: index % 2 as 0 | 1, to, amount, intentId };
-    case 1: return { kind: "request_approval", currency: index % 2 as 0 | 1, to, amount, intentId };
-    case 2: return { kind: "save", currency: index % 2 as 0 | 1, amount, intentId };
+    case 0: return { kind: "pay", currency: (index % 2 === 0 ? "USD" : "CNY"), to, amount, intentId };
+    case 1: return { kind: "request_approval", currency: (index % 2 === 0 ? "USD" : "CNY"), to, amount, intentId };
+    case 2: return { kind: "save", currency: (index % 2 === 0 ? "USD" : "CNY"), amount, intentId };
     default: return { kind: "service_fee", amount, intentId };
   }
 }

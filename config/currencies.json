@@ -1,0 +1,7 @@
+{
+  "$comment": "Demo ledger units for the Guardian Wallet research prototype. Simulated units with no value; adding an entry here adds a currency without code changes. code: ISO 4217 alphabetic code; decimals: minor-unit digits; seed: demo units minted to the wallet at seeding.",
+  "currencies": [
+    { "code": "USD", "decimals": 6, "name": "US dollar (demo units)", "seed": "5000" },
+    { "code": "CNY", "decimals": 6, "name": "Chinese yuan (demo units)", "seed": "35000" }
+  ]
+}

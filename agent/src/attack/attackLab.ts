@@ -1,5 +1,6 @@
 import { encodeFunctionData, getAddress, keccak256, stringToHex, type Address, type Hex } from "viem";
 import { AuditLog, type JsonValue } from "../audit/audit.js";
+import { toCurrencyCode } from "../currency/registry.js";
 import { guardianWalletAbi } from "../chain/abi.js";
 import type { Config } from "../config.js";
 import { AttackExecutor, UNIT, type AttackFixture, type ChainEvidence } from "../exec/attackExecutor.js";
@@ -15,9 +16,10 @@ const anaChanged = getAddress("0x00000000000000000000000000000000000000A2");
 const unlisted = getAddress("0x00000000000000000000000000000000000000B7");
 const attacker = getAddress("0x000000000000000000000000000000000000dEaD");
 
+const USD = toCurrencyCode("USD");
 const ledgerAbi = [
-  { type: "function", name: "move", stateMutability: "nonpayable", inputs: [{ type: "address" }, { type: "address" }, { type: "uint8" }, { type: "uint256" }], outputs: [] },
-  { type: "function", name: "mint", stateMutability: "nonpayable", inputs: [{ type: "address" }, { type: "uint8" }, { type: "uint256" }], outputs: [] },
+  { type: "function", name: "move", stateMutability: "nonpayable", inputs: [{ type: "address" }, { type: "address" }, { type: "bytes3" }, { type: "uint256" }], outputs: [] },
+  { type: "function", name: "mint", stateMutability: "nonpayable", inputs: [{ type: "address" }, { type: "bytes3" }, { type: "uint256" }], outputs: [] },
 ] as const;
 
 type Outcome = { blockedBy: StopLayer; reason: string; primary?: ChainEvidence; directProof?: ChainProof };
@@ -125,7 +127,7 @@ export class AttackLab {
     const result = await pipeline.run(intake("Pay ana 600 USD"));
     expectPipelineBlocked(steps, result, "on-chain contract", ["OVER_PER_TX_LIMIT"]);
     const primary = requireRecorded(steps, result);
-    const direct = await fixture.agent({ kind: "pay", to: ana, currency: 0, amount: 600n * UNIT, intentId: intent("A2-direct") });
+    const direct = await fixture.agent({ kind: "pay", to: ana, currency: "USD", amount: 600n * UNIT, intentId: intent("A2-direct") });
     const directProof = expectViolation(steps, direct, "OVER_PER_TX_LIMIT", "Agent key called pay(600 USD) directly");
     await this.expectWalletUsd(steps, fixture, before);
     return { blockedBy: "on-chain contract", reason: "OVER_PER_TX_LIMIT: 600 USD exceeds the 500 per-payment limit; PolicyViolation event recorded", primary, directProof };
@@ -157,7 +159,7 @@ export class AttackLab {
     // The compromised-agent path: keep paying 199 straight to the contract until it refuses.
     let direct: ChainEvidence | undefined;
     for (let attempt = 1; attempt <= 6; attempt += 1) {
-      const evidence = await fixture.agent({ kind: "pay", to: ana, currency: 0, amount: 199n * UNIT, intentId: intent(`A3-direct-${attempt}`) });
+      const evidence = await fixture.agent({ kind: "pay", to: ana, currency: "USD", amount: 199n * UNIT, intentId: intent(`A3-direct-${attempt}`) });
       if (evidence.violations.length > 0) { direct = evidence; break; }
       steps.push({ layer: "on-chain contract", outcome: "ALLOWED", detail: `Direct pay(199 USD) ${attempt} accepted within the remaining daily allowance`, ...evidenceFields(evidence) });
     }
@@ -182,7 +184,7 @@ export class AttackLab {
     const flags = expectPipelineBlocked(steps, unknown, "firewall", ["UNKNOWN_CONTACT"]);
     const notAllowlisted = await pipeline.run(intake("Pay zed 50 USD"));
     expectPipelineBlocked(steps, notAllowlisted, "agent pipeline", ["UNKNOWN_CONTACT"], "Address-book contact zed is not allowlisted on-chain");
-    const direct = await fixture.agent({ kind: "pay", to: unlisted, currency: 0, amount: 50n * UNIT, intentId: intent("A4-direct") });
+    const direct = await fixture.agent({ kind: "pay", to: unlisted, currency: "USD", amount: 50n * UNIT, intentId: intent("A4-direct") });
     expectViolation(steps, direct, "RECIPIENT_NOT_ALLOWED", "Agent key called pay() to the unlisted address directly");
     await this.expectWalletUsd(steps, fixture, before);
     return { blockedBy: "firewall", reason: `Contact is not on the allowlist (${flags}); the contract also refuses the address with RECIPIENT_NOT_ALLOWED`, primary: direct };
@@ -196,7 +198,7 @@ export class AttackLab {
     const before = await this.walletUsd(fixture);
     const result = await pipeline.run(intake("Pay ana 50 USD"));
     expectPipelineBlocked(steps, result, "on-chain contract", ["RECIPIENT_NOT_ACTIVE"]);
-    const direct = await fixture.agent({ kind: "pay", to: anaChanged, currency: 0, amount: 50n * UNIT, intentId: intent("A5-direct") });
+    const direct = await fixture.agent({ kind: "pay", to: anaChanged, currency: "USD", amount: 50n * UNIT, intentId: intent("A5-direct") });
     const directProof = expectViolation(steps, direct, "RECIPIENT_NOT_ACTIVE", "Agent key called pay() to the new address directly");
     await this.expectWalletUsd(steps, fixture, before);
     return { blockedBy: "on-chain contract", reason: "RECIPIENT_NOT_ACTIVE: the changed address is still inside its cooldown", primary: requireRecorded(steps, result), directProof };
@@ -211,7 +213,7 @@ export class AttackLab {
     const replay = await fixture.probe("owner", getAddress(fixture.deployment.guardianWallet), encodeFunctionData({ abi: guardianWalletAbi, functionName: "approve", args: [pendingId] }));
     const primary = expectRevert(steps, replay, "PendingNotActive", `Approval for pending #${pendingId} replayed`);
     const pending = await fixture.readPending(pendingId);
-    const resend = await fixture.agent({ kind: "request_approval", to: ana, currency: 0, amount: pending.amount, intentId: pending.intentId });
+    const resend = await fixture.agent({ kind: "request_approval", to: ana, currency: "USD", amount: pending.amount, intentId: pending.intentId });
     expectViolation(steps, resend, "DUPLICATE_INTENT", "Agent key re-sent the executed intent directly");
     await this.expectWalletUsd(steps, fixture, before);
     return { blockedBy: "on-chain contract", reason: `${primary.revert}: pending #${pendingId} already executed; the reused intent is refused with DUPLICATE_INTENT`, primary, directProof: proof(replay, "Replayed approve() sent straight to the contract") };
@@ -248,14 +250,14 @@ export class AttackLab {
     const { fixture } = await this.setup(steps);
     const before = await this.walletUsd(fixture);
     steps.push({ layer: "agent pipeline", outcome: "RECORDED", detail: "Pipeline skipped: the compromised agent key signs raw calls" });
-    const move = await fixture.probe("agent", getAddress(fixture.deployment.demoLedger), encodeFunctionData({ abi: ledgerAbi, functionName: "move", args: [getAddress(fixture.deployment.guardianWallet), attacker, 0, before] }));
+    const move = await fixture.probe("agent", getAddress(fixture.deployment.demoLedger), encodeFunctionData({ abi: ledgerAbi, functionName: "move", args: [getAddress(fixture.deployment.guardianWallet), attacker, USD, before] }));
     const primary = expectRevert(steps, move, "NotController", "Raw DemoLedger.move() of the whole USD balance");
-    const mint = await fixture.probe("agent", getAddress(fixture.deployment.demoLedger), encodeFunctionData({ abi: ledgerAbi, functionName: "mint", args: [attacker, 0, 1_000_000n * UNIT] }));
+    const mint = await fixture.probe("agent", getAddress(fixture.deployment.demoLedger), encodeFunctionData({ abi: ledgerAbi, functionName: "mint", args: [attacker, USD, 1_000_000n * UNIT] }));
     expectRevert(steps, mint, "OwnableUnauthorizedAccount", "Raw DemoLedger.mint() of new demo units");
-    const pay = await fixture.probe("agent", getAddress(fixture.deployment.guardianWallet), encodeFunctionData({ abi: guardianWalletAbi, functionName: "pay", args: [attacker, 0, 150n * UNIT, intent("A9-raw")] }));
+    const pay = await fixture.probe("agent", getAddress(fixture.deployment.guardianWallet), encodeFunctionData({ abi: guardianWalletAbi, functionName: "pay", args: [attacker, USD, 150n * UNIT, intent("A9-raw")] }));
     expectViolation(steps, pay, "RECIPIENT_NOT_ALLOWED", "Raw GuardianWallet.pay() to the outside address");
     await this.expectWalletUsd(steps, fixture, before);
-    const attackerBalance = (await fixture.readBalances(attacker)).USD.available;
+    const attackerBalance = (await fixture.readBalances(attacker)).USD?.available ?? 0n;
     if (attackerBalance !== 0n) throw this.fail(steps, "outside address received demo units");
     steps.push({ layer: "state check", outcome: "VERIFIED", detail: "Outside address holds 0 USD demo units" });
     return { blockedBy: "on-chain contract", reason: `${primary.revert}: only GuardianWallet may move ledger balances; raw pay() still hits the allowlist`, primary, directProof: proof(move, "Raw ledger move() from the agent key") };
@@ -291,7 +293,7 @@ export class AttackLab {
 
   private async setup(steps: AttackStep[], contacts: Record<string, Address> = {}, options: { pendingExpiry?: bigint; recipientCooldown?: bigint } = {}) {
     const fixture = await this.executor.fixture({ allowlist: [{ address: ana, label: "Ana · synthetic contact" }], ...options });
-    steps.push({ layer: "owner setup", outcome: "RECORDED", detail: `Fresh ${this.config.CHAIN_BACKEND} deployment ${fixture.deployment.guardianWallet} with 2,000 USD and 200,000 BDT demo units; per payment 500, daily 1,000, approval from 200` });
+    steps.push({ layer: "owner setup", outcome: "RECORDED", detail: `Fresh ${this.config.CHAIN_BACKEND} deployment ${fixture.deployment.guardianWallet} with 2,000 USD and 20,000 CNY demo units; per payment 500, daily 1,000, approval from 200` });
     // Deterministic proposals and no paid payee check keep every run reproducible.
     const pipelineConfig: Config = { ...this.config, LLM_PROVIDER: "mock", DEPLOYMENTS_FILE: "attack-lab", AUDIT_DB_PATH: ":memory:" };
     delete pipelineConfig.RISK_INTEL_URL;
@@ -306,7 +308,7 @@ export class AttackLab {
     return BigInt(result.pendingId);
   }
 
-  private async walletUsd(fixture: AttackFixture): Promise<bigint> { return (await fixture.readBalances()).USD.available; }
+  private async walletUsd(fixture: AttackFixture): Promise<bigint> { return (await fixture.readBalances()).USD?.available ?? 0n; }
 
   private async expectWalletUsd(steps: AttackStep[], fixture: AttackFixture, expected: bigint) {
     const actual = await this.walletUsd(fixture);

@@ -1,4 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
+import { toCurrencyCode } from "../currency/registry.js";
 import { AuditLog } from "../audit/audit.js";
 import { demoLedgerAbi } from "../chain/abi.js";
 import type { Config, Deployment } from "../config.js";
@@ -22,9 +23,9 @@ describe("Risk Intel service fee", () => {
     const fetcher = vi.fn<Fetch>().mockResolvedValue(new Response(JSON.stringify({ address: fixture.activeRecipient, score: 12, level: "low", sanctioned: false, reasons: ["synthetic"] }), { status: 200, headers: { "content-type": "application/json" } }));
     const audit = new AuditLog(":memory:");
     const client = new RiskIntelClient("http://risk.test", config, deployment, fixture.publicClient, AgentExecutor.create(config, deployment, { AGENT_PRIVATE_KEY: fixture.agentKey }), audit, fetcher);
-    const before = await fixture.publicClient.readContract({ address: fixture.ledger, abi: demoLedgerAbi, functionName: "balanceOf", args: [fixture.service, 0] });
+    const before = await fixture.publicClient.readContract({ address: fixture.ledger, abi: demoLedgerAbi, functionName: "balanceOf", args: [fixture.service, toCurrencyCode("USD")] });
     await expect(client.checkPayee(fixture.activeRecipient)).resolves.toMatchObject({ score: 12 });
-    expect(await fixture.publicClient.readContract({ address: fixture.ledger, abi: demoLedgerAbi, functionName: "balanceOf", args: [fixture.service, 0] })).toBe(before + 50_000n);
+    expect(await fixture.publicClient.readContract({ address: fixture.ledger, abi: demoLedgerAbi, functionName: "balanceOf", args: [fixture.service, toCurrencyCode("USD")] })).toBe(before + 50_000n);
     expect(fetcher.mock.calls[0]![1]?.headers).toMatchObject({ "service-request-id": expect.stringMatching(/^0x/), "service-payment-tx": expect.stringMatching(/^0x/) });
     expect(audit.list()[0]?.kind).toBe("risk_intel_fee");
     audit.close();

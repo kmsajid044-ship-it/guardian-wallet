@@ -2,10 +2,13 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { toCurrencyCode } from "../currency/registry.js";
 import { demoLedgerAbi } from "../chain/abi.js";
 import type { Config, Deployment } from "../config.js";
 import { startAnvilFixture, type AnvilFixture } from "../test/anvil.js";
 import { buildServer } from "../api/server.js";
+
+const usdOf = (state: { balances: Array<{ code: string; available: string; savings: string }> }) => { const usd = state.balances.find((item) => item.code === "USD")!; return { available: Number(usd.available), savings: Number(usd.savings) }; };
 
 describe("agent API pipeline", () => {
   let fixture: AnvilFixture;
@@ -67,7 +70,7 @@ describe("agent API pipeline", () => {
       address: fixture.ledger,
       abi: demoLedgerAbi,
       functionName: "balanceOf",
-      args: [fixture.activeRecipient, 0],
+      args: [fixture.activeRecipient, toCurrencyCode("USD")],
     });
     const response = await app.inject({ method: "POST", url: "/chat", payload: { message: "Pay Ana 100 USD", source: "trusted" } });
     expect(response.statusCode).toBe(200);
@@ -75,17 +78,17 @@ describe("agent API pipeline", () => {
     expect(body).toMatchObject({ proposal: { kind: "pay", currency: "USD", recipientContactId: "ana", amount: "100" }, route: "EXECUTED", tier: "T1", riskIntel: { score: 8, level: "low" }, llm: { requested: "mock", effective: "mock", fallback: false } });
     expect(riskChecks).toEqual([fixture.activeRecipient]);
     expect(body.transactionHash).toMatch(/^0x[0-9a-f]{64}$/);
-    expect(await fixture.publicClient.readContract({ address: fixture.ledger, abi: demoLedgerAbi, functionName: "balanceOf", args: [fixture.activeRecipient, 0] })).toBe(before + 100_000_000n);
+    expect(await fixture.publicClient.readContract({ address: fixture.ledger, abi: demoLedgerAbi, functionName: "balanceOf", args: [fixture.activeRecipient, toCurrencyCode("USD")] })).toBe(before + 100_000_000n);
   });
 
   it("moves demo units into savings through the full pipeline", async () => {
     const before = await app.inject({ method: "GET", url: "/state" });
-    const beforeAssets = Number(before.json().usdSavings);
+    const beforeAssets = usdOf(before.json()).savings;
     const response = await app.inject({ method: "POST", url: "/chat", payload: { message: "Save 50 USD", source: "trusted" } });
     expect(response.statusCode).toBe(200); expect(response.json()).toMatchObject({ route: "EXECUTED" });
     const state = await app.inject({ method: "GET", url: "/state" });
     expect(state.statusCode).toBe(200);
-    expect(Number(state.json().usdSavings)).toBe(beforeAssets + 50);
+    expect(usdOf(state.json()).savings).toBe(beforeAssets + 50);
   }, 20_000);
 
   it("creates a ledger pending action at the approval threshold", async () => {
@@ -239,7 +242,7 @@ describe("agent API pipeline", () => {
     const response = await app.inject({ method: "POST", url: "/chat", payload: { message: "Pay Ana", source: "trusted" } });
     expect(response.json()).toMatchObject({
       route: "ANSWER_ONLY",
-      clarification: { required: true, questions: ["How much USD or BDT should I pay contact ana?"] },
+      clarification: { required: true, questions: ["How much USD or CNY should I pay contact ana?"] },
     });
   });
 
@@ -297,8 +300,8 @@ describe("agent API pipeline", () => {
   });
 
   it("holds every untrusted payment or savings request for T2 owner approval and moves nothing before approval", async () => {
-    const received = () => fixture.publicClient.readContract({ address: fixture.ledger, abi: demoLedgerAbi, functionName: "balanceOf", args: [fixture.activeRecipient, 0] });
-    const savings = async () => Number((await app.inject({ method: "GET", url: "/state" })).json().usdSavings);
+    const received = () => fixture.publicClient.readContract({ address: fixture.ledger, abi: demoLedgerAbi, functionName: "balanceOf", args: [fixture.activeRecipient, toCurrencyCode("USD")] });
+    const savings = async () => usdOf((await app.inject({ method: "GET", url: "/state" })).json()).savings;
     const receivedBefore = await received();
     const savingsBefore = await savings();
 

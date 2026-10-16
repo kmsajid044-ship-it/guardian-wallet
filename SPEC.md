@@ -18,7 +18,11 @@ Core principle: **The LLM proposes. Code verifies. The contract enforces. The hu
 
 ## 3. Simulated money model
 
-`DemoLedger` stores per-account minor-unit balances for two currencies: USD and BDT. Only its owner may mint demo units. Only `GuardianWallet`, configured as controller, may move balances. There is no arbitrary account-to-account transfer entry point.
+`DemoLedger` stores per-account minor-unit balances keyed by ISO 4217 alphabetic code (`bytes3`). Its owner lists demo units with `addCurrency(code, decimals, name)` (three upper-case letters, at most 18 decimals, never twice); deployment lists every entry of `config/currencies.json`, by default USD and CNY. Unknown codes revert in the ledger, and `GuardianWallet` refuses them with `PolicyViolation(UNKNOWN_CURRENCY)`. Service fees are USD only. Only its owner may mint demo units.
+
+> Simulated demo units denominated in CNY for illustration. No value, not issued, not redeemable, not a digital currency, not linked to e-CNY.
+
+ Only `GuardianWallet`, configured as controller, may move balances. There is no arbitrary account-to-account transfer entry point.
 
 Savings is a sub-account in `DemoLedger`. Each account and currency has a principal and checkpoint time. The read path computes fixed-rate simple interest:
 
@@ -71,7 +75,7 @@ Plans are shown before execution, remain editable while drafts, and stop at the 
 
 Every pipeline decision records its outcome, reason, tier, risk factors, transaction hash, and block number when present. Audit entries form an append-only SHA-256 chain verified by `verifyAuditChain()`.
 
-Before a first or approval-sized payment, the agent books a fixed service fee through `payServiceFee`, obtains a synthetic payee check, and adds the result to risk scoring. FX is a read-only cached USD/BDT snapshot.
+Before a first or approval-sized payment, the agent books a fixed service fee through `payServiceFee`, obtains a synthetic payee check, and adds the result to risk scoring. FX is a read-only cached USD/CNY snapshot.
 
 ## 8. Permission tiers
 
@@ -120,7 +124,7 @@ scripts/     Local development and repository checks
 docs/        Security, testing, and architecture evidence
 ```
 
-The web owner console provides agent chat with visible pipeline steps and clarification, a T2 approval inbox, T3 policy and allowlist settings, pause/resume controls, USD and BDT balance cards, a labelled cached FX reference, and a live receipt-verifiable audit table. In the local demo the agent service signs owner actions only for requests carrying a per-run owner session token, which the Vite dev server hands to the same-origin console alone; production builds sign owner actions in the injected browser wallet. Light and dark themes use bundled system fonts and large-format presentation sizing. The Attack Lab route runs the §9 scenarios with per-layer evidence. The Value Dashboard shows the latest evaluation metrics against their targets, plus live counts from the audit log: decisions by route, owner approvals, value paid, saved, and blocked, Attack Lab results, and estimated time saved.
+The web owner console provides agent chat with visible pipeline steps and clarification, a T2 approval inbox, T3 policy and allowlist settings, pause/resume controls, one balance card per configured demo unit (CNY cards carry the disclaimer above), a labelled cached FX reference, and a live receipt-verifiable audit table. In the local demo the agent service signs owner actions only for requests carrying a per-run owner session token, which the Vite dev server hands to the same-origin console alone; production builds sign owner actions in the injected browser wallet. Light and dark themes use bundled system fonts and large-format presentation sizing. The Attack Lab route runs the §9 scenarios with per-layer evidence. The Value Dashboard shows the latest evaluation metrics against their targets, plus live counts from the audit log: decisions by route, owner approvals, value paid, saved, and blocked, Attack Lab results, and estimated time saved.
 
 ## 11. Chain runtime
 

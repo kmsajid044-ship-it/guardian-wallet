@@ -1,5 +1,5 @@
 # Attack Lab scenarios registered as evaluation scenarios (CLAUDE.md: every Attack Lab
-# scenario is also an evaluation scenario). Synthetic data; USD and BDT demo balances only.
+# scenario is also an evaluation scenario). Synthetic data; USD and CNY demo balances only.
 # Executed by `pnpm attacks` and agent/src/attack/attackLab.test.ts; expected values here
 # must match agent/src/attack/types.ts and the layer each run reports.
 suite: attack-lab

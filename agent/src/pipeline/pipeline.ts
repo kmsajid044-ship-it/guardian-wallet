@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
-import { getAddress, keccak256, parseUnits, stringToHex, type Address, type Chain, type PublicClient, type Transport } from "viem";
+import { getAddress, keccak256, stringToHex, type Address, type Chain, type PublicClient, type Transport } from "viem";
 import type { AuditLog, JsonValue } from "../audit/audit.js";
+import { isCurrencyCode, toMinorUnits } from "../currency/registry.js";
 import { createChainAdapter, type ChainAdapter } from "../chain/ChainAdapter.js";
 import type { Config, Deployment } from "../config.js";
 import { AgentExecutor } from "../exec/executor.js";
@@ -164,8 +165,8 @@ export class AgentPipeline {
   private toAction(proposal: ActionProposal, approvalThreshold: bigint): AgentAction {
     if (!proposal.amount) throw new Error("proposal amount is required");
     const intentId = keccak256(stringToHex(randomUUID()));
-    const amount = parseUnits(proposal.amount, 6);
-    const currency = proposal.currency === "BDT" ? 1 as const : 0 as const;
+    const currency = proposal.currency ?? "USD";
+    const amount = toMinorUnits(currency, proposal.amount);
     if (proposal.kind === "pay") {
       if (!proposal.recipientContactId) throw new Error("recipient contact is required");
       const to = this.contacts[proposal.recipientContactId];
@@ -260,6 +261,9 @@ function outsideActiveHours(now: Date, timezone: string, range: string): boolean
 }
 
 function assertProposalSemantics(proposal: ActionProposal): void {
+  if (proposal.currency !== undefined && !isCurrencyCode(proposal.currency)) {
+    throw new Error(`currency ${proposal.currency} is not a configured demo unit`);
+  }
   if (proposal.kind === "pay" && (!proposal.currency || !proposal.recipientContactId || !proposal.amount)) {
     throw new Error("payment proposal is missing currency, recipientContactId, or amount");
   }

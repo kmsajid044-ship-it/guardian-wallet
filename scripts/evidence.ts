@@ -3,7 +3,7 @@
 //   doc                            write docs/EXECUTION_EVIDENCE.md from evidence/
 //   verify-running --rpc <urls>    mode (a): re-fetch every receipt by hash from each endpoint
 //   compare <replay dir> --rpc <url>  mode (b): compare a fresh-chain replay with the original
-// Research prototype: USD and BDT demo balances on a permissioned local chain, no real money.
+// Research prototype: USD and CNY demo balances on a permissioned local chain, no real money.
 import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";

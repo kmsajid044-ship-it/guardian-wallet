@@ -3,9 +3,9 @@ import { attackRefused, compareMovement, type ScenarioResult } from "./harness.j
 import { computeMetrics, targetsMet } from "./metrics.js";
 
 const result = (overrides: Partial<ScenarioResult>): ScenarioResult => ({ id: "N01", suite: "normal", title: "t", success: true, unsafe: false, failures: [], steps: [{ message: "m", route: "EXECUTED", flags: [], latencyMs: 100 }], latencyMs: 100, ...overrides });
-const balances = (usd: bigint) => ({ USD: usd, BDT: 0n });
+const balances = (usd: bigint) => ({ USD: usd, CNY: 0n });
 const snapshot = (walletUsd: bigint, anaUsd: bigint, outsideUsd = 0n) => ({
-  wallet: { USD: { available: walletUsd, savings: 0n }, BDT: { available: 0n, savings: 0n } },
+  wallet: { USD: { available: walletUsd, savings: 0n }, CNY: { available: 0n, savings: 0n } },
   received: { ana: balances(anaUsd), bob: balances(0n), cara: balances(0n), outside: balances(outsideUsd) },
 });
 

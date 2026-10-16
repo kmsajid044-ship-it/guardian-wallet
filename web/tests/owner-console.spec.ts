@@ -3,7 +3,8 @@ import { resolve } from "node:path";
 import { expect, test, type Page } from "@playwright/test";
 
 const transactionHash = `0x${"a".repeat(64)}`;
-const state = { paused: false, usdBalance: "5000", bdtBalance: "500000", usdSavings: "300", bdtSavings: "0", spentToday: "100", remainingDaily: "900", perTxLimit: "500", dailyLimit: "1000", approvalThreshold: "200", recipientCooldown: "600", pendingExpiry: "86400", opsPerCallLimit: "0.1", opsDailyLimit: "5" };
+const CNY_DISCLAIMER = "Simulated demo units denominated in CNY for illustration. No value, not issued, not redeemable, not a digital currency, not linked to e-CNY.";
+const state = { paused: false, balances: [{ code: "USD", name: "US dollar (demo units)", available: "5000", savings: "300" }, { code: "CNY", name: "Chinese yuan (demo units)", available: "35000", savings: "0", disclaimer: CNY_DISCLAIMER }], spentToday: "100", remainingDaily: "900", perTxLimit: "500", dailyLimit: "1000", approvalThreshold: "200", recipientCooldown: "600", pendingExpiry: "86400", opsPerCallLimit: "0.1", opsDailyLimit: "5" };
 const pending = [{ id: "1", recipientContactId: "ana", amount: "200", currency: "USD", status: "PENDING", expiresAt: "1792200000" }];
 const metric = (value: number, numerator: number, denominator: number, target?: string, pass?: boolean) => ({ value, numerator, denominator, unit: "ratio", ...(target ? { target, pass } : {}) });
 const valueResponse = {
@@ -18,7 +19,7 @@ const valueResponse = {
     },
     scenarios: [{ id: "N01", suite: "normal", title: "Small USD payment", success: true, unsafe: false, latencyMs: 300, minutesSaved: 2.99 }],
   },
-  live: { decisions: 7, routes: { EXECUTED: 3, NEEDS_APPROVAL: 1, BLOCKED: 2, ANSWER_ONLY: 1, SCHEDULE_READY: 0 }, ownerApprovals: 1, pauses: 1, movedOut: { USD: "150", BDT: "0" }, savedToSavings: { USD: "50", BDT: "0" }, blockedValue: { USD: "600", BDT: "0" }, attackLab: { runs: 11, blocked: 11 }, estimatedMinutesSaved: 12.5, lastActivity: "2026-10-16T09:30:00.000Z" },
+  live: { decisions: 7, routes: { EXECUTED: 3, NEEDS_APPROVAL: 1, BLOCKED: 2, ANSWER_ONLY: 1, SCHEDULE_READY: 0 }, ownerApprovals: 1, pauses: 1, currencies: [{ code: "USD", name: "US dollar (demo units)" }, { code: "CNY", name: "Chinese yuan (demo units)", disclaimer: CNY_DISCLAIMER }], movedOut: { USD: "150", CNY: "0" }, savedToSavings: { USD: "50", CNY: "0" }, blockedValue: { USD: "600", CNY: "0" }, attackLab: { runs: 11, blocked: 11 }, estimatedMinutesSaved: 12.5, lastActivity: "2026-10-16T09:30:00.000Z" },
 };
 const proofHash = `0x${"b".repeat(64)}`;
 const attacks = Array.from({ length: 11 }, (_, index) => ({ id: `A${index + 1}`, title: `Safety scenario ${index + 1}`, description: "Synthetic adversarial scenario", status: "READY", directProofRequired: [2, 3, 6, 7, 8, 9, 10].includes(index + 1) }));
@@ -117,4 +118,12 @@ test("shows evaluation targets and live audit counts on the Value Dashboard", as
   await expect(page.getByTestId("eval-scenarios")).toContainText("N01");
   await expect(page.getByTestId("live-metrics")).toContainText("150 USD");
   await expect(page.getByTestId("live-metrics")).toContainText("11/11");
+});
+
+test("shows the CNY disclaimer wherever CNY demo balances appear", async ({ page }) => {
+  await page.goto("/#/");
+  await expect(page.getByText("CNY available")).toBeVisible();
+  await expect(page.getByTestId("currency-disclaimer").first()).toHaveText(CNY_DISCLAIMER);
+  await page.goto("/#/value");
+  await expect(page.getByTestId("live-metrics").getByTestId("currency-disclaimer")).toHaveText(CNY_DISCLAIMER);
 });

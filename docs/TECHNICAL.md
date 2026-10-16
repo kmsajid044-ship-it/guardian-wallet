@@ -1,6 +1,8 @@
 # Technical design
 
-Guardian Wallet is a research prototype with USD and BDT demo balances on a simulated ledger, running on a permissioned chain operated by the team (local FISCO BCOS v3.16.4, four nodes, PBFT, chain ID 1337). There is no real money. The full specification is [SPEC.md](../SPEC.md); this document explains the architecture, the core algorithms, and the security design.
+Guardian Wallet is a research prototype with USD and CNY demo balances on a simulated ledger, running on a permissioned chain operated by the team (local FISCO BCOS v3.16.4, four nodes, PBFT, chain ID 1337). There is no real money. The full specification is [SPEC.md](../SPEC.md); this document explains the architecture, the core algorithms, and the security design.
+
+> Simulated demo units denominated in CNY for illustration. No value, not issued, not redeemable, not a digital currency, not linked to e-CNY.
 
 ## Architecture
 
@@ -34,7 +36,7 @@ flowchart TB
   intel -. verifies fee receipt .-> chain
 
   subgraph chain[Local FISCO BCOS · 4 nodes · PBFT]
-    gw[GuardianWallet<br/>policy controller] -->|only controller| ledger[DemoLedger<br/>USD and BDT demo units]
+    gw[GuardianWallet<br/>policy controller] -->|only controller| ledger[DemoLedger<br/>demo units by ISO code<br/>default USD and CNY]
   end
 ```
 
@@ -42,7 +44,7 @@ flowchart TB
 - **Restricted signers** (`agent/src/exec/`): the only modules that read signing values. The agent signer submits one of the four agent functions and only when the simulation outcome matches the policy route (`exec/executor.ts:38`). The adapter refuses any other signer (`chain/ChainAdapter.ts:157`, `:165`).
 - **Owner signer, local demo only** (`agent/src/exec/ownerExecutor.ts`): signs `approve`, `pause`, `unpause`, `setPolicy`, and `setRecipient` for the owner console. Every `/owner/*` route requires the per-run owner session token in `x-owner-session`, refuses foreign `Origin` and non-loopback `Host` values before parsing the body, and compares the token in constant time (`agent/src/api/ownerSession.ts`). The agent writes a fresh token to git-ignored `.demo/owner-session` (mode 0600) at each start; the Vite dev server serves it at `/__owner-session` only to same-origin requests on a loopback host (`web/owner-session.ts`), so other sites, other localhost ports, and DNS-rebound pages cannot read it. The token is never logged or printed. In production the owner signs in the injected browser wallet and the service holds no owner key.
 - **Contracts** (`contracts/src/`): `GuardianWallet` holds the policy, allowlist, pending approvals, and kill switch; `DemoLedger` holds balances and savings and accepts movements only from its controller, the wallet.
-- **Risk Intel** (`risk-intel/`): synthetic payee checks and a cached USD/BDT FX snapshot, released only after the agent pays a 0.05 USD service fee on-chain and the service verifies that receipt (one use per receipt).
+- **Risk Intel** (`risk-intel/`): synthetic payee checks and an illustrative cached USD/CNY FX snapshot (7.10, not a market rate), released only after the agent pays a 0.05 USD service fee on-chain and the service verifies that receipt (one use per receipt).
 
 ## Core algorithms
 
@@ -121,6 +123,10 @@ A failed check emits `PolicyViolation(intentId, action, reason, amount)` and ret
 
 FISCO BCOS reports `block.timestamp` in milliseconds. Both contracts record `clockScale` at deployment (1000 when the deployment timestamp is at least 1e11, otherwise 1) and divide every timestamp by it, so day buckets, cooldowns, expiry, and the savings year are seconds on both backends (`contracts/test/MillisecondClock.t.sol`).
 
+### Currencies
+
+Demo units are listed in `config/currencies.json` (ISO 4217 code, decimals, display name, seed). `DemoLedger` keys balances by `bytes3` code and exposes `addCurrency` (owner only; three upper-case letters, at most 18 decimals, no duplicates), `isCurrency`, and `currencies()`. Deploy scripts (`contracts/script/CurrencyConfig.sol`) and the agent's deployment path list every configured unit; the agent registry (`agent/src/currency/registry.ts`) supplies the parser's currency pattern, the LLM tool schema's enum, clarifying questions, minor-unit conversion, and the CNY disclaimer. `GuardianWallet` checks `isCurrency` right after the common checks and refuses an unlisted code with `PolicyViolation(UNKNOWN_CURRENCY)`; the pre-check mirrors that position. Service fees are USD only. Limits compare minor units of the payment's currency without FX, so 500 is the per-payment limit in either unit.
+
 ### Invariants I1–I8
 
 Foundry invariant tests (`contracts/test/invariant/`) drive a handler with random payments, unknown-recipient payments, service fees, savings, approvals (late and repeated), pause toggles, guardian resume attempts, agent owner-function probes, and time warps. Latest run: all eight hold over 256 runs and 16,384 calls with 0 reverts.
@@ -134,7 +140,7 @@ Foundry invariant tests (`contracts/test/invariant/`) drive a handler with rando
 | I5 | Savings remain assigned to the wallet account | No other account holds savings; wallet savings ≥ total deposited |
 | I6 | Only the owner changes policy and role configuration | Guardian resume fails; owner unchanged |
 | I7 | The agent cannot escape its four-function surface | Agent calls to owner functions fail; agent unchanged |
-| I8 | Service fees stay within their separate daily budget, in USD only | Fee spending ≤ fee budget; no BDT fees |
+| I8 | Service fees stay within their separate daily budget, in USD only | Fee spending ≤ fee budget; no CNY fees |
 
 ### Audit chain
 
@@ -157,4 +163,4 @@ The agent checks first; the chain enforces again. A layer that fails or is bypas
 | Another user or a web page drives the local owner endpoints | Per-run owner session token, constant-time compare; foreign `Origin` and rebound `Host` refused | Contract `onlyOwner` still applies to the owner key | `api.e2e.test.ts`, `web/owner-session.test.ts` |
 | Signing value leakage | Read only in `src/exec/`; never logged, sent to the LLM, or sent to the browser | — | `exec/key-boundary.test.ts` |
 
-Measured results: [EVAL_REPORT.md](EVAL_REPORT.md) (41 scenarios; 0 unsafe actions; 20 of 20 attacks refused) and [EXECUTION_EVIDENCE.md](EXECUTION_EVIDENCE.md) (98 FISCO BCOS transactions, verified on all four nodes and reproduced on a fresh network).
+Measured results: [EVAL_REPORT.md](EVAL_REPORT.md) (41 scenarios; 0 unsafe actions; 20 of 20 attacks refused) and [EXECUTION_EVIDENCE.md](EXECUTION_EVIDENCE.md) (118 FISCO BCOS transactions, verified on all four nodes and reproduced on a fresh network).

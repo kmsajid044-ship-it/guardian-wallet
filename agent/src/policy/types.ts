@@ -4,11 +4,13 @@ import { z } from "zod";
 const AddressSchema = z.custom<Address>((value) => typeof value === "string" && isAddress(value, { strict: true }));
 const IntentSchema = z.custom<Hex>((value) => typeof value === "string" && isHex(value) && value.length === 66);
 const AmountSchema = z.bigint().nonnegative();
+/** ISO 4217 alphabetic code of a listed demo unit, e.g. "USD" or "CNY". */
+const CurrencySchema = z.string().regex(/^[A-Z]{3}$/);
 
 export const AgentActionSchema = z.discriminatedUnion("kind", [
-  z.object({ kind: z.literal("pay"), currency: z.union([z.literal(0), z.literal(1)]), to: AddressSchema, amount: AmountSchema, intentId: IntentSchema }),
-  z.object({ kind: z.literal("request_approval"), currency: z.union([z.literal(0), z.literal(1)]), to: AddressSchema, amount: AmountSchema, intentId: IntentSchema }),
-  z.object({ kind: z.literal("save"), currency: z.union([z.literal(0), z.literal(1)]), amount: AmountSchema, intentId: IntentSchema }),
+  z.object({ kind: z.literal("pay"), currency: CurrencySchema, to: AddressSchema, amount: AmountSchema, intentId: IntentSchema }),
+  z.object({ kind: z.literal("request_approval"), currency: CurrencySchema, to: AddressSchema, amount: AmountSchema, intentId: IntentSchema }),
+  z.object({ kind: z.literal("save"), currency: CurrencySchema, amount: AmountSchema, intentId: IntentSchema }),
   z.object({ kind: z.literal("service_fee"), amount: AmountSchema, intentId: IntentSchema }),
 ]);
 
@@ -38,6 +40,7 @@ export const policyReasons = [
   "INSUFFICIENT_BALANCE",
   "OVER_OPS_PER_CALL",
   "OVER_OPS_DAILY",
+  "UNKNOWN_CURRENCY",
 ] as const;
 
 export type PolicyReason = (typeof policyReasons)[number];

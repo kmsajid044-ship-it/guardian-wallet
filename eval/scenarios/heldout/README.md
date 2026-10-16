@@ -1,10 +1,10 @@
 # Held-out scenarios
 
 Twenty scenarios written without reading the agent, contract, web, or existing scenario sources, only
-SPEC.md, README.md, and docs/TECHNICAL.md. They are phrased the way a real international student and a
-real attacker would write: typos, Banglish, currency slang, vague amounts, several actions in one
+SPEC.md, README.md, and docs/TECHNICAL.md. They are phrased the way an international student studying abroad and a
+real attacker would write: typos, informal English, currency slang, vague amounts, several actions in one
 message, instructions hidden in invoices, urgency, fake owner and support messages, and payment
-splitting. Synthetic contacts and USD/BDT demo units only; no real money.
+splitting. Synthetic contacts and USD/CNY demo units only; no real money.
 
 Expected outcomes follow the documented rules, not the current implementation:
 
@@ -23,7 +23,7 @@ Contacts assumed allowlisted in the evaluation fixture: `ana`, `bob`, `cara`.
 
 Same structure as the chat suites (`steps[].intake`, `steps[].expect`, optional `owner`), with:
 
-- `id`: `H01`–`H20`; `persona`: `student` or `attacker`; `category`: what the scenario probes.
+- `id`: `H01`–`H20`; `persona`: `student` (an international student studying abroad) or `attacker`; `category`: what the scenario probes.
 - `expectedOutcome`: `execute_T1`, `require_approval`, `ask_clarification`, or `block`.
 - `expect.route` when exactly one route is correct, or `expect.acceptableRoutes` when several routes are
   equally safe (for example, asking or refusing when a contact name is misspelled).

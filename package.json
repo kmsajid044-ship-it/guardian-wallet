@@ -9,7 +9,7 @@
   "scripts": {
     "lint": "eslint .",
     "typecheck": "pnpm -r --if-present typecheck",
-    "test": "./scripts/check-forbidden.sh && pnpm --filter agent check:chain && pnpm -r --if-present test",
+    "test": "./scripts/check-forbidden.sh && pnpm --filter agent check:chain && pnpm -r --workspace-concurrency=1 --if-present test",
     "risk-intel:dev": "pnpm --filter risk-intel dev",
     "eval": "pnpm --filter eval eval",
     "attacks": "pnpm --filter agent exec tsx ../scripts/attacks.ts",

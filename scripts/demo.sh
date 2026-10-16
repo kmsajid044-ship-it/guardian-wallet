@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Start the demo on the local FISCO BCOS network: Risk Intel (8788), agent API (8787), and the
 # owner console (5173). Ctrl-C stops all three. Run `pnpm run setup` first.
-# Research prototype: USD and BDT demo balances on a simulated ledger, no real money.
+# Research prototype: USD and CNY demo balances on a simulated ledger, no real money.
 set -euo pipefail
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"

@@ -24,7 +24,7 @@ Snapshot date: 16 October 2026. This is a research prototype using simulated led
 - Chain reads, policy pre-checks, simulation, restricted-key execution, append-only audit hashing, firewall checks, risk scoring, planning, scheduling, and LLM adapters are implemented under `agent/src/`.
 - Fastify endpoints expose chat, state, pending approvals, plans, schedules, audit entries, and audit verification.
 - `risk-intel/` provides paid synthetic payee checks and an FX snapshot endpoint with ledger-receipt verification.
-- The current FX implementation includes a legacy currency pair outside the newly approved USD/BDT set.
+- The current FX implementation includes a legacy currency pair outside the newly approved USD/CNY set.
 
 ### Web and evaluation
 
@@ -56,7 +56,7 @@ No feature should be deleted during the migration. These areas need renaming, re
 2. **Primary ledger:** add local FISCO BCOS contracts, deployment automation, clients, receipt parsing, and parity tests while retaining local Anvil as the development fallback.
 3. **Contract surface:** map the current four restricted agent operations to exactly `pay`, `requestApproval`, `saveToSavings`, and `payServiceFee`; owner-only arbitrary execution must remain unreachable from the agent identity.
 4. **Money vocabulary:** replace legacy asset and savings-container naming across Solidity, TypeScript, UI, fixtures, generated manifests, tests, and documentation with approved demo-balance and savings terminology.
-5. **Currency model:** expose only USD and BDT demo balances; make FX a read-only cached snapshot and remove the legacy unsupported pair.
+5. **Currency model:** expose only USD and CNY demo balances; make FX a read-only cached snapshot and remove the legacy unsupported pair.
 6. **Risk Intel payment proof:** preserve the operating-budget and receipt-verification behavior while adapting it to the permissioned-chain transaction format.
 7. **Evidence:** replace hosted evidence with reproducible local permissioned-chain receipts and audit hashes.
 8. **Documentation and UI:** migrate legacy remote-network and financial-market language to the approved Topic F wording.

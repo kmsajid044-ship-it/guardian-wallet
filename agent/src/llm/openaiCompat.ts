@@ -26,7 +26,7 @@ export class OpenAiCompatAdapter implements LlmAdapter {
       model: this.model,
       temperature: 0,
       messages: [{ role: "system", content: buildSystemPrompt(contactIds) }, { role: "user", content: buildUserPrompt(intake) }],
-      tools: [{ type: "function", function: { name: "propose_action", description: "Return the single validated wallet action proposal.", parameters: actionProposalJsonSchema } }],
+      tools: [{ type: "function", function: { name: "propose_action", description: "Return the single validated wallet action proposal.", parameters: actionProposalJsonSchema() } }],
       tool_choice: { type: "function", function: { name: "propose_action" } },
       parallel_tool_calls: false,
     });

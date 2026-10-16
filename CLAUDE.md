@@ -1,13 +1,14 @@
 ## HARD RULES (FinTechathon 2026, Topic F)
 1. Never connect to, deploy on, or reference any public blockchain, public testnet or public RPC. Only local FISCO BCOS (primary) and local Anvil (dev/fallback).
-2. Forbidden words anywhere (code, comments, docs, UI, commits): cryptocurrency, crypto asset, stablecoin, token sale, coin, mining, airdrop, faucet, mainnet, trading, yield farming, RMB, CNY, sepolia, Hong Kong stablecoin. "token" only for auth/LLM tokens, never money.
-3. Approved wording: "simulated ledger", "demo units", "USD and BDT demo balances", "no real money", "permissioned chain operated by the team", "research prototype".
-4. Currencies: USD and BDT only. FX rates = read-only cached snapshot.
+2. Forbidden words anywhere (code, comments, docs, UI, commits): cryptocurrency, crypto asset, stablecoin, token sale, coin, mining, airdrop, faucet, mainnet, trading, yield farming, sepolia, Hong Kong stablecoin, digital RMB, e-CNY, pegged. "token" only for auth/LLM tokens, never money. CNY (and RMB) are allowed only as the name of a demo ledger unit; the exact disclaimer in rule 10 is the only permitted use of "e-CNY".
+3. Approved wording: "simulated ledger", "demo units", "USD and CNY demo balances", "no real money", "permissioned chain operated by the team", "research prototype".
+4. Currencies come from config/currencies.json (ISO 4217 code, decimals, name); default USD and CNY. FX rates = read-only cached snapshot.
 5. Never print, log or commit private keys. Keys only in git-ignored .env; .env.example has placeholders.
 6. Agent may call only four contract functions (pay, requestApproval, saveToSavings, payServiceFee). No generic execute.
 7. Every policy violation emits an event, returns BLOCKED, and is recorded with its tx hash.
 8. Work autonomously, no questions. Commit at the end of each task with all tests green. If blocked >45 min, write exact errors to docs/BLOCKERS.md and continue with the rest.
 9. Never delete features to save time.
+10. Every place CNY balances appear (UI, docs, deck text) carries exactly: "Simulated demo units denominated in CNY for illustration. No value, not issued, not redeemable, not a digital currency, not linked to e-CNY."
 
 # CLAUDE.md — Guardian Wallet
 
@@ -17,13 +18,13 @@ Competition entry for the 2026 Shenzhen FinTechathon, International Track, Topic
 
 Core principle: **The LLM proposes. Code verifies. The contract enforces. The human decides above the line.**
 
-The system is a research prototype with USD and BDT demo balances, a simulated ledger, and no real money. Local FISCO BCOS is primary; local Anvil is the development fallback.
+The system is a research prototype with USD and CNY demo balances, a simulated ledger, and no real money. Local FISCO BCOS is primary; local Anvil is the development fallback.
 
 ## Stack
 
 - `contracts/`: Foundry, Solidity, OpenZeppelin access controls
 - `agent/`: Node, strict TypeScript, Fastify, viem, zod, SQLite, scheduler
-- `risk-intel/`: synthetic payee checks and cached USD/BDT FX
+- `risk-intel/`: synthetic payee checks and cached USD/CNY FX
 - `web/`: Vite, React, TypeScript, Tailwind
 - `eval/`: scenario runner
 

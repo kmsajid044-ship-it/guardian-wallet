@@ -7,7 +7,7 @@ import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol
 import {DemoLedger} from "./DemoLedger.sol";
 import {IGuardianWallet} from "./interfaces/IGuardianWallet.sol";
 
-/// @notice Policy controller for USD and BDT demo balances. No real money is represented.
+/// @notice Policy controller for demo balances listed in DemoLedger (default USD and CNY). No real money is represented.
 contract GuardianWallet is IGuardianWallet, Ownable2Step, ReentrancyGuard {
     DemoLedger public immutable ledger;
     address public agent;
@@ -23,6 +23,8 @@ contract GuardianWallet is IGuardianWallet, Ownable2Step, ReentrancyGuard {
     mapping(bytes32 => bool) public usedIntent;
     mapping(uint256 => Pending) private _pendings;
     uint256 public pendingCount;
+    /// @notice Service fees are always booked in USD demo units.
+    bytes3 public constant FEE_CURRENCY = "USD";
     /// @notice Block timestamp units per second: 1 on EVM chains, 1000 on FISCO BCOS, which reports
     ///         milliseconds. Fixed at deployment so every policy duration and the daily bucket are seconds.
     uint256 public immutable clockScale;
@@ -49,12 +51,13 @@ contract GuardianWallet is IGuardianWallet, Ownable2Step, ReentrancyGuard {
         emit PolicyUpdated(policy_);
     }
 
-    function pay(address to, DemoLedger.Currency currency, uint256 amount, bytes32 intentId)
+    function pay(address to, bytes3 currency, uint256 amount, bytes32 intentId)
         external nonReentrant onlyAgent returns (Outcome)
     {
         Action action = Action.PAY;
         Outcome common = _checkCommon(intentId, action, amount);
         if (common == Outcome.BLOCKED) return common;
+        if (!ledger.isCurrency(currency)) return _violation(intentId, action, Reason.UNKNOWN_CURRENCY, amount);
         Recipient storage r = _recipients[to];
         if (!r.allowed) return _violation(intentId, action, Reason.RECIPIENT_NOT_ALLOWED, amount);
         if (_now() < r.activeAfter) return _violation(intentId, action, Reason.RECIPIENT_NOT_ACTIVE, amount);
@@ -66,16 +69,17 @@ contract GuardianWallet is IGuardianWallet, Ownable2Step, ReentrancyGuard {
         usedIntent[intentId] = true;
         _spentToday += amount;
         ledger.move(address(this), to, currency, amount);
-        emit PaymentCompleted(intentId, uint8(currency), to, amount);
+        emit PaymentCompleted(intentId, currency, to, amount);
         return Outcome.EXECUTED;
     }
 
-    function requestApproval(address to, DemoLedger.Currency currency, uint256 amount, bytes32 intentId)
+    function requestApproval(address to, bytes3 currency, uint256 amount, bytes32 intentId)
         external nonReentrant onlyAgent returns (Outcome outcome, uint256 pendingId)
     {
         Action action = Action.REQUEST_APPROVAL;
         Outcome common = _checkCommon(intentId, action, amount);
         if (common == Outcome.BLOCKED) return (common, 0);
+        if (!ledger.isCurrency(currency)) return (_violation(intentId, action, Reason.UNKNOWN_CURRENCY, amount), 0);
         Recipient storage r = _recipients[to];
         if (!r.allowed) return (_violation(intentId, action, Reason.RECIPIENT_NOT_ALLOWED, amount), 0);
         if (_now() < r.activeAfter) return (_violation(intentId, action, Reason.RECIPIENT_NOT_ACTIVE, amount), 0);
@@ -84,21 +88,22 @@ contract GuardianWallet is IGuardianWallet, Ownable2Step, ReentrancyGuard {
         usedIntent[intentId] = true;
         pendingId = ++pendingCount;
         uint64 expiresAt = uint64(_now()) + _policy.pendingExpiry;
-        _pendings[pendingId] = Pending(uint8(currency), to, amount, intentId, uint64(_now()), expiresAt, PendingStatus.PENDING);
-        emit ApprovalRequested(pendingId, intentId, uint8(currency), to, amount, expiresAt);
+        _pendings[pendingId] = Pending(currency, to, amount, intentId, uint64(_now()), expiresAt, PendingStatus.PENDING);
+        emit ApprovalRequested(pendingId, intentId, currency, to, amount, expiresAt);
         return (Outcome.PENDING, pendingId);
     }
 
-    function saveToSavings(DemoLedger.Currency currency, uint256 amount, bytes32 intentId)
+    function saveToSavings(bytes3 currency, uint256 amount, bytes32 intentId)
         external nonReentrant onlyAgent returns (Outcome)
     {
         Action action = Action.SAVE_TO_SAVINGS;
         Outcome common = _checkCommon(intentId, action, amount);
         if (common == Outcome.BLOCKED) return common;
+        if (!ledger.isCurrency(currency)) return _violation(intentId, action, Reason.UNKNOWN_CURRENCY, amount);
         if (ledger.balanceOf(address(this), currency) < amount) return _violation(intentId, action, Reason.INSUFFICIENT_BALANCE, amount);
         usedIntent[intentId] = true;
         ledger.save(address(this), currency, amount);
-        emit SavingsFunded(intentId, uint8(currency), amount);
+        emit SavingsFunded(intentId, currency, amount);
         return Outcome.EXECUTED;
     }
 
@@ -106,13 +111,14 @@ contract GuardianWallet is IGuardianWallet, Ownable2Step, ReentrancyGuard {
         Action action = Action.PAY_SERVICE_FEE;
         Outcome common = _checkCommon(requestId, action, amount);
         if (common == Outcome.BLOCKED) return common;
+        if (!ledger.isCurrency(FEE_CURRENCY)) return _violation(requestId, action, Reason.UNKNOWN_CURRENCY, amount);
         if (amount > _policy.opsPerCallLimit) return _violation(requestId, action, Reason.OVER_OPS_PER_CALL, amount);
         _rollOpsDay();
         if (_opsSpentToday + amount > _policy.opsDailyLimit) return _violation(requestId, action, Reason.OVER_OPS_DAILY, amount);
-        if (ledger.balanceOf(address(this), DemoLedger.Currency.USD) < amount) return _violation(requestId, action, Reason.INSUFFICIENT_BALANCE, amount);
+        if (ledger.balanceOf(address(this), FEE_CURRENCY) < amount) return _violation(requestId, action, Reason.INSUFFICIENT_BALANCE, amount);
         usedIntent[requestId] = true;
         _opsSpentToday += amount;
-        ledger.move(address(this), feeAccount, DemoLedger.Currency.USD, amount);
+        ledger.move(address(this), feeAccount, FEE_CURRENCY, amount);
         emit ServiceFeePaid(requestId, feeAccount, amount);
         return Outcome.EXECUTED;
     }
@@ -124,7 +130,7 @@ contract GuardianWallet is IGuardianWallet, Ownable2Step, ReentrancyGuard {
         Recipient storage r = _recipients[p.to];
         if (!r.allowed) revert PendingNoLongerValid(pendingId, Reason.RECIPIENT_NOT_ALLOWED);
         if (_now() < r.activeAfter) revert PendingNoLongerValid(pendingId, Reason.RECIPIENT_NOT_ACTIVE);
-        DemoLedger.Currency currency = DemoLedger.Currency(p.currency);
+        bytes3 currency = p.currency;
         if (ledger.balanceOf(address(this), currency) < p.amount) revert PendingNoLongerValid(pendingId, Reason.INSUFFICIENT_BALANCE);
         p.status = PendingStatus.EXECUTED;
         _rollDay();
@@ -146,7 +152,7 @@ contract GuardianWallet is IGuardianWallet, Ownable2Step, ReentrancyGuard {
         p.status = PendingStatus.EXPIRED;
         emit PendingExpired(pendingId, p.intentId);
     }
-    function withdrawSavings(DemoLedger.Currency currency, uint256 amount) external onlyOwner { ledger.withdrawSavings(address(this), currency, amount); }
+    function withdrawSavings(bytes3 currency, uint256 amount) external onlyOwner { ledger.withdrawSavings(address(this), currency, amount); }
     function setPolicy(Policy calldata policy_) external onlyOwner { _validatePolicy(policy_); _policy = policy_; emit PolicyUpdated(policy_); }
     function setRecipient(address recipient, bool allowed, string calldata label) external onlyOwner {
         if (recipient == address(0)) revert ZeroAddress();

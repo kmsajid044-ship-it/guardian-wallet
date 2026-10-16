@@ -1,3 +1,4 @@
+import { CNY_DISCLAIMER } from "../currency/registry.js";
 import type { EvidenceRun } from "./runner.js";
 import type { FreshVerification, RunningVerification } from "./verify.js";
 
@@ -11,7 +12,9 @@ export function evidenceMarkdown(run: EvidenceRun, snapshot: SnapshotInfo | unde
   const lines = [
     "# Execution evidence",
     "",
-    "Real transactions on the local FISCO BCOS network, a permissioned chain operated by the team. The ledger is simulated and holds USD and BDT demo balances; there is no real money. Research prototype.",
+    "Real transactions on the local FISCO BCOS network, a permissioned chain operated by the team. The ledger is simulated and holds USD and CNY demo balances; there is no real money. Research prototype.",
+    "",
+    `> ${CNY_DISCLAIMER}`,
     "",
     `- Generated: ${run.generatedAt} by \`scripts/evidence.sh\``,
     `- Network: \`${run.network.backend}\`, chain ID ${run.network.chainId}, ${run.network.clientVersion}, endpoint ${run.network.rpcUrl}`,

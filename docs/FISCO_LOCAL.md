@@ -1,6 +1,6 @@
 # Local FISCO BCOS runtime
 
-This research prototype uses a four-node local FISCO BCOS v3.16.4 Air network as its primary permissioned chain operated by the team. It carries only USD and BDT demo balances and no real money.
+This research prototype uses a four-node local FISCO BCOS v3.16.4 Air network as its primary permissioned chain operated by the team. It carries only USD and CNY demo balances (Simulated demo units denominated in CNY for illustration. No value, not issued, not redeemable, not a digital currency, not linked to e-CNY.) and no real money.
 
 ## Compatibility decision
 

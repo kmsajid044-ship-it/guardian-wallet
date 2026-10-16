@@ -10,6 +10,7 @@ import { AttackExecutor, UNIT, type AttackFixture } from "../exec/attackExecutor
 import { MockAdapter } from "../llm/provider.js";
 import { AgentPipeline, type PipelineResult } from "../pipeline/pipeline.js";
 import { policyReasons } from "../policy/types.js";
+import { fromCurrencyCode } from "../currency/registry.js";
 
 const repoRoot = fileURLToPath(new URL("../../../", import.meta.url));
 const artifactAbi = (name: string): Abi => (JSON.parse(readFileSync(resolve(repoRoot, `contracts/out/${name}.sol/${name}.json`), "utf8")) as { abi: Abi }).abi;
@@ -270,6 +271,8 @@ function defaultLabel(from: string, call: string, to: string) {
 function stringify(value: unknown, role: (value: string) => string): string | boolean {
   if (typeof value === "boolean") return value;
   if (typeof value === "string" && /^0x[0-9a-fA-F]{40}$/.test(value)) return role(value);
+  // bytes3 currency codes (ISO 4217) decode as 0x + 6 hex digits; show the code itself.
+  if (typeof value === "string" && /^0x[0-9a-fA-F]{6}$/.test(value)) { const code = fromCurrencyCode(value); if (/^[A-Z]{3}$/.test(code)) return code; }
   if (typeof value === "bigint" || typeof value === "number") return value.toString();
   if (Array.isArray(value)) return `(${value.map((item) => String(stringify(item, role))).join(", ")})`;
   if (value && typeof value === "object") return `(${Object.entries(value).map(([key, item]) => `${key}: ${String(stringify(item, role))}`).join(", ")})`;

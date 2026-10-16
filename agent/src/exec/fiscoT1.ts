@@ -14,6 +14,7 @@ import {
 } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 import { guardianWalletAbi } from "../chain/abi.js";
+import { toCurrencyCode } from "../currency/registry.js";
 
 const repoRoot = fileURLToPath(new URL("../../../", import.meta.url));
 loadEnvFile({ path: resolve(repoRoot, ".env"), quiet: true });
@@ -42,7 +43,7 @@ const hash = await walletClient.writeContract({
   address: getAddress(deployment.guardianWallet),
   abi: guardianWalletAbi,
   functionName: "pay",
-  args: [getAddress(recipient), 0, 25_000_000n, intentId],
+  args: [getAddress(recipient), toCurrencyCode("USD"), 25_000_000n, intentId],
   gasPrice: 0n,
 });
 process.stderr.write(`Submitted T1 payment: ${hash}\n`);

@@ -1,6 +1,7 @@
 import { getAddress, type Address, type Chain, type PublicClient, type Transport } from "viem";
 import { guardianWalletAbi } from "../chain/abi.js";
 import { AgentActionSchema, type AgentAction } from "../policy/types.js";
+import { toCurrencyCode } from "../currency/registry.js";
 
 export type ContractOutcome = "EXECUTED" | "PENDING" | "BLOCKED";
 export type SimulationResult = { outcome: ContractOutcome; auxiliary: bigint };
@@ -29,7 +30,7 @@ export async function simulateAgentAction(
       account,
       abi: guardianWalletAbi,
       functionName: "pay",
-      args: [action.to, action.currency, action.amount, action.intentId],
+      args: [action.to, toCurrencyCode(action.currency), action.amount, action.intentId],
     });
     return { outcome: normalizeOutcome(result), auxiliary: 0n };
   }
@@ -39,7 +40,7 @@ export async function simulateAgentAction(
       account,
       abi: guardianWalletAbi,
       functionName: "requestApproval",
-      args: [action.to, action.currency, action.amount, action.intentId],
+      args: [action.to, toCurrencyCode(action.currency), action.amount, action.intentId],
     });
     return { outcome: normalizeOutcome(result[0]), auxiliary: result[1] };
   }
@@ -49,7 +50,7 @@ export async function simulateAgentAction(
     account,
     abi: guardianWalletAbi,
     functionName,
-    args: action.kind === "save" ? [action.currency, action.amount, action.intentId] : [action.amount, action.intentId],
+    args: action.kind === "save" ? [toCurrencyCode(action.currency), action.amount, action.intentId] : [action.amount, action.intentId],
   });
   return { outcome: normalizeOutcome(result), auxiliary: 0n };
 }

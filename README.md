@@ -9,16 +9,18 @@ A research prototype for the 2026 Shenzhen FinTechathon, International Track, To
 - The `GuardianWallet` contract enforces the same policy again on-chain, so even a fully compromised agent key cannot exceed a limit, pay an unknown recipient, resume a paused wallet, or change its own policy.
 - Payments of 200 USD or more wait for the owner. The owner or guardian can pause everything at any time; only the owner can resume.
 
-It runs on a four-node local FISCO BCOS network, a permissioned chain operated by the team, with USD and BDT demo balances on a simulated ledger. There is no real money.
+It runs on a four-node local FISCO BCOS network, a permissioned chain operated by the team, with USD and CNY demo balances on a simulated ledger. There is no real money.
+
+> Simulated demo units denominated in CNY for illustration. No value, not issued, not redeemable, not a digital currency, not linked to e-CNY.
 
 ## Results
 
 | What | Result | Source |
 |---|---|---|
 | Evaluation, 41 scenarios on FISCO BCOS | Task success 100% (41/41), unsafe action rate 0% (0/41), attack block rate 100% (20/20), clarification accuracy 100% (9/9) | [docs/EVAL_REPORT.md](docs/EVAL_REPORT.md) |
-| Agent latency | 275 ms average, 622 ms p95 over 31 agent requests, including on-chain confirmation | [docs/EVAL_REPORT.md](docs/EVAL_REPORT.md) |
+| Agent latency | 233 ms average, 625 ms p95 over 33 agent requests, including on-chain confirmation | [docs/EVAL_REPORT.md](docs/EVAL_REPORT.md) |
 | Estimated owner time saved | 41.9 min over 12 owner tasks, 3.49 min per task (an estimate against stated manual baselines) | [docs/EVAL_REPORT.md](docs/EVAL_REPORT.md) |
-| On-chain evidence | 98 FISCO BCOS transactions with receipts; all 98 re-verified on all four nodes; a fresh-network replay reproduced 16/16 scenarios and 98/98 transaction effects | [docs/EXECUTION_EVIDENCE.md](docs/EXECUTION_EVIDENCE.md) |
+| On-chain evidence | 118 FISCO BCOS transactions with receipts; all 118 re-verified on all four nodes; a fresh-network replay reproduced 16/16 scenarios and 118/118 transaction effects | [docs/EXECUTION_EVIDENCE.md](docs/EXECUTION_EVIDENCE.md) |
 | Attack Lab | 11 of 11 attacks blocked; A2, A3, A6, A7, A8, A9, and A10 also refused when sent straight to the contract | [docs/ATTACK_LAB_EVIDENCE.md](docs/ATTACK_LAB_EVIDENCE.md) |
 
 The evaluation uses the deterministic proposal parser, so it measures the code that verifies, enforces, and routes proposals rather than a language model's understanding; see the report's scope section.
@@ -43,10 +45,14 @@ Open http://127.0.0.1:5173.
 
 1. **Chat** `Pay ana 50 USD`: firewall, policy pre-check, simulation, risk score, tier T1, executed. The transaction hash and block appear in the pipeline view and the audit log.
 2. **Chat** `Pay ana 250 USD`: 250 is at or above the 200 approval line, so it becomes a T2 pending approval. Approve it in the inbox; the owner's `approve()` executes it.
-3. **Chat** `Pay ana`: the agent asks "How much USD or BDT should I pay contact ana?" instead of guessing.
+3. **Chat** `Pay ana`: the agent asks "How much USD or CNY should I pay contact ana?" instead of guessing.
 4. **Attack Lab**, Run all 11: prompt injection, over-limit, split payments, unknown recipient, cooldown swap, approval replay, expired approval, agent resume, raw contract bypass, policy change, and owner impersonation, each with the layer that stopped it and its transaction hash or revert.
 5. **Kill switch**: pause, watch a payment be refused with `PAUSED`, resume (owner only).
 6. **Value Dashboard**: the evaluation targets and live counts from the audit log.
+
+## Currencies
+
+Demo units come from [`config/currencies.json`](config/currencies.json): ISO 4217 code, decimals, display name, and the seed amount minted at setup. The default is USD and CNY. `DemoLedger` stores balances by currency code and lists units through the owner-only `addCurrency`; deployment, the agent, the parser, the web console, and the evaluation all read the same file, so adding an entry adds a currency without code changes (proven by `test_thirdCurrencyWorksWithoutCodeChanges` and `agent/src/exec/currency.e2e.test.ts`, which pays in SGD). Service fees are always USD. Policy limits are compared in minor units of the payment's currency, with no FX conversion.
 
 ## Deployment
 
@@ -86,7 +92,7 @@ pnpm licenses:doc                   # regenerate docs/LICENSES.md from the insta
 contracts/   Solidity: GuardianWallet (policy controller) and DemoLedger (simulated ledger); Foundry tests
 agent/       TypeScript service: LLM adapters, firewall, policy pre-check, simulation, risk score,
              tier gate, restricted signers (src/exec/), planner, scheduler, audit chain, Attack Lab, HTTP API
-risk-intel/  Synthetic payee checks and a cached USD/BDT FX snapshot, released after a verified fee receipt
+risk-intel/  Synthetic payee checks and a cached USD/CNY FX snapshot, released after a verified fee receipt
 web/         Owner console: chat, approvals, policy, kill switch, Attack Lab, Value Dashboard
 eval/        Evaluation scenarios (eval/scenarios/*.yaml) and harness
 evidence/    Exported FISCO BCOS receipts, evidence.json, and a node data snapshot
@@ -98,7 +104,8 @@ Design: [SPEC.md](SPEC.md) and [docs/TECHNICAL.md](docs/TECHNICAL.md). Security:
 
 ## Compliance note
 
-- Research prototype. Simulated ledger with USD and BDT demo balances only; demo units have no value and there is no real money.
+- Research prototype. Simulated ledger with USD and CNY demo balances only; demo units have no value and there is no real money.
+- CNY balances: Simulated demo units denominated in CNY for illustration. No value, not issued, not redeemable, not a digital currency, not linked to e-CNY.
 - Runs only on a permissioned chain operated by the team (local FISCO BCOS) or a local development chain (Anvil). The code never connects to an external chain or RPC endpoint, and startup rejects non-loopback endpoints.
 - FX is a read-only cached snapshot shown for reference; no amount is computed from it.
 - All contacts, payees, and risk results are synthetic.

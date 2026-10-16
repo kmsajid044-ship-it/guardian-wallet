@@ -8,7 +8,7 @@ import {IGuardianWallet} from "../src/interfaces/IGuardianWallet.sol";
 contract GuardianWalletTest is GuardianWalletBase {
     function test_payExecutesBelowThreshold() public {
         assertEq(uint8(_pay(ana, 100 * UNIT, _id("pay"))), uint8(IGuardianWallet.Outcome.EXECUTED));
-        assertEq(ledger.balanceOf(ana, DemoLedger.Currency.USD), 100 * UNIT);
+        assertEq(ledger.balanceOf(ana, USD), 100 * UNIT);
     }
     function test_payAboveThresholdIsBlockedAndDoesNotRevert() public {
         vm.expectEmit(true, false, false, true);
@@ -19,7 +19,7 @@ contract GuardianWalletTest is GuardianWalletBase {
         (IGuardianWallet.Outcome result, uint256 id) = _request(ana, 300 * UNIT, _id("approval"));
         assertEq(uint8(result), uint8(IGuardianWallet.Outcome.PENDING));
         vm.prank(owner); wallet.approve(id);
-        assertEq(ledger.balanceOf(ana, DemoLedger.Currency.USD), 300 * UNIT);
+        assertEq(ledger.balanceOf(ana, USD), 300 * UNIT);
         vm.prank(owner); vm.expectRevert(); wallet.approve(id);
     }
     function test_pendingCannotExecuteAfterExpiry() public {
@@ -42,15 +42,15 @@ contract GuardianWalletTest is GuardianWalletBase {
         assertEq(uint8(_pay(ana, 10 * UNIT, _id("next"))), uint8(IGuardianWallet.Outcome.EXECUTED));
     }
     function test_saveToSavingsAndOwnerWithdraw() public {
-        vm.prank(agent); assertEq(uint8(wallet.saveToSavings(DemoLedger.Currency.USD, 1_000 * UNIT, _id("save"))), uint8(IGuardianWallet.Outcome.EXECUTED));
-        assertEq(ledger.savingsBalance(address(wallet), DemoLedger.Currency.USD), 1_000 * UNIT);
+        vm.prank(agent); assertEq(uint8(wallet.saveToSavings(USD, 1_000 * UNIT, _id("save"))), uint8(IGuardianWallet.Outcome.EXECUTED));
+        assertEq(ledger.savingsBalance(address(wallet), USD), 1_000 * UNIT);
         vm.warp(block.timestamp + 365 days);
-        vm.prank(owner); wallet.withdrawSavings(DemoLedger.Currency.USD, 50 * UNIT);
-        assertEq(ledger.savingsBalance(address(wallet), DemoLedger.Currency.USD), 1_000 * UNIT);
+        vm.prank(owner); wallet.withdrawSavings(USD, 50 * UNIT);
+        assertEq(ledger.savingsBalance(address(wallet), USD), 1_000 * UNIT);
     }
     function test_payServiceFeeUsesSeparateBudget() public {
         vm.prank(agent); assertEq(uint8(wallet.payServiceFee(50_000, _id("fee"))), uint8(IGuardianWallet.Outcome.EXECUTED));
-        assertEq(ledger.balanceOf(feeAccount, DemoLedger.Currency.USD), 50_000);
+        assertEq(ledger.balanceOf(feeAccount, USD), 50_000);
         assertEq(wallet.spentToday(), 0); assertEq(wallet.opsSpentToday(), 50_000);
     }
     function test_pauseRolesAndOwnerOnlyUnpause() public {
@@ -61,9 +61,9 @@ contract GuardianWalletTest is GuardianWalletBase {
         assertEq(uint8(_pay(ana, UNIT, _id("resumed"))), uint8(IGuardianWallet.Outcome.EXECUTED));
     }
     function test_onlyAgentCanCallFourFunctions() public {
-        vm.expectRevert(IGuardianWallet.NotAgent.selector); wallet.pay(ana, DemoLedger.Currency.USD, 1, _id("1"));
-        vm.expectRevert(IGuardianWallet.NotAgent.selector); wallet.requestApproval(ana, DemoLedger.Currency.USD, 200 * UNIT, _id("2"));
-        vm.expectRevert(IGuardianWallet.NotAgent.selector); wallet.saveToSavings(DemoLedger.Currency.USD, 1, _id("3"));
+        vm.expectRevert(IGuardianWallet.NotAgent.selector); wallet.pay(ana, USD, 1, _id("1"));
+        vm.expectRevert(IGuardianWallet.NotAgent.selector); wallet.requestApproval(ana, USD, 200 * UNIT, _id("2"));
+        vm.expectRevert(IGuardianWallet.NotAgent.selector); wallet.saveToSavings(USD, 1, _id("3"));
         vm.expectRevert(IGuardianWallet.NotAgent.selector); wallet.payServiceFee(1, _id("4"));
     }
     function testFuzz_payNeverExceedsPerTransfer(uint256 amount) public {
@@ -95,8 +95,8 @@ contract GuardianWalletTest is GuardianWalletBase {
         for(uint256 i;i<5;i++) _pay(ana,199*UNIT,bytes32(100+i)); assertEq(uint8(_pay(ana,10*UNIT,_id("daily"))),uint8(IGuardianWallet.Outcome.BLOCKED));
     }
     function test_violation_INSUFFICIENT_BALANCE() public {
-        vm.startPrank(owner); ledger.mint(address(wallet),DemoLedger.Currency.USD,0); vm.stopPrank();
-        vm.prank(agent); wallet.saveToSavings(DemoLedger.Currency.USD,4_999*UNIT,_id("park"));
+        vm.startPrank(owner); ledger.mint(address(wallet),USD,0); vm.stopPrank();
+        vm.prank(agent); wallet.saveToSavings(USD,4_999*UNIT,_id("park"));
         assertEq(uint8(_pay(ana,2*UNIT,_id("empty"))),uint8(IGuardianWallet.Outcome.BLOCKED));
     }
     function test_violation_OVER_OPS_PER_CALL() public { vm.prank(agent); assertEq(uint8(wallet.payServiceFee(100_001,_id("fee-cap"))),uint8(IGuardianWallet.Outcome.BLOCKED)); }
@@ -107,8 +107,8 @@ contract GuardianWalletTest is GuardianWalletBase {
     function test_allAgentFunctionsBlockedWhilePaused() public {
         vm.prank(owner);wallet.pause();
         assertEq(uint8(_pay(ana,UNIT,_id("p1"))),uint8(IGuardianWallet.Outcome.BLOCKED));
-        vm.prank(agent);(IGuardianWallet.Outcome approvalResult,)=wallet.requestApproval(ana,DemoLedger.Currency.USD,200*UNIT,_id("p2"));assertEq(uint8(approvalResult),uint8(IGuardianWallet.Outcome.BLOCKED));
-        vm.prank(agent);assertEq(uint8(wallet.saveToSavings(DemoLedger.Currency.USD,UNIT,_id("p3"))),uint8(IGuardianWallet.Outcome.BLOCKED));
+        vm.prank(agent);(IGuardianWallet.Outcome approvalResult,)=wallet.requestApproval(ana,USD,200*UNIT,_id("p2"));assertEq(uint8(approvalResult),uint8(IGuardianWallet.Outcome.BLOCKED));
+        vm.prank(agent);assertEq(uint8(wallet.saveToSavings(USD,UNIT,_id("p3"))),uint8(IGuardianWallet.Outcome.BLOCKED));
         vm.prank(agent);assertEq(uint8(wallet.payServiceFee(1,_id("p4"))),uint8(IGuardianWallet.Outcome.BLOCKED));
     }
     function test_agentCannotCallOwnerFunctions() public {
@@ -122,4 +122,30 @@ contract GuardianWalletTest is GuardianWalletBase {
         vm.expectRevert(); wallet.unpause();
         vm.stopPrank();
     }
+    function test_violation_UNKNOWN_CURRENCY() public {
+        vm.expectEmit(true, false, false, true);
+        emit IGuardianWallet.PolicyViolation(_id("sgd"), IGuardianWallet.Action.PAY, IGuardianWallet.Reason.UNKNOWN_CURRENCY, UNIT);
+        vm.prank(agent); assertEq(uint8(wallet.pay(ana, "SGD", UNIT, _id("sgd"))), uint8(IGuardianWallet.Outcome.BLOCKED));
+        vm.prank(agent); (IGuardianWallet.Outcome requested, uint256 id) = wallet.requestApproval(ana, "SGD", 300 * UNIT, _id("sgd-2"));
+        assertEq(uint8(requested), uint8(IGuardianWallet.Outcome.BLOCKED)); assertEq(id, 0);
+        vm.prank(agent); assertEq(uint8(wallet.saveToSavings("SGD", UNIT, _id("sgd-3"))), uint8(IGuardianWallet.Outcome.BLOCKED));
+    }
+    /// @notice A third currency needs only an owner registry entry: no contract change.
+    function test_thirdCurrencyWorksWithoutCodeChanges() public {
+        vm.startPrank(owner);
+        ledger.addCurrency("SGD", 6, "Singapore dollar (demo units)");
+        ledger.mint(address(wallet), "SGD", 1_000 * UNIT);
+        vm.stopPrank();
+        vm.prank(agent); assertEq(uint8(wallet.pay(ana, "SGD", 50 * UNIT, _id("sgd-pay"))), uint8(IGuardianWallet.Outcome.EXECUTED));
+        assertEq(ledger.balanceOf(ana, "SGD"), 50 * UNIT);
+        vm.prank(agent); (, uint256 pendingId) = wallet.requestApproval(ana, "SGD", 250 * UNIT, _id("sgd-approval"));
+        assertEq(wallet.getPending(pendingId).currency, bytes3("SGD"));
+        vm.prank(owner); wallet.approve(pendingId);
+        assertEq(ledger.balanceOf(ana, "SGD"), 300 * UNIT);
+    }
+    function test_cnyPaymentsUseTheirOwnBalance() public {
+        assertEq(uint8(_payIn(CNY, ana, 120 * UNIT, _id("cny"))), uint8(IGuardianWallet.Outcome.EXECUTED));
+        assertEq(ledger.balanceOf(ana, CNY), 120 * UNIT); assertEq(ledger.balanceOf(ana, USD), 0);
+    }
+    function _payIn(bytes3 currency, address to, uint256 amount, bytes32 id) internal returns (IGuardianWallet.Outcome) { vm.prank(agent); return wallet.pay(to, currency, amount, id); }
 }

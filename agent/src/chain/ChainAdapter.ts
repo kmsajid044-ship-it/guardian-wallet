@@ -28,9 +28,11 @@ import {
   guardianWalletConstructorAbi,
 } from "./abi.js";
 import { GuardianReader } from "./reader.js";
+import { currencies, currencyCodes, toCurrencyCode } from "../currency/registry.js";
 
 export type ChainBackend = Config["CHAIN_BACKEND"];
-export type BalanceSnapshot = { USD: { available: bigint; savings: bigint }; BDT: { available: bigint; savings: bigint } };
+/** Per-currency balances keyed by ISO 4217 code. */
+export type BalanceSnapshot = Record<string, { available: bigint; savings: bigint }>;
 export type PolicySnapshot = Policy & { paused: boolean; spentToday: bigint; opsSpentToday: bigint };
 export type Receipt = { transactionHash: Hex; blockNumber: bigint; status: "success" | "reverted"; from: Address; to: Address | null; gasUsed: bigint };
 export type ChainEvent = { transactionHash: Hex | null; blockNumber: bigint | null; name: string; args: Readonly<Record<string, unknown>> };
@@ -41,13 +43,14 @@ export type OwnerAction =
   | { kind: "reject"; pendingId: bigint }
   | { kind: "pause" }
   | { kind: "unpause" }
-  | { kind: "withdraw_savings"; currency: 0 | 1; amount: bigint }
+  | { kind: "withdraw_savings"; currency: string; amount: bigint }
   | { kind: "set_policy"; policy: Policy }
   | { kind: "set_recipient"; recipient: Address; allowed: boolean; label: string }
   | { kind: "set_fee_account"; account: Address }
   | { kind: "set_agent"; account: Address }
   | { kind: "set_guardian"; account: Address }
-  | { kind: "mint"; account: Address; currency: 0 | 1; amount: bigint };
+  | { kind: "mint"; account: Address; currency: string; amount: bigint }
+  | { kind: "add_currency"; currency: string; decimals: number; name: string };
 
 export type DeployRequest = {
   owner: Account;
@@ -131,6 +134,11 @@ class ViemChainAdapter implements ChainAdapter {
     // The deployment is usable only once the ledger accepts the wallet as its controller.
     const controllerReceipt = await this.client.waitForTransactionReceipt({ hash: await this.writeLedger("setController", [getAddress(this.deployment.guardianWallet)], request.owner) });
     if (controllerReceipt.status !== "success") throw new Error("DemoLedger controller assignment failed");
+    // List every configured demo unit (config/currencies.json) before the deployment is used.
+    for (const unit of currencies()) {
+      const listed = await this.client.waitForTransactionReceipt({ hash: await this.writeLedger("addCurrency", [toCurrencyCode(unit.code), unit.decimals, unit.name], request.owner) });
+      if (listed.status !== "success") throw new Error(`listing ${unit.code} failed`);
+    }
     return this.deployment;
   }
 
@@ -142,13 +150,12 @@ class ViemChainAdapter implements ChainAdapter {
   async readBalances(account?: Address): Promise<BalanceSnapshot> {
     const deployment = this.requireDeployment();
     const target = getAddress(account ?? deployment.guardianWallet);
-    const read = async (functionName: "balanceOf" | "savingsBalance", currency: 0 | 1) => this.client.readContract({
-      address: getAddress(deployment.demoLedger), abi: demoLedgerAbi, functionName, args: [target, currency],
+    const read = async (functionName: "balanceOf" | "savingsBalance", code: string) => this.client.readContract({
+      address: getAddress(deployment.demoLedger), abi: demoLedgerAbi, functionName, args: [target, toCurrencyCode(code)],
     });
-    return {
-      USD: { available: await read("balanceOf", 0), savings: await read("savingsBalance", 0) },
-      BDT: { available: await read("balanceOf", 1), savings: await read("savingsBalance", 1) },
-    };
+    const snapshot: BalanceSnapshot = {};
+    for (const code of currencyCodes()) snapshot[code] = { available: await read("balanceOf", code), savings: await read("savingsBalance", code) };
+    return snapshot;
   }
 
   async sendAgentTx(rawAction: AgentAction, signer: Account): Promise<Hex> {
@@ -163,7 +170,8 @@ class ViemChainAdapter implements ChainAdapter {
   async ownerTx(action: OwnerAction, signer: Account): Promise<Hex> {
     const deployment = this.requireDeployment();
     if (getAddress(signer.address) !== getAddress(deployment.owner)) throw new Error("signer is not the configured owner");
-    if (action.kind === "mint") return this.writeLedger("mint", [action.account, action.currency, action.amount], signer);
+    if (action.kind === "mint") return this.writeLedger("mint", [action.account, toCurrencyCode(action.currency), action.amount], signer);
+    if (action.kind === "add_currency") return this.writeLedger("addCurrency", [toCurrencyCode(action.currency), action.decimals, action.name], signer);
     const call = ownerCall(action);
     const data = encodeFunctionData({ abi: guardianWalletAbi, ...call });
     return this.withNonceRetry(() => this.wallet(signer).sendTransaction({ to: getAddress(deployment.guardianWallet), data, ...this.transactionOptions() }));
@@ -219,7 +227,7 @@ class ViemChainAdapter implements ChainAdapter {
     return this.backend === "fisco" ? { gasPrice: 0n } : {};
   }
 
-  private async writeLedger(functionName: "setController" | "mint", args: readonly [Address] | readonly [Address, 0 | 1, bigint], signer: Account): Promise<Hex> {
+  private async writeLedger(functionName: "setController" | "mint" | "addCurrency", args: readonly [Address] | readonly [Address, Hex, bigint] | readonly [Hex, number, string], signer: Account): Promise<Hex> {
     const deployment = this.requireDeployment();
     return this.withNonceRetry(() => this.wallet(signer).writeContract({ address: getAddress(deployment.demoLedger), abi: demoLedgerAbi, functionName, args: args as never, ...this.transactionOptions() }));
   }
@@ -242,19 +250,19 @@ export function isNonceRejection(error: unknown): boolean {
 }
 
 function agentCall(action: AgentAction) {
-  if (action.kind === "pay") return { functionName: "pay" as const, args: [action.to, action.currency, action.amount, action.intentId] as const };
-  if (action.kind === "request_approval") return { functionName: "requestApproval" as const, args: [action.to, action.currency, action.amount, action.intentId] as const };
-  if (action.kind === "save") return { functionName: "saveToSavings" as const, args: [action.currency, action.amount, action.intentId] as const };
+  if (action.kind === "pay") return { functionName: "pay" as const, args: [action.to, toCurrencyCode(action.currency), action.amount, action.intentId] as const };
+  if (action.kind === "request_approval") return { functionName: "requestApproval" as const, args: [action.to, toCurrencyCode(action.currency), action.amount, action.intentId] as const };
+  if (action.kind === "save") return { functionName: "saveToSavings" as const, args: [toCurrencyCode(action.currency), action.amount, action.intentId] as const };
   return { functionName: "payServiceFee" as const, args: [action.amount, action.intentId] as const };
 }
 
-function ownerCall(action: Exclude<OwnerAction, { kind: "mint" }>) {
+function ownerCall(action: Exclude<OwnerAction, { kind: "mint" } | { kind: "add_currency" }>) {
   switch (action.kind) {
     case "approve": return { functionName: "approve" as const, args: [action.pendingId] as const };
     case "reject": return { functionName: "reject" as const, args: [action.pendingId] as const };
     case "pause": return { functionName: "pause" as const, args: [] as const };
     case "unpause": return { functionName: "unpause" as const, args: [] as const };
-    case "withdraw_savings": return { functionName: "withdrawSavings" as const, args: [action.currency, action.amount] as const };
+    case "withdraw_savings": return { functionName: "withdrawSavings" as const, args: [toCurrencyCode(action.currency), action.amount] as const };
     case "set_policy": return { functionName: "setPolicy" as const, args: [action.policy] as const };
     case "set_recipient": return { functionName: "setRecipient" as const, args: [action.recipient, action.allowed, action.label] as const };
     case "set_fee_account": return { functionName: "setFeeAccount" as const, args: [action.account] as const };

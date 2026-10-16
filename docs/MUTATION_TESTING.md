@@ -19,6 +19,6 @@ Each mutation was applied temporarily, the named test or invariant was observed 
 | Demo balance moved by a non-controller | `test_balancesMoveOnlyThroughController` | Direct unauthorized ledger movement is attempted explicitly. |
 | Mint permission removed | `test_mintOnlyOwner` | A non-owner mint attempt is retained. |
 | Savings interest omitted from reads | `test_savingsSimpleInterestComputedOnRead` | Test advances exactly one model year and checks fixed simple interest. |
-| USD and BDT storage aliased | `testFuzz_currencyBalancesAreIndependent` | Independent randomized values are minted and compared. |
+| USD and CNY storage aliased | `testFuzz_currencyBalancesAreIndependent` | Independent randomized values are minted and compared. |
 
 Latest result: all contract tests pass and invariants I1–I8 pass with 256 runs and 16,384 calls.

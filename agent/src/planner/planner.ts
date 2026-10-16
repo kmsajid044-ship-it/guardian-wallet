@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { z } from "zod";
 import type { AuditLog, JsonValue } from "../audit/audit.js";
+import { currencyCodes } from "../currency/registry.js";
 import { ActionProposalSchema, type ActionProposal } from "../llm/actionProposal.js";
 import { parseWithMock, type Intake } from "../llm/mock.js";
 import type { PipelineResult } from "../pipeline/pipeline.js";
@@ -19,11 +20,12 @@ export class PlanManager {
   constructor(private readonly runner: ActionRunner, private readonly audit: AuditLog) {}
 
   create(message: string, source: Intake["source"] = "trusted", sourceRefs: string[] = []): Plan {
-    const tuition = message.match(/^pay my ([a-z][a-z0-9_-]*) of ([0-9][0-9,]*(?:\.[0-9]{1,6})?) (usd|bdt) this month but keep ([0-9][0-9,]*(?:\.[0-9]{1,6})?) (?:usd|bdt) in savings$/i);
+    const cur = `(${currencyCodes().join("|")})`;
+    const tuition = message.match(new RegExp(`^pay my ([a-z][a-z0-9_-]*) of ([0-9][0-9,]*(?:\\.[0-9]{1,6})?) ${cur} this month but keep ([0-9][0-9,]*(?:\\.[0-9]{1,6})?) ${cur} in savings$`, "i"));
     if (tuition) {
-      const currency = tuition[3]!.toUpperCase() as "USD" | "BDT";
+      const currency = tuition[3]!.toUpperCase();
       return this.storeDraft([
-        { kind: "save", currency, amount: tuition[4]!.replaceAll(",", ""), reason: "Keep the requested amount in savings", sourceRefs },
+        { kind: "save", currency: tuition[5]!.toUpperCase(), amount: tuition[4]!.replaceAll(",", ""), reason: "Keep the requested amount in savings", sourceRefs },
         { kind: "pay", currency, recipientContactId: tuition[1]!.toLowerCase(), amount: tuition[2]!.replaceAll(",", ""), reason: "Pay the requested monthly expense", sourceRefs },
       ], source);
     }

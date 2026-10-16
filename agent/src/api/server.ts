@@ -15,6 +15,7 @@ import type { RiskIntelGateway } from "../riskIntel/client.js";
 import { AttackLab } from "../attack/attackLab.js";
 import { attackIds, type AttackId } from "../attack/types.js";
 import { readEvalSummary } from "../value/evalSummary.js";
+import { isCurrencyCode } from "../currency/registry.js";
 import { liveValueMetrics } from "../value/valueMetrics.js";
 import { z } from "zod";
 import { createOwnerSessionGuard } from "./ownerSession.js";
@@ -45,7 +46,7 @@ const PlanEditSchema = z.object({ steps: PlanStepsSchema }).strict();
 const RecurringCreateSchema = z.object({
   contactId: z.string().regex(/^[a-z][a-z0-9_-]*$/i),
   amount: z.string().regex(/^(?:0|[1-9][0-9]*)(?:\.[0-9]{1,6})?$/),
-  currency: z.enum(["USD", "BDT"]).default("USD"),
+  currency: z.string().regex(/^[A-Z]{3}$/).refine(isCurrencyCode, "not a configured demo unit").default("USD"),
   intervalSeconds: z.number().int().min(60),
   nextRunAt: z.number().int().nonnegative().optional(),
 }).strict();

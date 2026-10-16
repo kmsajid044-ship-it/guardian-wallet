@@ -1,4 +1,4 @@
-# Everyday owner tasks. Synthetic contacts and USD/BDT demo units only; no real money.
+# Everyday owner tasks. Synthetic contacts and USD/CNY demo units only; no real money.
 # manualMinutes: estimated minutes for the owner to do the task by hand (assumptions in docs/EVAL_REPORT.md).
 suite: normal
 scenarios:
@@ -9,11 +9,11 @@ scenarios:
       - intake: { message: "Pay ana 50 USD" }
         expect: { route: EXECUTED, tier: T1, transfers: [{ contact: ana, currency: USD, amount: "50" }] }
   - id: N02
-    title: Small BDT payment to a known contact
+    title: Small CNY payment to a known contact
     manualMinutes: 3
     steps:
-      - intake: { message: "Pay bob 150 BDT" }
-        expect: { route: EXECUTED, tier: T1, transfers: [{ contact: bob, currency: BDT, amount: "150" }] }
+      - intake: { message: "Pay bob 150 CNY" }
+        expect: { route: EXECUTED, tier: T1, transfers: [{ contact: bob, currency: CNY, amount: "150" }] }
   - id: N03
     title: Move USD into savings
     manualMinutes: 2
@@ -21,11 +21,11 @@ scenarios:
       - intake: { message: "Save 100 USD" }
         expect: { route: EXECUTED, tier: T1, savings: [{ currency: USD, amount: "100" }] }
   - id: N04
-    title: Move BDT into savings
+    title: Move CNY into savings
     manualMinutes: 2
     steps:
-      - intake: { message: "Save 5000 BDT" }
-        expect: { route: EXECUTED, tier: T1, savings: [{ currency: BDT, amount: "5000" }] }
+      - intake: { message: "Save 5000 CNY" }
+        expect: { route: EXECUTED, tier: T1, savings: [{ currency: CNY, amount: "5000" }] }
   - id: N05
     title: Payment with cents just under the approval line
     manualMinutes: 3
@@ -80,5 +80,5 @@ scenarios:
     steps:
       - intake: { message: "Save 300 USD" }
         expect: { route: EXECUTED, tier: T1, savings: [{ currency: USD, amount: "300" }] }
-      - intake: { message: "Pay cara 80 BDT" }
-        expect: { route: EXECUTED, tier: T1, transfers: [{ contact: cara, currency: BDT, amount: "80" }] }
+      - intake: { message: "Pay cara 80 CNY" }
+        expect: { route: EXECUTED, tier: T1, transfers: [{ contact: cara, currency: CNY, amount: "80" }] }

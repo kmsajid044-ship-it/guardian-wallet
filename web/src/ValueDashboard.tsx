@@ -8,7 +8,8 @@ type EvalSummary = {
 };
 type Live = {
   decisions: number; routes: Record<string, number>; ownerApprovals: number; pauses: number;
-  movedOut: Record<"USD" | "BDT", string>; savedToSavings: Record<"USD" | "BDT", string>; blockedValue: Record<"USD" | "BDT", string>;
+  currencies: Array<{ code: string; name: string; disclaimer?: string }>;
+  movedOut: Record<string, string>; savedToSavings: Record<string, string>; blockedValue: Record<string, string>;
   attackLab: { runs: number; blocked: number }; estimatedMinutesSaved: number; lastActivity: string | null;
 };
 export type ValueResponse = { eval: EvalSummary | null; live: Live };
@@ -17,6 +18,8 @@ type Api = <T>(path: string, init?: RequestInit) => Promise<T>;
 const pct = (metric?: Metric) => metric ? `${(metric.value * 100).toFixed(metric.value === 1 || metric.value === 0 ? 0 : 1)}%` : "—";
 const ratio = (metric?: Metric) => metric?.numerator !== undefined ? `${metric.numerator} of ${metric.denominator}` : "";
 const suiteLabel: Record<string, string> = { normal: "Owner tasks", clarification: "Ambiguous requests", attack: "Chat attacks", "attack-lab": "Attack Lab" };
+/** "150 USD · 0 CNY", optionally without one code. */
+const perCurrency = (values: Record<string, string>, except?: string) => Object.entries(values).filter(([code]) => code !== except).map(([code, value]) => `${value} ${code}`).join(" · ");
 const minutes = (value: number) => value >= 60 ? `${(value / 60).toFixed(1)} h` : `${value.toFixed(1)} min`;
 
 export function ValueDashboard({ api }: { api: Api }) {
@@ -78,13 +81,14 @@ export function ValueDashboard({ api }: { api: Api }) {
       <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <Count label="Agent decisions" value={live.decisions} sub={`${live.routes.EXECUTED ?? 0} executed · ${live.routes.SCHEDULE_READY ?? 0} scheduled`} />
         <Count label="Sent for approval" value={live.routes.NEEDS_APPROVAL ?? 0} sub={`${live.ownerApprovals} approved by the owner`} />
-        <Count label="Blocked" value={live.routes.BLOCKED ?? 0} sub={`${live.blockedValue.USD} USD · ${live.blockedValue.BDT} BDT stopped`} />
+        <Count label="Blocked" value={live.routes.BLOCKED ?? 0} sub={`${perCurrency(live.blockedValue)} stopped`} />
         <Count label="Clarifications" value={live.routes.ANSWER_ONLY ?? 0} sub="questions instead of guesses" />
-        <Count label="Paid out" value={`${live.movedOut.USD} USD`} sub={`${live.movedOut.BDT} BDT`} />
-        <Count label="Moved to savings" value={`${live.savedToSavings.USD} USD`} sub={`${live.savedToSavings.BDT} BDT`} />
+        <Count label="Paid out" value={`${live.movedOut.USD ?? "0"} USD`} sub={perCurrency(live.movedOut, "USD") || "—"} />
+        <Count label="Moved to savings" value={`${live.savedToSavings.USD ?? "0"} USD`} sub={perCurrency(live.savedToSavings, "USD") || "—"} />
         <Count label="Attack Lab runs blocked" value={`${live.attackLab.blocked}/${live.attackLab.runs}`} sub={`${live.pauses} kill-switch activations`} />
         <Count label="Estimated time saved" value={minutes(live.estimatedMinutesSaved)} sub="from executed, approval, and scheduled work" />
       </div>
+      {live.currencies.filter((unit) => unit.disclaimer).map((unit) => <p key={unit.code} data-testid="currency-disclaimer" className="mt-4 text-xs leading-5 text-slate-500 dark:text-slate-400">{unit.disclaimer}</p>)}
     </section>}
   </div>;
 }

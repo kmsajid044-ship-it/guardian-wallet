@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # One-command setup: dependencies, test-only local identities, contracts, a four-node local
 # FISCO BCOS network, deployment, and synthetic seed data. Run as `pnpm run setup`.
-# Research prototype: USD and BDT demo balances on a simulated ledger, no real money.
+# Research prototype: USD and CNY demo balances on a simulated ledger, no real money.
 set -euo pipefail
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"

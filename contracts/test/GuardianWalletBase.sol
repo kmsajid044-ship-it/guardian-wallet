@@ -7,6 +7,8 @@ import {IGuardianWallet} from "../src/interfaces/IGuardianWallet.sol";
 
 abstract contract GuardianWalletBase is Test {
     uint256 internal constant UNIT = 1_000_000;
+    bytes3 internal constant USD = "USD";
+    bytes3 internal constant CNY = "CNY";
     address internal owner = makeAddr("owner");
     address internal agent = makeAddr("agent");
     address internal guardian = makeAddr("guardian");
@@ -21,14 +23,16 @@ abstract contract GuardianWalletBase is Test {
         IGuardianWallet.Policy memory policy = IGuardianWallet.Policy(500 * UNIT, 1_000 * UNIT, 200 * UNIT, 10 minutes, 1 days, UNIT / 10, 5 * UNIT);
         wallet = new GuardianWallet(owner, agent, guardian, address(ledger), feeAccount, policy);
         vm.startPrank(owner);
+        ledger.addCurrency(USD, 6, "US dollar (demo units)");
+        ledger.addCurrency(CNY, 6, "Chinese yuan (demo units)");
         ledger.setController(address(wallet));
-        ledger.mint(address(wallet), DemoLedger.Currency.USD, 5_000 * UNIT);
-        ledger.mint(address(wallet), DemoLedger.Currency.BDT, 500_000 * UNIT);
+        ledger.mint(address(wallet), USD, 5_000 * UNIT);
+        ledger.mint(address(wallet), CNY, 35_000 * UNIT);
         wallet.setRecipient(ana, true, "Synthetic contact Ana");
         vm.warp(block.timestamp + 10 minutes);
         vm.stopPrank();
     }
     function _id(string memory label) internal pure returns (bytes32) { return keccak256(bytes(label)); }
-    function _pay(address to, uint256 amount, bytes32 id) internal returns (IGuardianWallet.Outcome result) { vm.prank(agent); return wallet.pay(to, DemoLedger.Currency.USD, amount, id); }
-    function _request(address to, uint256 amount, bytes32 id) internal returns (IGuardianWallet.Outcome result, uint256 pendingId) { vm.prank(agent); return wallet.requestApproval(to, DemoLedger.Currency.USD, amount, id); }
+    function _pay(address to, uint256 amount, bytes32 id) internal returns (IGuardianWallet.Outcome result) { vm.prank(agent); return wallet.pay(to, USD, amount, id); }
+    function _request(address to, uint256 amount, bytes32 id) internal returns (IGuardianWallet.Outcome result, uint256 pendingId) { vm.prank(agent); return wallet.requestApproval(to, USD, amount, id); }
 }

@@ -7,7 +7,7 @@ cd "$repo_root"
 terms=(
   "crypto""currency" "crypto asset" "stable""coin" "token sale" "coin"
   "min""ing" "air""drop" "fauc""et" "main""net" "trad""ing"
-  "yield farming" "R""MB" "C""NY" "sepo""lia" "Hong Kong stable""coin"
+  "yield farming" "sepo""lia" "Hong Kong stable""coin" "digital R""MB" "e-C""NY" "peg""ged"
   "x""402" "US""DC" "E""UR" "E""TH" "ERC""20" "ERC-""20" "ERC""4626" "ERC-""4626"
   "public network" "public-network" "public chain" "public block""chain" "public test""net"
 )
@@ -21,8 +21,10 @@ elif command -v grep >/dev/null 2>&1 && command -v git >/dev/null 2>&1; then sca
 else echo "Forbidden-content check needs rg, or grep and git." >&2; exit 2; fi
 
 repo_files() {
+  # Working-tree view, like ripgrep: tracked files deleted on disk (not yet committed) are skipped.
   git ls-files -z --cached --others --exclude-standard -- . \
-    ':!:node_modules/**' ':!:**/node_modules/**' ':!:contracts/lib/**' ':!:scripts/check-forbidden.sh' "$@"
+    ':!:node_modules/**' ':!:**/node_modules/**' ':!:contracts/lib/**' ':!:scripts/check-forbidden.sh' "$@" |
+    while IFS= read -r -d '' file; do [[ -e "$file" ]] && printf '%s\0' "$file"; done
 }
 
 # search_repo <case-insensitive: 0|1> <pattern> [extra git pathspec excludes...]
@@ -45,16 +47,27 @@ search_stdin() {
   (( $? <= 1 )) || echo "SCAN_ERROR: stdin scan failed"
 }
 
+# The one sanctioned use of an otherwise forbidden phrase: the exact CNY disclaimer (CLAUDE.md rule 10).
+# A hit is dropped only if the term no longer appears once that sentence is removed from the line.
+cny_disclaimer="Simulated demo units denominated in CNY for illustration. No value, not issued, not redeemable, not a digital currency, not linked to e-C""NY."
+drop_exempt() {
+  TERM_RE="$1" EXEMPT="$cny_disclaimer" perl -ne 'if (/SCAN_ERROR/) { print; next } my $l = $_; my $e = quotemeta($ENV{EXEMPT}); $l =~ s/$e//g; print if $l =~ /\b\Q$ENV{TERM_RE}\E\b/i;'
+}
+
+# CLAUDE.md's hard-rule header lists the forbidden terms; scan everything from its body heading on.
+claude_body="$(grep -n '^# CLAUDE.md' CLAUDE.md | head -1 | cut -d: -f1)"
+[[ -n "$claude_body" ]] || { echo "CLAUDE.md body heading not found" >&2; exit 2; }
+
 scan_term() {
   local term="$1"
   local output
-  output="$(search_repo 1 "\\b${term}\\b" ':!:pnpm-lock.yaml' ':!:CLAUDE.md')"
+  output="$(search_repo 1 "\\b${term}\\b" ':!:pnpm-lock.yaml' ':!:CLAUDE.md' | drop_exempt "$term")"
   if [[ -n "$output" ]]; then
     echo "Forbidden content: $term" >&2
     echo "$output" >&2
     failed=1
   fi
-  output="$(tail -n +12 CLAUDE.md | search_stdin "\\b${term}\\b")"
+  output="$(tail -n +"$claude_body" CLAUDE.md | search_stdin "\\b${term}\\b" | drop_exempt "$term")"
   if [[ -n "$output" ]]; then
     echo "Forbidden content in CLAUDE.md body: $term" >&2
     echo "$output" >&2

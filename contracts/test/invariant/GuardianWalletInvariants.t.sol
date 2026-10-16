@@ -15,10 +15,10 @@ contract GuardianWalletInvariants is GuardianWalletBase {
     ///      (the handler never withdraws; interest only adds).
     function invariant_I5_savingsOwnedByWallet() public view {
         address[5] memory others=[owner,agent,guardian,ana,feeAccount];
-        for(uint256 i;i<others.length;i++){assertEq(ledger.savingsBalance(others[i],DemoLedger.Currency.USD),0);assertEq(ledger.savingsBalance(others[i],DemoLedger.Currency.BDT),0);}
-        assertGe(ledger.savingsBalance(address(wallet),DemoLedger.Currency.USD),handler.totalSavedUsd());
+        for(uint256 i;i<others.length;i++){assertEq(ledger.savingsBalance(others[i],USD),0);assertEq(ledger.savingsBalance(others[i],CNY),0);}
+        assertGe(ledger.savingsBalance(address(wallet),USD),handler.totalSavedUsd());
     }
     function invariant_I6_onlyOwnerChangesConfig() public view {assertFalse(handler.unauthorizedChanged());assertEq(wallet.owner(),owner);}
     function invariant_I7_agentLimitedToFourFunctions() public view {assertFalse(handler.agentEscaped());assertEq(wallet.agent(),agent);}
-    function invariant_I8_opsBudgetSeparate() public view {assertLe(wallet.opsSpentToday(),wallet.getPolicy().opsDailyLimit);assertEq(ledger.balanceOf(feeAccount,DemoLedger.Currency.BDT),0);}
+    function invariant_I8_opsBudgetSeparate() public view {assertLe(wallet.opsSpentToday(),wallet.getPolicy().opsDailyLimit);assertEq(ledger.balanceOf(feeAccount,CNY),0);}
 }

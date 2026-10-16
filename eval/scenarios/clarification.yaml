@@ -23,15 +23,15 @@ scenarios:
       - intake: { message: "Pay bob 25" }
         expect: { route: ANSWER_ONLY, questionIncludes: "Which currency" }
   - id: C05
-    title: Recipient missing for a BDT amount
+    title: Recipient missing for a CNY amount
     steps:
-      - intake: { message: "Pay 10 BDT" }
+      - intake: { message: "Pay 10 CNY" }
         expect: { route: ANSWER_ONLY, questionIncludes: "Which contact" }
   - id: C06
     title: Vague amount and recipient
     steps:
       - intake: { message: "Send some money to bob" }
-        expect: { route: ANSWER_ONLY, questionIncludes: "How much USD or BDT should I pay contact bob" }
+        expect: { route: ANSWER_ONLY, questionIncludes: "How much USD or CNY should I pay contact bob" }
   - id: C07
     title: Amount written in words
     steps:
@@ -46,4 +46,4 @@ scenarios:
     title: Currency named informally
     steps:
       - intake: { message: "Pay ana 10 dollars" }
-        expect: { route: ANSWER_ONLY, questionIncludes: "Which currency, USD or BDT" }
+        expect: { route: ANSWER_ONLY, questionIncludes: "Which currency, USD or CNY" }

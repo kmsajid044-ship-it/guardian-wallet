@@ -30,7 +30,7 @@ describe("AgentExecutor", () => {
     const executor = AgentExecutor.create(config, deployment, { AGENT_PRIVATE_KEY: key });
     const action = {
       kind: "pay" as const,
-      currency: 0 as const,
+      currency: "USD" as const,
       to: deployment.feeAccount as `0x${string}`,
       amount: 1n,
       intentId: keccak256(toBytes("blocked")),

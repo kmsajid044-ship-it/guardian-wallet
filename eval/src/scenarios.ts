@@ -5,7 +5,8 @@ import { parse } from "yaml";
 import { z } from "zod";
 
 const ContactId = z.enum(["ana", "bob", "cara"]);
-const Currency = z.enum(["USD", "BDT"]);
+/** ISO 4217 code; the harness checks every configured currency. */
+const Currency = z.string().regex(/^[A-Z]{3}$/);
 const Decimal = z.string().regex(/^(?:0|[1-9][0-9]*)(?:\.[0-9]{1,6})?$/);
 const Transfer = z.object({ contact: ContactId, currency: Currency, amount: Decimal }).strict();
 const Saving = z.object({ currency: Currency, amount: Decimal }).strict();

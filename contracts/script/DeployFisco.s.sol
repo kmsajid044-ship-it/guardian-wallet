@@ -2,12 +2,13 @@
 pragma solidity ^0.8.24;
 
 import {Script} from "forge-std/Script.sol";
+import {CurrencyConfig} from "./CurrencyConfig.sol";
 import {DemoLedger} from "../src/DemoLedger.sol";
 import {GuardianWallet} from "../src/GuardianWallet.sol";
 import {IGuardianWallet} from "../src/interfaces/IGuardianWallet.sol";
 
 /// @notice Deploys the unseeded contracts to the local team-operated FISCO chain.
-contract DeployFisco is Script {
+contract DeployFisco is CurrencyConfig {
     uint256 internal constant LOCAL_FISCO_CHAIN_ID = 1337;
 
     function run() external {
@@ -18,8 +19,10 @@ contract DeployFisco is Script {
         address guardian = vm.envOr("GUARDIAN_ADDRESS", address(0));
         address feeAccount = vm.envAddress("FEE_ACCOUNT_ADDRESS");
 
+        DemoCurrency[] memory units = _currencies();
         vm.startBroadcast(ownerKey);
         DemoLedger ledger = new DemoLedger(owner);
+        _listCurrencies(ledger, units);
         GuardianWallet wallet =
             new GuardianWallet(owner, agent, guardian, address(ledger), feeAccount, _bootstrapPolicy());
         ledger.setController(address(wallet));

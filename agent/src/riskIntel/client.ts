@@ -11,7 +11,7 @@ import { simulateAgentAction } from "../sim/simulate.js";
 
 const AddressSchema = z.string().transform((value, context) => { try { return getAddress(value); } catch { context.addIssue({ code: "custom", message: "invalid address" }); return z.NEVER; } });
 const RiskResultSchema = z.object({ address: AddressSchema, score: z.number().int().min(0).max(100), level: z.enum(["low", "medium", "high"]), sanctioned: z.boolean(), reasons: z.array(z.string()) }).strict();
-const FxResultSchema = z.object({ base: z.enum(["USD", "BDT"]), quote: z.enum(["USD", "BDT"]), rate: z.string(), asOf: z.string() }).strict();
+const FxResultSchema = z.object({ base: z.string().regex(/^[A-Z]{3}$/), quote: z.string().regex(/^[A-Z]{3}$/), rate: z.string(), asOf: z.string(), note: z.string().optional() }).strict();
 export type PayeeRiskResult = z.infer<typeof RiskResultSchema>;
 export type FxQuoteResult = z.infer<typeof FxResultSchema>;
 export interface RiskIntelGateway { checkPayee(address: Address): Promise<PayeeRiskResult> }
@@ -22,7 +22,7 @@ export class RiskIntelClient implements RiskIntelGateway {
     this.reader = new GuardianReader(client, getAddress(deployment.guardianWallet), getAddress(deployment.demoLedger));
   }
   async checkPayee(address: Address): Promise<PayeeRiskResult> { return RiskResultSchema.parse(await this.purchase(`/risk/${getAddress(address)}`)); }
-  async quoteFx(base: "USD" | "BDT", quote: "USD" | "BDT"): Promise<FxQuoteResult> { return FxResultSchema.parse(await this.purchase(`/fx?base=${base}&quote=${quote}`)); }
+  async quoteFx(base: string, quote: string): Promise<FxQuoteResult> { return FxResultSchema.parse(await this.purchase(`/fx?base=${base}&quote=${quote}`)); }
   private async purchase(path: string): Promise<unknown> {
     const requestId = keccak256(stringToHex(randomUUID()));
     const action = { kind: "service_fee" as const, amount: 50_000n, intentId: requestId };

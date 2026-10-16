@@ -29,7 +29,7 @@ interface IGuardianWallet {
     }
 
     struct Pending {
-        uint8 currency;
+        bytes3 currency; // ISO 4217 alphabetic code of a DemoLedger-listed demo unit
         address to;
         uint256 amount;
         bytes32 intentId;
@@ -64,22 +64,23 @@ interface IGuardianWallet {
         OVER_DAILY_LIMIT,
         INSUFFICIENT_BALANCE,
         OVER_OPS_PER_CALL,
-        OVER_OPS_DAILY
+        OVER_OPS_DAILY,
+        UNKNOWN_CURRENCY
     }
 
     // --------------------------------------------------------------- events
 
     /// @notice An agent action was refused by policy. Nothing moved. (CLAUDE.md rule 2: emit, don't revert.)
     event PolicyViolation(bytes32 indexed intentId, Action action, Reason reason, uint256 amount);
-    event PaymentCompleted(bytes32 indexed intentId, uint8 indexed currency, address indexed to, uint256 amount);
+    event PaymentCompleted(bytes32 indexed intentId, bytes3 indexed currency, address indexed to, uint256 amount);
     event ApprovalRequested(
-        uint256 indexed pendingId, bytes32 indexed intentId, uint8 currency, address to, uint256 amount, uint64 expiresAt
+        uint256 indexed pendingId, bytes32 indexed intentId, bytes3 currency, address to, uint256 amount, uint64 expiresAt
     );
     event PendingApproved(uint256 indexed pendingId, bytes32 indexed intentId, address to, uint256 amount);
     event PendingRejected(uint256 indexed pendingId, bytes32 indexed intentId);
     event PendingExpired(uint256 indexed pendingId, bytes32 indexed intentId);
     event ServiceFeePaid(bytes32 indexed requestId, address indexed feeAccount, uint256 amount);
-    event SavingsFunded(bytes32 indexed intentId, uint8 indexed currency, uint256 amount);
+    event SavingsFunded(bytes32 indexed intentId, bytes3 indexed currency, uint256 amount);
 
     event PolicyUpdated(Policy policy);
     event RecipientSet(address indexed recipient, bool allowed, uint64 activeAfter, string label);
