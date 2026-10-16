@@ -14,16 +14,47 @@ terms=(
 money_terms=("Mock""USDC" "ops""Token" "token""Allowed" "IERC""20" "SafeERC""20")
 failed=0
 
+# Prefer ripgrep; otherwise scan the same file set (tracked plus untracked, non-ignored)
+# with grep. Never pass silently because a scanner is missing.
+if command -v rg >/dev/null 2>&1; then scanner=rg
+elif command -v grep >/dev/null 2>&1 && command -v git >/dev/null 2>&1; then scanner=grep
+else echo "Forbidden-content check needs rg, or grep and git." >&2; exit 2; fi
+
+repo_files() {
+  git ls-files -z --cached --others --exclude-standard -- . \
+    ':!:node_modules/**' ':!:**/node_modules/**' ':!:contracts/lib/**' ':!:scripts/check-forbidden.sh' "$@"
+}
+
+# search_repo <case-insensitive: 0|1> <pattern> [extra git pathspec excludes...]
+# A scanner error prints SCAN_ERROR, which callers treat as a failure.
+search_repo() {
+  local insensitive="$1" pattern="$2"; shift 2
+  local opts=-n; if (( insensitive )); then opts=-ni; fi
+  if [[ "$scanner" == rg ]]; then
+    local globs=(--glob '!node_modules/**' --glob '!contracts/lib/**' --glob '!.git/**' --glob '!scripts/check-forbidden.sh')
+    local spec; for spec in "$@"; do globs+=(--glob "!${spec#:!:}"); done
+    rg "$opts" "$pattern" . "${globs[@]}"; (( $? <= 1 )) || echo "SCAN_ERROR: rg failed"
+  else
+    repo_files "$@" | xargs -0 sh -c 'opts=$1 pattern=$2; shift 2; grep -IE "$opts" -- "$pattern" "$@"; [ $? -le 1 ] || exit 255' sh "$opts" "$pattern"
+    (( $? == 0 )) || echo "SCAN_ERROR: grep failed"
+  fi
+}
+
+search_stdin() {
+  if [[ "$scanner" == rg ]]; then rg -n -i "$1"; else grep -nE -i -- "$1"; fi
+  (( $? <= 1 )) || echo "SCAN_ERROR: stdin scan failed"
+}
+
 scan_term() {
   local term="$1"
   local output
-  output="$(rg -n -i "\\b${term}\\b" . --glob '!node_modules/**' --glob '!contracts/lib/**' --glob '!.git/**' --glob '!pnpm-lock.yaml' --glob '!CLAUDE.md' --glob '!scripts/check-forbidden.sh' || true)"
+  output="$(search_repo 1 "\\b${term}\\b" ':!:pnpm-lock.yaml' ':!:CLAUDE.md')"
   if [[ -n "$output" ]]; then
     echo "Forbidden content: $term" >&2
     echo "$output" >&2
     failed=1
   fi
-  output="$(tail -n +12 CLAUDE.md | rg -n -i "\\b${term}\\b" || true)"
+  output="$(tail -n +12 CLAUDE.md | search_stdin "\\b${term}\\b")"
   if [[ -n "$output" ]]; then
     echo "Forbidden content in CLAUDE.md body: $term" >&2
     echo "$output" >&2
@@ -33,10 +64,10 @@ scan_term() {
 
 for term in "${terms[@]}" "${money_terms[@]}"; do scan_term "$term"; done
 
-public_rpc="$(rg -n -i 'RPC[^\n]*(https://|wss://)|(https://|wss://)[^\n]*(rpc|infura|alchemy)' . --glob '!node_modules/**' --glob '!contracts/lib/**' --glob '!.git/**' --glob '!scripts/check-forbidden.sh' || true)"
+public_rpc="$(search_repo 1 'RPC.*(https://|wss://)|(https://|wss://).*(rpc|infura|alchemy)')"
 if [[ -n "$public_rpc" ]]; then echo "Public RPC reference found" >&2; echo "$public_rpc" >&2; failed=1; fi
 
-ids="$(rg -n '(CHAIN_ID=|CHAIN_ID:|"chainId"[[:space:]]*:)[[:space:]]*[0-9]+' . --glob '!node_modules/**' --glob '!contracts/lib/**' --glob '!.git/**' --glob '!scripts/check-forbidden.sh' || true)"
+ids="$(search_repo 0 '(CHAIN_ID=|CHAIN_ID:|"chainId"[[:space:]]*:)[[:space:]]*[0-9]+')"
 while IFS= read -r line; do
   [[ -z "$line" ]] && continue
   value="$(sed -E 's/.*(CHAIN_ID=|CHAIN_ID:|"chainId"[[:space:]]*:)[[:space:]]*([0-9]+).*/\2/' <<<"$line")"
@@ -44,4 +75,4 @@ while IFS= read -r line; do
 done <<<"$ids"
 
 if (( failed != 0 )); then exit 1; fi
-echo "Forbidden-content check passed."
+echo "Forbidden-content check passed ($scanner)."
