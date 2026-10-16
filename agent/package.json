@@ -6,9 +6,14 @@
   "scripts": {
     "dev": "tsx watch src/index.ts",
     "start": "node dist/index.js",
+    "check:chain": "tsx src/chain/checkLocalConfig.ts",
+    "prebuild": "pnpm check:chain",
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test": "vitest run --passWithNoTests"
+    "test": "vitest run --passWithNoTests",
+    "test:parity:evm-local": "PARITY_BACKEND=evm-local vitest run src/policy/backendParity.test.ts",
+    "test:parity:fisco": "PARITY_BACKEND=fisco vitest run src/policy/backendParity.test.ts",
+    "test:parity": "pnpm test:parity:evm-local && pnpm test:parity:fisco"
   },
   "dependencies": {
     "better-sqlite3": "^13.0.3",

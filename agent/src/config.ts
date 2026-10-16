@@ -10,6 +10,7 @@ loadEnvFile({ path: resolve(repoRoot, ".env"), quiet: true });
 // Public configuration only. The agent signing secret is deliberately absent and is read
 // exclusively inside src/exec/ (CLAUDE.md security rule 6).
 const ConfigSchema = z.object({
+  CHAIN_BACKEND: z.enum(["fisco", "evm-local"]).default("fisco"),
   AGENT_PORT: z.coerce.number().int().positive().default(8787),
   RPC_URL: z.string().url().default("http://127.0.0.1:8545"),
   CHAIN_ID: z.coerce.number().int().positive().default(1337),
@@ -19,6 +20,16 @@ const ConfigSchema = z.object({
   OWNER_TIMEZONE: z.string().min(1).default("Asia/Shanghai"),
   OWNER_ACTIVE_HOURS: z.string().regex(/^(?:[01][0-9]|2[0-3])-(?:[01][0-9]|2[0-4])$/).default("08-22"),
   RISK_INTEL_URL: z.string().url().optional(),
+}).superRefine((config, context) => {
+  const url = new URL(config.RPC_URL);
+  const localHosts = new Set(["127.0.0.1", "localhost", "[::1]"]);
+  if (!localHosts.has(url.hostname) || !["http:", "ws:"].includes(url.protocol) || url.username || url.password) {
+    context.addIssue({ code: "custom", path: ["RPC_URL"], message: "RPC_URL must use an unauthenticated loopback endpoint" });
+  }
+  const expectedChainId = config.CHAIN_BACKEND === "fisco" ? 1337 : 31337;
+  if (config.CHAIN_ID !== expectedChainId) {
+    context.addIssue({ code: "custom", path: ["CHAIN_ID"], message: `${config.CHAIN_BACKEND} requires local chain ID ${expectedChainId}` });
+  }
 });
 
 const AddressSchema = z.string().regex(/^0x[0-9a-fA-F]{40}$/);

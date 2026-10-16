@@ -94,4 +94,6 @@ docs/        Security, testing, and architecture evidence
 
 The primary runtime is a four-node local FISCO BCOS v3.16.4 Air network with PBFT and numeric chain ID 1337. Each node exposes a loopback-only Web3 JSON-RPC endpoint; the primary endpoint is `http://127.0.0.1:8545`. The application reuses viem for reads, simulation, and restricted signing. The official Java SDK console is used only to initialize local Web3 execution balances.
 
+The agent selects `fisco` (default) or `evm-local` through `CHAIN_BACKEND`. Both implementations use the restricted `ChainAdapter`; startup and build reject endpoints outside loopback and chain IDs outside the backend's fixed local mapping.
+
 Contracts remain on Solidity 0.8.24. FISCO BCOS v3.16.4 includes the Cancun EVM feature and the official console supports Solidity through 0.8.26, so the same build artifacts run on FISCO BCOS and the local development fallback.

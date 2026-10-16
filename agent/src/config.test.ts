@@ -34,12 +34,34 @@ function deploymentFile(chainId: number): string {
 
 describe("deployment config", () => {
   it("loads a shared manifest for the configured chain", () => {
-    const config = loadConfig({ CHAIN_ID: "31337", DEPLOYMENTS_FILE: deploymentFile(31337) });
+    const config = loadConfig({ CHAIN_BACKEND: "evm-local", CHAIN_ID: "31337", DEPLOYMENTS_FILE: deploymentFile(31337) });
     expect(loadDeployment(config).guardianWallet).toMatch(/^0x/);
   });
 
   it("rejects a manifest for another chain", () => {
-    const config = loadConfig({ CHAIN_ID: "31337", DEPLOYMENTS_FILE: deploymentFile(1337) });
+    const config = loadConfig({ CHAIN_BACKEND: "evm-local", CHAIN_ID: "31337", DEPLOYMENTS_FILE: deploymentFile(1337) });
     expect(() => loadDeployment(config)).toThrow(/does not match/);
+  });
+
+  it("defaults to the local FISCO backend", () => {
+    const config = loadConfig({});
+    expect(config.CHAIN_BACKEND).toBe("fisco");
+    expect(config.CHAIN_ID).toBe(1337);
+  });
+
+  it.each([
+    ["fisco", "https://node.example", "1337"],
+    ["fisco", "http://127.0.0.1:8545", "31337"],
+    ["evm-local", "http://127.0.0.1:8545", "1337"],
+    ["evm-local", "http://192.168.1.20:8545", "31337"],
+  ])("rejects non-local or mismatched chain configuration", (backend, rpcUrl, chainId) => {
+    expect(() => loadConfig({ CHAIN_BACKEND: backend, RPC_URL: rpcUrl, CHAIN_ID: chainId })).toThrow();
+  });
+
+  it.each([
+    ["fisco", "http://127.0.0.1:8545", "1337"],
+    ["evm-local", "http://localhost:8545", "31337"],
+  ])("accepts the local backend mapping", (backend, rpcUrl, chainId) => {
+    expect(loadConfig({ CHAIN_BACKEND: backend, RPC_URL: rpcUrl, CHAIN_ID: chainId }).CHAIN_ID).toBe(Number(chainId));
   });
 });

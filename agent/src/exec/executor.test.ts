@@ -5,6 +5,7 @@ import type { Config, Deployment } from "../config.js";
 import { AgentExecutor } from "./executor.js";
 
 const config: Config = {
+  CHAIN_BACKEND: "evm-local",
   AGENT_PORT: 8787,
   RPC_URL: "http://127.0.0.1:1",
   CHAIN_ID: 31337,

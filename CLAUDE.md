@@ -37,6 +37,7 @@ cd contracts && forge build && forge test -vv
 ./scripts/seed.sh
 ./scripts/dev-up.sh
 pnpm --filter agent dev
+pnpm --filter agent test:parity
 pnpm risk-intel:dev
 pnpm --filter web dev
 pnpm eval

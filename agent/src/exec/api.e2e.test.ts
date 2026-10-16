@@ -17,6 +17,7 @@ describe("agent API pipeline", () => {
     fixture = await startAnvilFixture();
     directory = mkdtempSync(join(tmpdir(), "guardian-api-"));
     const config: Config = {
+      CHAIN_BACKEND: "evm-local",
       AGENT_PORT: 8787,
       RPC_URL: fixture.rpcUrl,
       CHAIN_ID: 31337,
@@ -184,6 +185,7 @@ describe("agent API pipeline", () => {
 
   function appConfig(): Config {
     return {
+      CHAIN_BACKEND: "evm-local",
       AGENT_PORT: 8787,
       RPC_URL: fixture.rpcUrl,
       CHAIN_ID: 31337,

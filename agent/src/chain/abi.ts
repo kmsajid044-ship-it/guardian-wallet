@@ -22,12 +22,36 @@ export const guardianWalletAbi = [
   { type: "function", name: "reject", stateMutability: "nonpayable", inputs: [{ type: "uint256" }], outputs: [] },
   { type: "function", name: "pause", stateMutability: "nonpayable", inputs: [], outputs: [] },
   { type: "function", name: "unpause", stateMutability: "nonpayable", inputs: [], outputs: [] },
+  { type: "function", name: "withdrawSavings", stateMutability: "nonpayable", inputs: [{ type: "uint8" }, { type: "uint256" }], outputs: [] },
+  { type: "function", name: "setPolicy", stateMutability: "nonpayable", inputs: [{ type: "tuple", components: [
+    { name: "perTxLimit", type: "uint256" }, { name: "dailyLimit", type: "uint256" }, { name: "approvalThreshold", type: "uint256" },
+    { name: "recipientCooldown", type: "uint64" }, { name: "pendingExpiry", type: "uint64" }, { name: "opsPerCallLimit", type: "uint256" }, { name: "opsDailyLimit", type: "uint256" },
+  ] }], outputs: [] },
+  { type: "function", name: "setRecipient", stateMutability: "nonpayable", inputs: [{ type: "address" }, { type: "bool" }, { type: "string" }], outputs: [] },
+  { type: "function", name: "setFeeAccount", stateMutability: "nonpayable", inputs: [{ type: "address" }], outputs: [] },
+  { type: "function", name: "setAgent", stateMutability: "nonpayable", inputs: [{ type: "address" }], outputs: [] },
+  { type: "function", name: "setGuardian", stateMutability: "nonpayable", inputs: [{ type: "address" }], outputs: [] },
   { type: "event", name: "PolicyViolation", anonymous: false, inputs: [{ name: "intentId", type: "bytes32", indexed: true }, { name: "action", type: "uint8", indexed: false }, { name: "reason", type: "uint8", indexed: false }, { name: "amount", type: "uint256", indexed: false }] },
   { type: "event", name: "ServiceFeePaid", anonymous: false, inputs: [{ name: "requestId", type: "bytes32", indexed: true }, { name: "feeAccount", type: "address", indexed: true }, { name: "amount", type: "uint256", indexed: false }] },
   { type: "event", name: "ApprovalRequested", anonymous: false, inputs: [{ name: "pendingId", type: "uint256", indexed: true }, { name: "intentId", type: "bytes32", indexed: true }, { name: "currency", type: "uint8", indexed: false }, { name: "to", type: "address", indexed: false }, { name: "amount", type: "uint256", indexed: false }, { name: "expiresAt", type: "uint64", indexed: false }] },
+  { type: "event", name: "PaymentCompleted", anonymous: false, inputs: [{ name: "intentId", type: "bytes32", indexed: true }, { name: "currency", type: "uint8", indexed: false }, { name: "to", type: "address", indexed: true }, { name: "amount", type: "uint256", indexed: false }] },
+  { type: "event", name: "SavingsFunded", anonymous: false, inputs: [{ name: "intentId", type: "bytes32", indexed: true }, { name: "currency", type: "uint8", indexed: false }, { name: "amount", type: "uint256", indexed: false }] },
 ] as const;
 
 export const demoLedgerAbi = [
   { type: "function", name: "balanceOf", stateMutability: "view", inputs: [{ type: "address" }, { type: "uint8" }], outputs: [{ type: "uint256" }] },
   { type: "function", name: "savingsBalance", stateMutability: "view", inputs: [{ type: "address" }, { type: "uint8" }], outputs: [{ type: "uint256" }] },
+  { type: "function", name: "setController", stateMutability: "nonpayable", inputs: [{ type: "address" }], outputs: [] },
+  { type: "function", name: "mint", stateMutability: "nonpayable", inputs: [{ type: "address" }, { type: "uint8" }, { type: "uint256" }], outputs: [] },
 ] as const;
+
+export const demoLedgerConstructorAbi = [{ type: "constructor", stateMutability: "nonpayable", inputs: [{ type: "address", name: "owner_" }] }] as const;
+
+export const guardianWalletConstructorAbi = [{ type: "constructor", stateMutability: "nonpayable", inputs: [
+  { type: "address", name: "owner_" }, { type: "address", name: "agent_" }, { type: "address", name: "guardian_" },
+  { type: "address", name: "ledger_" }, { type: "address", name: "feeAccount_" },
+  { type: "tuple", name: "policy_", components: [
+    { name: "perTxLimit", type: "uint256" }, { name: "dailyLimit", type: "uint256" }, { name: "approvalThreshold", type: "uint256" },
+    { name: "recipientCooldown", type: "uint64" }, { name: "pendingExpiry", type: "uint64" }, { name: "opsPerCallLimit", type: "uint256" }, { name: "opsDailyLimit", type: "uint256" },
+  ] },
+] }] as const;
