@@ -12,8 +12,8 @@ loadEnvFile({ path: resolve(repoRoot, ".env"), quiet: true });
 const ConfigSchema = z.object({
   AGENT_PORT: z.coerce.number().int().positive().default(8787),
   RPC_URL: z.string().url().default("http://127.0.0.1:8545"),
-  CHAIN_ID: z.coerce.number().int().positive().default(31337),
-  DEPLOYMENTS_FILE: z.string().min(1).default("./deployments/local.json"),
+  CHAIN_ID: z.coerce.number().int().positive().default(1337),
+  DEPLOYMENTS_FILE: z.string().min(1).default("./deployments/fisco.json"),
   AUDIT_DB_PATH: z.string().min(1).default("./agent/data/audit.sqlite"),
   LLM_PROVIDER: z.enum(["anthropic", "openai_compat", "mock"]).default("mock"),
   OWNER_TIMEZONE: z.string().min(1).default("Asia/Shanghai"),

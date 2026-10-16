@@ -32,12 +32,16 @@ The system is a research prototype with USD and BDT demo balances, a simulated l
 ```bash
 pnpm install
 cd contracts && forge build && forge test -vv
+./scripts/chain-up.sh
+./scripts/deploy-fisco.sh
+./scripts/seed.sh
 ./scripts/dev-up.sh
 pnpm --filter agent dev
 pnpm risk-intel:dev
 pnpm --filter web dev
 pnpm eval
 pnpm lint && pnpm typecheck && pnpm test
+./scripts/chain-down.sh
 ```
 
 If Foundry is unavailable in a non-interactive shell, add `$HOME/.foundry/bin` to `PATH`.

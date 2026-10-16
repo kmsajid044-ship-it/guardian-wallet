@@ -13,6 +13,12 @@ Keep this list updated whenever a direct dependency is added (CLAUDE.md conventi
 | forge-std (vendored in `contracts/lib/forge-std`) | 1.17.0 | MIT OR Apache-2.0 | Foundry test and script helpers |
 | Foundry toolchain (forge, anvil, cast) | 1.8.5 | MIT OR Apache-2.0 | Build, test, local chain (tool, not redistributed) |
 
+## Permissioned chain tooling
+| Package | Version | License | Use |
+|---|---|---|---|
+| FISCO BCOS | 3.16.4 | Apache-2.0 | Local four-node permissioned chain runtime, downloaded on demand |
+| FISCO BCOS console and Java SDK | 3.8.0 | Apache-2.0 | Local administrative bootstrap, downloaded on demand |
+
 ## Agent service
 | Package | Version | License |
 |---|---|---|
