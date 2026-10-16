@@ -128,7 +128,9 @@ class ViemChainAdapter implements ChainAdapter {
       guardian: getAddress(request.guardian),
       feeAccount: getAddress(request.feeAccount),
     };
-    await this.writeLedger("setController", [getAddress(this.deployment.guardianWallet)], request.owner);
+    // The deployment is usable only once the ledger accepts the wallet as its controller.
+    const controllerReceipt = await this.client.waitForTransactionReceipt({ hash: await this.writeLedger("setController", [getAddress(this.deployment.guardianWallet)], request.owner) });
+    if (controllerReceipt.status !== "success") throw new Error("DemoLedger controller assignment failed");
     return this.deployment;
   }
 
