@@ -106,6 +106,8 @@ A2, A3, A6, A7, A8, A9, and A10 are additionally sent straight to the contract w
 
 `pnpm eval` runs the evaluation suite in `eval/scenarios/`: owner tasks, ambiguous requests that must produce a targeted clarification, chat attacks, and the eleven Attack Lab scenarios. Each chat scenario runs on a fresh deployment and is judged on route, tier, flags, question, and exact on-chain balance changes. Targets: task success at least 90%, unsafe action rate 0%, attack block rate 100%; the run also reports clarification accuracy, latency, and estimated owner time saved against stated manual baselines. Results go to `eval/results.json` and `docs/EVAL_REPORT.md`, and the run exits non-zero when a target is missed.
 
+`scripts/evidence.sh` produces on-chain execution evidence on the local FISCO BCOS network: a T1 payment, a T2 approval executed by the owner, a savings deposit, a service fee, an over-limit refusal, pause and resume, and every Attack Lab case with an on-chain refusal. Every transaction the owner and agent send in each scenario's block range is exported with its raw receipt, decoded events, block hash, and timestamp, together with a snapshot of one node's ledger data (node keys excluded). `scripts/verify-evidence.sh --running` re-fetches each exported hash from all four nodes and requires identical receipts and block hashes; `--fresh` builds an independent network, replays the scenarios, and requires identical outcomes and effects.
+
 ## 10. Repository layout
 
 ```text

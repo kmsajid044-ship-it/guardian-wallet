@@ -1,0 +1,56 @@
+{
+  "running": {
+    "mode": "running",
+    "verifiedAt": "2026-10-16T12:16:01.937Z",
+    "transactions": 98,
+    "endpoints": [
+      {
+        "rpcUrl": "http://127.0.0.1:8545",
+        "checked": 98,
+        "matched": 98,
+        "mismatches": []
+      },
+      {
+        "rpcUrl": "http://127.0.0.1:8546",
+        "checked": 98,
+        "matched": 98,
+        "mismatches": []
+      },
+      {
+        "rpcUrl": "http://127.0.0.1:8547",
+        "checked": 98,
+        "matched": 98,
+        "mismatches": []
+      },
+      {
+        "rpcUrl": "http://127.0.0.1:8548",
+        "checked": 98,
+        "matched": 98,
+        "mismatches": []
+      }
+    ],
+    "passed": true
+  },
+  "fresh": {
+    "mode": "fresh",
+    "verifiedAt": "2026-10-16T12:15:33.518Z",
+    "original": {
+      "transactions": 98,
+      "firstBlock": 1778,
+      "lastBlock": 1875
+    },
+    "replay": {
+      "transactions": 98,
+      "firstBlock": 5,
+      "lastBlock": 102,
+      "rpcUrl": "http://127.0.0.1:8555",
+      "clientVersion": "FISCO-BCOS-Web3RPC/3.16.4-MinSizeRel/Darwin/appleclang/fb904507481607d24ca07a2743444ddf77500798"
+    },
+    "scenariosMatched": 16,
+    "scenarios": 16,
+    "transactionsMatched": 98,
+    "identicalHashes": 0,
+    "differences": [],
+    "passed": true
+  }
+}

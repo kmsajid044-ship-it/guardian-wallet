@@ -20,10 +20,25 @@ ensure_fisco_console() {
   cp "$runtime/nodes/127.0.0.1/sdk/sdk.key" "$console/conf/sdk.key"
 }
 
+# prepare_fisco_console_for <repo root> <console dir> <sdk cert dir> <peer list>: a lightweight
+# console for another local network, sharing the installed jars but with its own config and certs.
+prepare_fisco_console_for() {
+  local repo_root="$1" console="$2" sdk="$3" peers="$4"
+  ensure_fisco_console "$repo_root"
+  local shared="$repo_root/.fisco/console"
+  mkdir -p "$console/conf"
+  ln -sfn "$shared/apps" "$console/apps"
+  ln -sfn "$shared/lib" "$console/lib"
+  cp "$shared/start.sh" "$console/start.sh"
+  cp -R "$shared/conf/." "$console/conf/"
+  cp "$sdk/ca.crt" "$sdk/sdk.crt" "$sdk/sdk.key" "$console/conf/"
+  perl -pi -e "s/^peers=.*/peers=${peers}/" "$console/conf/config.toml"
+}
+
 run_fisco_console_as_owner() {
   local repo_root="$1"
   local commands="$2"
-  local console="$repo_root/.fisco/console"
+  local console="${3:-$repo_root/.fisco/console}"
   local private_hex public_hex der_hex ec_pem owner_pem fifo
   private_hex="${OWNER_PRIVATE_KEY#0x}"
   public_hex="$(cast wallet public-key --private-key "$OWNER_PRIVATE_KEY")"
@@ -39,14 +54,16 @@ run_fisco_console_as_owner() {
   unlink "$fifo"
 }
 
+# fund_fisco_web3_accounts <repo root> [console dir]: enable balances and fund owner and agent.
 fund_fisco_web3_accounts() {
   local repo_root="$1"
+  local console="${2:-$repo_root/.fisco/console}"
   local owner_address
   owner_address="$(cast wallet address --private-key "$OWNER_PRIVATE_KEY")"
-  ensure_fisco_console "$repo_root"
+  if [[ -z "${2:-}" ]]; then ensure_fisco_console "$repo_root"; fi
   run_fisco_console_as_owner "$repo_root" "$(printf '%s\n' \
     'setSystemConfigByKey feature_balance 1' \
     'setSystemConfigByKey feature_balance_precompiled 1' \
     "addBalance $owner_address 1000000000000000000" \
-    "addBalance $AGENT_ADDRESS 1000000000000000000")"
+    "addBalance $AGENT_ADDRESS 1000000000000000000")" "$console"
 }

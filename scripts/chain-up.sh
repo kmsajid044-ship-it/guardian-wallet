@@ -10,23 +10,8 @@ fisco_version="v3.16.4"
 builder_url="https://raw.githubusercontent.com/FISCO-BCOS/FISCO-BCOS/${fisco_version}/tools/BcosAirBuilder/build_chain.sh"
 export PATH="$HOME/.foundry/bin:$PATH"
 
-rpc_result() {
-  curl -fsS -H 'content-type: application/json' \
-    --data '{"jsonrpc":"2.0","method":"eth_chainId","params":[],"id":1}' \
-    "http://127.0.0.1:$1" 2>/dev/null | jq -er '.result == "0x539"' >/dev/null
-}
-
-configure_nodes() {
-  local index port genesis config
-  for index in 0 1 2 3; do
-    port=$((8545 + index))
-    genesis="$host_dir/node${index}/config.genesis"
-    config="$host_dir/node${index}/config.ini"
-    perl -0pi -e 's/(\[chain\][^\[]*?chain_id=)[^\n]+/${1}1337/s; s/(\[web3\]\s+chain_id=)\d+/${1}1337/' "$genesis"
-    perl -0pi -e 's/(is_auth_check=)true/${1}false/' "$genesis"
-    perl -0pi -e "s/(\[web3_rpc\][^\[]*?enable=)false/\${1}true/s; s/(\[web3_rpc\][^\[]*?listen_port=)8545/\${1}${port}/s" "$config"
-  done
-}
+# shellcheck disable=SC1091
+source "$repo_root/scripts/lib/fisco-nodes.sh"
 
 mkdir -p "$runtime_dir"
 if [[ ! -x "$builder" ]]; then
@@ -53,24 +38,19 @@ if [[ ! -x "$host_dir/fisco-bcos" && ! -f "$host_dir/start_all.sh" ]]; then
   mv "$staging" "$nodes_dir"
 fi
 
-configure_nodes
+configure_fisco_nodes "$host_dir" 8545
 
-if rpc_result 8545; then
+if rpc_ready 8545; then
   echo "FISCO BCOS is ready: http://127.0.0.1:8545 (chain ID 1337)."
   exit 0
 fi
 
 bash "$host_dir/start_all.sh"
-for _ in {1..30}; do
-  ready=0
-  for port in 8545 8546 8547 8548; do if rpc_result "$port"; then ready=$((ready + 1)); fi; done
-  if [[ "$ready" == 4 ]]; then
-    "$host_dir/fisco-bcos" --version | head -1
-    echo "Four FISCO BCOS nodes are ready; primary Web3 endpoint: http://127.0.0.1:8545."
-    exit 0
-  fi
-  sleep 1
-done
+if wait_for_nodes 8545 30; then
+  "$host_dir/fisco-bcos" --version | head -1
+  echo "Four FISCO BCOS nodes are ready; primary Web3 endpoint: http://127.0.0.1:8545."
+  exit 0
+fi
 
 echo "FISCO BCOS did not become ready; inspect $host_dir/node*/log/." >&2
 exit 1

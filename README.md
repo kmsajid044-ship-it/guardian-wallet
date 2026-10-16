@@ -47,6 +47,16 @@ pnpm eval --llm=configured   # use the configured LLM provider for proposals
 
 The owner console's Value Dashboard (`#/value`) shows the latest results against their targets, with live counts from the audit log. See [docs/EVAL_REPORT.md](docs/EVAL_REPORT.md).
 
+## On-chain execution evidence
+
+```bash
+./scripts/evidence.sh                  # run evidence scenarios on local FISCO BCOS; export evidence/ and the doc
+./scripts/verify-evidence.sh --running # mode (a): re-fetch every exported hash from all four nodes
+./scripts/verify-evidence.sh --fresh   # mode (b): new four-node network, deploy, replay, compare
+```
+
+See [docs/EXECUTION_EVIDENCE.md](docs/EXECUTION_EVIDENCE.md): every transaction with block number, block hash, events, and result; raw receipts are in `evidence/receipts/`.
+
 Run every gate with:
 
 ```bash

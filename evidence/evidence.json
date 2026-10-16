@@ -1,0 +1,3986 @@
+{
+  "generatedAt": "2026-10-16T12:02:55.120Z",
+  "network": {
+    "backend": "fisco",
+    "chainId": 1337,
+    "rpcUrl": "http://127.0.0.1:8545",
+    "clientVersion": "FISCO-BCOS-Web3RPC/3.16.4-MinSizeRel/Darwin/appleclang/fb904507481607d24ca07a2743444ddf77500798",
+    "firstBlock": 1778,
+    "lastBlock": 1875
+  },
+  "roles": {
+    "owner": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
+    "agent": "0x70997970C51812dc3A010C7d01b50e0d17dc79C8",
+    "contacts": {
+      "ana": "0x00000000000000000000000000000000000000C1",
+      "bob": "0x00000000000000000000000000000000000000c2"
+    }
+  },
+  "scenarios": [
+    {
+      "id": "E01",
+      "title": "Deployment and seeding",
+      "expectation": "GuardianWallet and DemoLedger deployed, ledger controller set, demo units minted, two contacts allowlisted",
+      "passed": true,
+      "detail": "GuardianWallet 0xB8357F7f41125d4b24AD052c1b7288BeF5C43446, DemoLedger 0x0eb44B96bC23A6362d383eF04bE67501251cF227",
+      "transactions": [
+        "0xbc4297c31c5ed8a74e9f645495bf271d307c0ed7fd270346ba27c6df7f3ac158",
+        "0x2cb628dae1987204cd3c1549d0c480a5ecf22d51e215ed2145ab1732278ab9a2",
+        "0x9c134cb5a7c821a5330a2d13b6f1c227b9fc9d54f6887df35a878cb052b7c877",
+        "0x2cd5127faa2373dc2b7ea82ab43405534b4840c2291232ca7a417bcb007eb984",
+        "0x25fe917a4649ab8e7e49e94c34aa693f94f48e3ffc359c70b70d64346d2c0955",
+        "0x02c6c98aa8416e335484d3eaca9c818fa29ba38343895defc35243d9540bf3c7",
+        "0x5a911a85dd7e0c467301ae4947b81f613a9e69e6d7cf42f627fcda2f8a5add02"
+      ]
+    },
+    {
+      "id": "E02",
+      "title": "T1 payment",
+      "expectation": "Agent pipeline executes 50 USD to ana autonomously; PaymentCompleted",
+      "passed": true,
+      "detail": "EXECUTED T1",
+      "transactions": [
+        "0x599ba51494f06aeffa8b6430c43a39ae7fbc9a7c4b19a49fd2cc8af5fcff7bcb"
+      ]
+    },
+    {
+      "id": "E03",
+      "title": "T2 pending, owner approval, execution",
+      "expectation": "250 USD becomes a pending approval; the owner's approve() executes it",
+      "passed": true,
+      "detail": "pending #1 approved and executed",
+      "transactions": [
+        "0xfd43cc99f006b9f53da5c5b8cd4c630908880f1f544a14a6fec1d0e8c078c8ce",
+        "0x4d900a78601314bc62e61c1bc2b3a5fd6a24b290d3525c919ace139e11a7cf25"
+      ]
+    },
+    {
+      "id": "E04",
+      "title": "Savings deposit",
+      "expectation": "Agent pipeline moves 100 USD into savings; SavingsFunded",
+      "passed": true,
+      "detail": "EXECUTED T1",
+      "transactions": [
+        "0x6c1e8a8f326e5618d54414ec4ce5098c2a3d091bcd77e9906f8c44ea864609ee"
+      ]
+    },
+    {
+      "id": "E05",
+      "title": "Service fee",
+      "expectation": "Agent pays a 0.05 USD service fee from its separate budget; ServiceFeePaid",
+      "passed": true,
+      "detail": "fee paid",
+      "transactions": [
+        "0x0285aa1a73bd8c8af80f2a9269714511e7ab8dd3eccef58e8116d68577e89647"
+      ]
+    },
+    {
+      "id": "E06",
+      "title": "Over-limit refusal",
+      "expectation": "600 USD is refused by the contract with PolicyViolation(OVER_PER_TX_LIMIT)",
+      "passed": true,
+      "detail": "BLOCKED: OVER_PER_TX_LIMIT",
+      "transactions": [
+        "0x9ecebd36a40e0a833bd51517776624095dd930b4917b31a6aaef19e61d7994eb"
+      ]
+    },
+    {
+      "id": "E07",
+      "title": "Pause and unpause",
+      "expectation": "Owner pauses; a payment is refused with PAUSED; owner unpauses; the next payment executes",
+      "passed": true,
+      "detail": "paused payment BLOCKED (PAUSED); after resume EXECUTED",
+      "transactions": [
+        "0x98aeaf654ac86ac0178a4ae4a956a2a31f2a84d1a9708203f36fc9bcceb92de0",
+        "0xd674ec531f59390cf6092012cf99a26b292a5dd27851bc9de0c7673bc96d636d",
+        "0x0371d9ef6568a0bfdb61585a76c005c7d3fcd69c5b9221a0efda502e7e034546",
+        "0x2ec5f146557111a84908315f6730d06c378facf04cec67e0a65b4ca62e71b462"
+      ]
+    },
+    {
+      "id": "E-A2",
+      "title": "Attack Lab A2",
+      "expectation": "Attack refused on-chain (fresh deployment per attack)",
+      "passed": true,
+      "detail": "Single over-limit payment: BLOCKED by on-chain contract; OVER_PER_TX_LIMIT: 600 USD exceeds the 500 per-payment limit; PolicyViolation event recorded",
+      "transactions": [
+        "0x90cbe63c3a1eae20bbff19bc52dfb1d969459c31b6cb1db864b68763fb7b6b3c",
+        "0x27edca0c927154a87c2dfa9a212b8461002916d6bdfb79dbe6dbfad5ae967efa",
+        "0xf11a7e144350411669a10d844def82345855f877794c442e0a6cdf866c2aa226",
+        "0xf45f94f36fc66438d539468437cace52a62f135dfac520a34195f182fef2c47e",
+        "0x96193c597ee341f3ecf03886221c792b457192ba2ccc958eb14424df00b3def8",
+        "0xe81e139b0d8e5e5be9cc9f7c78b5113c39d0e6ac50c27ef0cf6b85c67fc82de6",
+        "0xfba5d9eea25d4737ade277b924c1971ea91c11cc0496310b64e79a4875f58d02",
+        "0x68337a4aba7f436bd5488df3c44d3119aa872a41bd090c95c4189276e433172c"
+      ]
+    },
+    {
+      "id": "E-A3",
+      "title": "Attack Lab A3",
+      "expectation": "Attack refused on-chain (fresh deployment per attack)",
+      "passed": true,
+      "detail": "Many small payments: BLOCKED by on-chain contract; 5 payments of 199 USD executed (995 USD); the next was refused (OVER_DAILY_LIMIT); direct calls stop at OVER_DAILY_LIMIT",
+      "transactions": [
+        "0x3a90c7cb5d952b0af7de0ea401dfda68336d9e5075cc5c6a07fabdc2e54f2da3",
+        "0x9f39a7c2522164b035de3d983063f325233c667d0f768eb61d51fc00c443aae1",
+        "0x8e0597f95499728ad7352df67713dd350bf95d4f15b904111ded3a7ae57960c2",
+        "0x7789544bac38854cc8e56dc9e105dca99ec42577928a501703c69ddc87988a3f",
+        "0x318d00829b6f70c15a3c4694e0f9eb2defd362d23884c59290c19eaa3627f4e7",
+        "0xb970e9fbc1b0889dd9df35f00c3461f2f57262f2ae774e27fc4f492b063549c8",
+        "0x9a18d5fce5bf5f8f8a5be3407c7f5af3af3571f70fdbbe36d3e4c21b7195aa77",
+        "0xb33efd53d6c751c64734431a9ce95ced20831eecf5907f4d506da312c25d3219",
+        "0xc7b11dffee431024c3bd53a09e0fec7f3be0583273c61ac87a0e5c969e873438",
+        "0x8027c08f811d9d31f33d1c9f3ffda9fa4a6225ae8ef3f5e747a918b71fcd11dd",
+        "0xa8dfe7ec1bfcb3d6366474dc683579f499d8ab7dcfef0f3b5057ac27512dcfdf",
+        "0x7d3547dc3f631e046b1bdc090ffeeede4316dd5ed3e1c6eed7cb1f47ac43807f",
+        "0x913ff57b71ebd7bad20f174ce5f807bb1495ddbda282a41e0d124c0b86b3e25c"
+      ]
+    },
+    {
+      "id": "E-A4",
+      "title": "Attack Lab A4",
+      "expectation": "Attack refused on-chain (fresh deployment per attack)",
+      "passed": true,
+      "detail": "Unknown recipient: BLOCKED by firewall; Contact is not on the allowlist (UNKNOWN_CONTACT); the contract also refuses the address with RECIPIENT_NOT_ALLOWED",
+      "transactions": [
+        "0x1e7fc7be7347390d8005d37571ecf06d2714c6978779f82b80e95d32283c9e8d",
+        "0xb206d80dd544178d07519566b54e343007ac0684574171b4178421823855a543",
+        "0x8c97fbb7b1ff6be55f2e7282bc245651d425879904a32abd13ffb6a188d4f4b2",
+        "0xe6b28c3a8065793f27fe229f41f9d61697cd2c04c4d474236f68cf06defb9062",
+        "0x8daea0cd2c297590de518047404a92184994f3df17306b0e6ee85820aca86638",
+        "0xff90ae4afca26fa709871449a6bafb25168aeec2bfbd276830eceb8527c6093f",
+        "0x2674a658852dfb38a4e3f4605f4207abd762f00d909f84f51068243afbf86e1e"
+      ]
+    },
+    {
+      "id": "E-A5",
+      "title": "Attack Lab A5",
+      "expectation": "Attack refused on-chain (fresh deployment per attack)",
+      "passed": true,
+      "detail": "Recipient changed during cooldown: BLOCKED by on-chain contract; RECIPIENT_NOT_ACTIVE: the changed address is still inside its cooldown",
+      "transactions": [
+        "0xef67732766708a985b2d5228c8023b3ca2b5670c9c108aca62de0b6f2bf8a4f1",
+        "0xdb0b45d212bc42819593d7fdf5968d35f8b683b281d97b927dee7fe9ef582024",
+        "0xfc6fa092c200c2d45790fcbf91bd2c110c55f6dd08935180c17cc7e9543a6338",
+        "0xfa3f188ef4139e71b87a809a574cdf52e98fee44b017e6a3e63898a8714cd913",
+        "0x62d2ab2e62f7a32dc5e983a698e80b9e3918beb7ebfee97c3e8d348c31dda756",
+        "0x525ce0c4b475a4c0c44141062f70535ab23f40f2314b116a925b59c352d2c29c",
+        "0x112981234f770fe3601270a512190a0aeff788ca169a7ac1ba540d4394e784ad",
+        "0x7bf699457ffaf4e92eb30109c46efd9d915fb3579eed25b7081f44f5415f864c",
+        "0x14da1066507ee48a97d9fe16762efc81f8eac014db9131dc05f43310c43ca339",
+        "0x56e85db754c1b7d881efaa5637648a2d8c47e74ae649f1372e726dc069842b28"
+      ]
+    },
+    {
+      "id": "E-A6",
+      "title": "Attack Lab A6",
+      "expectation": "Attack refused on-chain (fresh deployment per attack)",
+      "passed": true,
+      "detail": "Replay completed approval: BLOCKED by on-chain contract; PendingNotActive(1): pending #1 already executed; the reused intent is refused with DUPLICATE_INTENT",
+      "transactions": [
+        "0x145cea774abf1757a7ea8e56c846e754452211763cf6d7e6e254100b5b3e17c1",
+        "0x23b690a96b08a3141272c1a94f3dd277b669f590a1c45ae63f6909a45db01647",
+        "0x57cd04b96aa68ced4c593a9ddfe9e0b1fc74958f153c89e4c686da150ba12e44",
+        "0x234358e5d2be38e298f850c55461ec4bf10f010eb4b23af4618ccd403ce83172",
+        "0xe6910c065ab106489b767f4e2235035003e035e5c701b5caeb3ff9db2d78d3e1",
+        "0xbbb48a3027304d0a24146197353e5d07dac899b02a1bd62917cf1fd4c2372bda",
+        "0xa6c0a4264ee348be40197749a7091eb3e26cb893c0531c359fe147a86d0f87c4",
+        "0x0d3771f1217f7471b12d98f9743b71dcf915e428f282162664ff1a444514f2a9",
+        "0x60c918aff127febfd775785b7ffb636895289505870aac7fe52bb5bd145d7095",
+        "0xd49f550524f909639c7f7cd4e9bef61fe2bca19e0781e4224bfe637bfa3ca3ef"
+      ]
+    },
+    {
+      "id": "E-A7",
+      "title": "Attack Lab A7",
+      "expectation": "Attack refused on-chain (fresh deployment per attack)",
+      "passed": true,
+      "detail": "Execute expired approval: BLOCKED by on-chain contract; PendingHasExpired(1): pending #1 passed its expiry before execution",
+      "transactions": [
+        "0xcd6c2264aaf3729b58dd601bddda26704e9c19379816e99c9f6a2cbbd7c75d18",
+        "0xe8e49f10ac4897ab9a4c5de68152186d6a3ad982dfbca5b251f3354b5613e77e",
+        "0xb8465c66e7d652f80ca20d571849bf1f838059319f2329120764961474a78e24",
+        "0x664a22dd6ebeadc6b5957a521e4f5fa768e47c7ec0b915ae76d1b6b5fa83f850",
+        "0xe77ff5f85c963af69958bb29416238a37d72c9a7706b658ce440a724182f1283",
+        "0x3ebfa570ee724b1aed3f5bb06f0beda15e4139c1815ea44848ecf9614d6ea33f",
+        "0xa5b40c1ec43930698762418d3fe9898c881a492dce4ffa0f4273125721208ec9",
+        "0x99401b523142b0576cc406e5176c26ddb7158a76901311ef3b888d99136e8f85"
+      ]
+    },
+    {
+      "id": "E-A8",
+      "title": "Attack Lab A8",
+      "expectation": "Attack refused on-chain (fresh deployment per attack)",
+      "passed": true,
+      "detail": "Agent attempts to resume: BLOCKED by tier gate; Resume is a T3 owner operation; the contract also reverts the agent's unpause() with OwnableUnauthorizedAccount(0x70997970C51812dc3A010C7d01b50e0d17dc79C8)",
+      "transactions": [
+        "0x45967cac06d0d3925dcc29f7406100eb5a0dda4215bc6ac72da2c57eecf51721",
+        "0xe3f2ff4e6cf472c226ba581eced11bcec7f753dc7b5bf9894cfc2e25e300b2a2",
+        "0x9d0cce663d1e92bf056cd6b1c5dbef057fe9227396e1315fc87d24586e7ab38d",
+        "0xdcf92499e0d67d1cba4da28e9c92a3225a214a409ac43e8d690e427e102b0728",
+        "0x9caf7357c7ee32b76634bc7a0470408b2a541026e6d4cf5d1156a02bf9370a28",
+        "0x0072685efbfda242d15f37b923141be7ce5731464c038503b638511d9c526704",
+        "0x952c166cb92f36be0b9e6c6e6ccb18ccaa31b4140d83e6470bee41da6a04df6d",
+        "0x92c6c2c7e545fdcb39e93f76eb2805185dcd8f0d9a4aa61e70fbfb9b7d913ba4",
+        "0x76fe580548d56a064692dbbbed7e2e280052037912e7cd161aa5786114f273cf"
+      ]
+    },
+    {
+      "id": "E-A9",
+      "title": "Attack Lab A9",
+      "expectation": "Attack refused on-chain (fresh deployment per attack)",
+      "passed": true,
+      "detail": "Direct ledger bypass: BLOCKED by on-chain contract; NotController: only GuardianWallet may move ledger balances; raw pay() still hits the allowlist",
+      "transactions": [
+        "0x7ac977f2882b8e1eb66b4be02694ea74c55c0066c37ebefb8a152bf6f9b77169",
+        "0x694c1f5c0bb1b869aa1091b1c55cb0e67b4d0332a065404c776a8bfd0f3a58d0",
+        "0xfbb0d27acc3a85afffdd3dd7e099db4fccff3b02ecfbdb860fb966652f04a2aa",
+        "0x27a70a5cbd5b30ce626830071c79ba059e87100d798bd59eb056fc1899fe1218",
+        "0x0ece7f468b8bb8f9e4ff7b01fb81319a9e10a726790cf59007350d21d1cf711a",
+        "0xc027a7ae5ef24102e85f939a7c0b92b2bf51ab1d056a9fa6c7acbc77d43db292",
+        "0x1785c70daf7c52719e330fcaf1d4ca1e740386190be10bac0adca4674c06cf68",
+        "0x4b20938a85898816bccbfb3ff4338692f52704ec892ddd3c9b4a2fc953bb6972",
+        "0x9197e4cc327d25c07d53eec2d6dc7ae93a8928d80b182d73923f478bbb846b4f"
+      ]
+    },
+    {
+      "id": "E-A10",
+      "title": "Attack Lab A10",
+      "expectation": "Attack refused on-chain (fresh deployment per attack)",
+      "passed": true,
+      "detail": "Agent attempts to change policy: BLOCKED by firewall; Policy change attempt (POLICY_CHANGE_ATTEMPT) routed to T3 owner-only; direct setPolicy() reverts with OwnableUnauthorizedAccount(0x70997970C51812dc3A010C7d01b50e0d17dc79C8)",
+      "transactions": [
+        "0x74dc9029827e7e9c6b6a4a1fa48569f8084de6944e3f910b76ec68aa122a6658",
+        "0xf5b9d356e0e0f082358975fee1a7b446dcf72092c1071358e0d44ad2a7500428",
+        "0xf84efd09f55451b50e4f28d1bb248557c22749c6ae72c5c51792b1e611f1af1b",
+        "0xc0cc52342bab253514ba30f1ac1fc198f9fd2261ee5072dbc0d9d8d018b6dd42",
+        "0x52753c54fdf7e6873e9038402603c673e1ac72d8d23e8182c7707d7d019c222a",
+        "0x21b388243f6375831489998ccbf55cb00116b9030e8ebffe3dccb06244d86fd6",
+        "0x193e9fc9594e6837548482a070d3aac8e07750cd04df68f95574335427b16039"
+      ]
+    }
+  ],
+  "transactions": [
+    {
+      "scenario": "E01",
+      "label": "Owner deploys DemoLedger #1",
+      "hash": "0xbc4297c31c5ed8a74e9f645495bf271d307c0ed7fd270346ba27c6df7f3ac158",
+      "blockNumber": 1778,
+      "blockHash": "0xd8b30cf350f845aeda68e54362f060e255a6d1700cb9c718020e9cfe0c724777",
+      "transactionIndex": 0,
+      "timestamp": "2026-10-16T12:01:58.000Z",
+      "from": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
+      "fromRole": "owner",
+      "to": null,
+      "toRole": "create DemoLedger #1",
+      "contractAddress": "0x0eb44B96bC23A6362d383eF04bE67501251cF227",
+      "call": "constructor",
+      "status": "success",
+      "gasUsed": "85913",
+      "inputBytes": {
+        "zero": 108,
+        "nonzero": 4023
+      },
+      "events": [
+        {
+          "contract": "DemoLedger #1",
+          "address": "0x0eb44B96bC23A6362d383eF04bE67501251cF227",
+          "name": "OwnershipTransferred",
+          "args": {
+            "previousOwner": "0x0000000000000000000000000000000000000000",
+            "newOwner": "owner"
+          }
+        }
+      ],
+      "result": "OwnershipTransferred"
+    },
+    {
+      "scenario": "E01",
+      "label": "Owner deploys GuardianWallet #1",
+      "hash": "0x2cb628dae1987204cd3c1549d0c480a5ecf22d51e215ed2145ab1732278ab9a2",
+      "blockNumber": 1779,
+      "blockHash": "0xb6dfb38613e4ef793c0bada3a18611433db942e521e2cd1fec75dfe7e9f983a5",
+      "transactionIndex": 0,
+      "timestamp": "2026-10-16T12:01:58.000Z",
+      "from": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
+      "fromRole": "owner",
+      "to": null,
+      "toRole": "create GuardianWallet #1",
+      "contractAddress": "0xB8357F7f41125d4b24AD052c1b7288BeF5C43446",
+      "call": "constructor",
+      "status": "success",
+      "gasUsed": "286007",
+      "inputBytes": {
+        "zero": 789,
+        "nonzero": 10992
+      },
+      "events": [
+        {
+          "contract": "GuardianWallet #1",
+          "address": "0xB8357F7f41125d4b24AD052c1b7288BeF5C43446",
+          "name": "OwnershipTransferred",
+          "args": {
+            "previousOwner": "0x0000000000000000000000000000000000000000",
+            "newOwner": "owner"
+          }
+        },
+        {
+          "contract": "GuardianWallet #1",
+          "address": "0xB8357F7f41125d4b24AD052c1b7288BeF5C43446",
+          "name": "AgentSet",
+          "args": {
+            "previousAgent": "0x0000000000000000000000000000000000000000",
+            "newAgent": "agent"
+          }
+        },
+        {
+          "contract": "GuardianWallet #1",
+          "address": "0xB8357F7f41125d4b24AD052c1b7288BeF5C43446",
+          "name": "GuardianSet",
+          "args": {
+            "previousGuardian": "0x0000000000000000000000000000000000000000",
+            "newGuardian": "0x0000000000000000000000000000000000000000"
+          }
+        },
+        {
+          "contract": "GuardianWallet #1",
+          "address": "0xB8357F7f41125d4b24AD052c1b7288BeF5C43446",
+          "name": "FeeAccountSet",
+          "args": {
+            "account": "fee account"
+          }
+        },
+        {
+          "contract": "GuardianWallet #1",
+          "address": "0xB8357F7f41125d4b24AD052c1b7288BeF5C43446",
+          "name": "PolicyUpdated",
+          "args": {
+            "policy": "(perTxLimit: 500000000, dailyLimit: 1000000000, approvalThreshold: 200000000, recipientCooldown: 0, pendingExpiry: 86400, opsPerCallLimit: 100000, opsDailyLimit: 5000000)"
+          }
+        }
+      ],
+      "result": "OwnershipTransferred, AgentSet, GuardianSet, FeeAccountSet, PolicyUpdated"
+    },
+    {
+      "scenario": "E01",
+      "label": "Owner setController on DemoLedger #1",
+      "hash": "0x9c134cb5a7c821a5330a2d13b6f1c227b9fc9d54f6887df35a878cb052b7c877",
+      "blockNumber": 1780,
+      "blockHash": "0x86e00aff2b4957971fba8502c4300540a914f2bf6eb1078d083f22cdee2edac0",
+      "transactionIndex": 0,
+      "timestamp": "2026-10-16T12:01:59.000Z",
+      "from": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
+      "fromRole": "owner",
+      "to": "0x0eb44B96bC23A6362d383eF04bE67501251cF227",
+      "toRole": "DemoLedger #1",
+      "contractAddress": null,
+      "call": "setController(GuardianWallet #1)",
+      "status": "success",
+      "gasUsed": "31827",
+      "inputBytes": {
+        "zero": 12,
+        "nonzero": 24
+      },
+      "events": [
+        {
+          "contract": "DemoLedger #1",
+          "address": "0x0eb44B96bC23A6362d383eF04bE67501251cF227",
+          "name": "ControllerSet",
+          "args": {
+            "controller": "GuardianWallet #1"
+          }
+        }
+      ],
+      "result": "ControllerSet"
+    },
+    {
+      "scenario": "E01",
+      "label": "Owner mint on DemoLedger #1",
+      "hash": "0x2cd5127faa2373dc2b7ea82ab43405534b4840c2291232ca7a417bcb007eb984",
+      "blockNumber": 1781,
+      "blockHash": "0x57d854c3c8fbb5130f69f8c666c186a482d3624d514daf22811ced364bfc6a83",
+      "transactionIndex": 0,
+      "timestamp": "2026-10-16T12:01:59.000Z",
+      "from": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
+      "fromRole": "owner",
+      "to": "0x0eb44B96bC23A6362d383eF04bE67501251cF227",
+      "toRole": "DemoLedger #1",
+      "contractAddress": null,
+      "call": "mint(GuardianWallet #1, 0, 2000000000)",
+      "status": "success",
+      "gasUsed": "32964",
+      "inputBytes": {
+        "zero": 73,
+        "nonzero": 27
+      },
+      "events": [
+        {
+          "contract": "DemoLedger #1",
+          "address": "0x0eb44B96bC23A6362d383eF04bE67501251cF227",
+          "name": "DemoUnitsMinted",
+          "args": {
+            "account": "GuardianWallet #1",
+            "currency": "0",
+            "amount": "2000"
+          }
+        }
+      ],
+      "result": "DemoUnitsMinted"
+    },
+    {
+      "scenario": "E01",
+      "label": "Owner mint on DemoLedger #1",
+      "hash": "0x25fe917a4649ab8e7e49e94c34aa693f94f48e3ffc359c70b70d64346d2c0955",
+      "blockNumber": 1782,
+      "blockHash": "0x072e618e48d1b98f8476f7fc906ac874311ff68e92f4f58837e0818ab8e46573",
+      "transactionIndex": 0,
+      "timestamp": "2026-10-16T12:02:00.000Z",
+      "from": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
+      "fromRole": "owner",
+      "to": "0x0eb44B96bC23A6362d383eF04bE67501251cF227",
+      "toRole": "DemoLedger #1",
+      "contractAddress": null,
+      "call": "mint(GuardianWallet #1, 1, 200000000000)",
+      "status": "success",
+      "gasUsed": "32964",
+      "inputBytes": {
+        "zero": 71,
+        "nonzero": 29
+      },
+      "events": [
+        {
+          "contract": "DemoLedger #1",
+          "address": "0x0eb44B96bC23A6362d383eF04bE67501251cF227",
+          "name": "DemoUnitsMinted",
+          "args": {
+            "account": "GuardianWallet #1",
+            "currency": "1",
+            "amount": "200000"
+          }
+        }
+      ],
+      "result": "DemoUnitsMinted"
+    },
+    {
+      "scenario": "E01",
+      "label": "Owner setRecipient on GuardianWallet #1",
+      "hash": "0x02c6c98aa8416e335484d3eaca9c818fa29ba38343895defc35243d9540bf3c7",
+      "blockNumber": 1783,
+      "blockHash": "0xf15bc10bb3b530500f1f49c5f0f565a609879b6def417f3bd151c727b815ed48",
+      "transactionIndex": 0,
+      "timestamp": "2026-10-16T12:02:01.000Z",
+      "from": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
+      "fromRole": "owner",
+      "to": "0xB8357F7f41125d4b24AD052c1b7288BeF5C43446",
+      "toRole": "GuardianWallet #1",
+      "contractAddress": null,
+      "call": "setRecipient(contact ana, true, ana · synthetic contact)",
+      "status": "success",
+      "gasUsed": "55012",
+      "inputBytes": {
+        "zero": 132,
+        "nonzero": 32
+      },
+      "events": [
+        {
+          "contract": "GuardianWallet #1",
+          "address": "0xB8357F7f41125d4b24AD052c1b7288BeF5C43446",
+          "name": "RecipientSet",
+          "args": {
+            "recipient": "contact ana",
+            "allowed": true,
+            "activeAfter": "1792152121",
+            "label": "ana · synthetic contact"
+          }
+        }
+      ],
+      "result": "RecipientSet"
+    },
+    {
+      "scenario": "E01",
+      "label": "Owner setRecipient on GuardianWallet #1",
+      "hash": "0x5a911a85dd7e0c467301ae4947b81f613a9e69e6d7cf42f627fcda2f8a5add02",
+      "blockNumber": 1784,
+      "blockHash": "0xa71db6898ba217b09c1544d6c0bcc69003b0dcf67adb6e804f11619aa1114009",
+      "transactionIndex": 0,
+      "timestamp": "2026-10-16T12:02:01.000Z",
+      "from": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
+      "fromRole": "owner",
+      "to": "0xB8357F7f41125d4b24AD052c1b7288BeF5C43446",
+      "toRole": "GuardianWallet #1",
+      "contractAddress": null,
+      "call": "setRecipient(contact bob, true, bob · synthetic contact)",
+      "status": "success",
+      "gasUsed": "55012",
+      "inputBytes": {
+        "zero": 132,
+        "nonzero": 32
+      },
+      "events": [
+        {
+          "contract": "GuardianWallet #1",
+          "address": "0xB8357F7f41125d4b24AD052c1b7288BeF5C43446",
+          "name": "RecipientSet",
+          "args": {
+            "recipient": "contact bob",
+            "allowed": true,
+            "activeAfter": "1792152121",
+            "label": "bob · synthetic contact"
+          }
+        }
+      ],
+      "result": "RecipientSet"
+    },
+    {
+      "scenario": "E02",
+      "label": "Agent pay(ana, 50 USD) after firewall, pre-check, simulation, risk, tier gate",
+      "hash": "0x599ba51494f06aeffa8b6430c43a39ae7fbc9a7c4b19a49fd2cc8af5fcff7bcb",
+      "blockNumber": 1785,
+      "blockHash": "0x9f982d9a32b7cbb7d195f195d1d148aaee193824f8166d3660b0926fda2d4686",
+      "transactionIndex": 0,
+      "timestamp": "2026-10-16T12:02:02.000Z",
+      "from": "0x70997970C51812dc3A010C7d01b50e0d17dc79C8",
+      "fromRole": "agent",
+      "to": "0xB8357F7f41125d4b24AD052c1b7288BeF5C43446",
+      "toRole": "GuardianWallet #1",
+      "contractAddress": null,
+      "call": "pay(contact ana, 0, 50000000, 0x8c4571f786bf4a342494c80c77bf834e4d4198b3dd3a6be3386fdc1ceb920a33)",
+      "status": "success",
+      "gasUsed": "116114",
+      "inputBytes": {
+        "zero": 91,
+        "nonzero": 41
+      },
+      "events": [
+        {
+          "contract": "DemoLedger #1",
+          "address": "0x0eb44B96bC23A6362d383eF04bE67501251cF227",
+          "name": "BalanceMoved",
+          "args": {
+            "from": "GuardianWallet #1",
+            "to": "contact ana",
+            "currency": "0",
+            "amount": "50"
+          }
+        },
+        {
+          "contract": "GuardianWallet #1",
+          "address": "0xB8357F7f41125d4b24AD052c1b7288BeF5C43446",
+          "name": "PaymentCompleted",
+          "args": {
+            "intentId": "0x8c4571f786bf4a342494c80c77bf834e4d4198b3dd3a6be3386fdc1ceb920a33",
+            "currency": "0",
+            "to": "contact ana",
+            "amount": "50"
+          }
+        }
+      ],
+      "result": "BalanceMoved, PaymentCompleted"
+    },
+    {
+      "scenario": "E03",
+      "label": "Agent requestApproval(ana, 250 USD)",
+      "hash": "0xfd43cc99f006b9f53da5c5b8cd4c630908880f1f544a14a6fec1d0e8c078c8ce",
+      "blockNumber": 1786,
+      "blockHash": "0xec92b98d9aca639548087e4368a60f1dd1265241a2d6fd6b91bf7dd0aa026e2b",
+      "transactionIndex": 0,
+      "timestamp": "2026-10-16T12:02:02.000Z",
+      "from": "0x70997970C51812dc3A010C7d01b50e0d17dc79C8",
+      "fromRole": "agent",
+      "to": "0xB8357F7f41125d4b24AD052c1b7288BeF5C43446",
+      "toRole": "GuardianWallet #1",
+      "contractAddress": null,
+      "call": "requestApproval(contact ana, 0, 250000000, 0x3e956230032a698a1bbed4f96ac2597221ad1d812b6ecfab6af092dbcc139a1a)",
+      "status": "success",
+      "gasUsed": "98701",
+      "inputBytes": {
+        "zero": 91,
+        "nonzero": 41
+      },
+      "events": [
+        {
+          "contract": "GuardianWallet #1",
+          "address": "0xB8357F7f41125d4b24AD052c1b7288BeF5C43446",
+          "name": "ApprovalRequested",
+          "args": {
+            "pendingId": "1",
+            "intentId": "0x3e956230032a698a1bbed4f96ac2597221ad1d812b6ecfab6af092dbcc139a1a",
+            "currency": "0",
+            "to": "contact ana",
+            "amount": "250",
+            "expiresAt": "1792238522"
+          }
+        }
+      ],
+      "result": "ApprovalRequested"
+    },
+    {
+      "scenario": "E03",
+      "label": "Owner approve(#1) executes the payment",
+      "hash": "0x4d900a78601314bc62e61c1bc2b3a5fd6a24b290d3525c919ace139e11a7cf25",
+      "blockNumber": 1787,
+      "blockHash": "0xf14e306c94318462a18f9c831df1627076cfac678e109572bd9444a4dbe5bf7a",
+      "transactionIndex": 0,
+      "timestamp": "2026-10-16T12:02:03.000Z",
+      "from": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
+      "fromRole": "owner",
+      "to": "0xB8357F7f41125d4b24AD052c1b7288BeF5C43446",
+      "toRole": "GuardianWallet #1",
+      "contractAddress": null,
+      "call": "approve(1)",
+      "status": "success",
+      "gasUsed": "116087",
+      "inputBytes": {
+        "zero": 31,
+        "nonzero": 5
+      },
+      "events": [
+        {
+          "contract": "DemoLedger #1",
+          "address": "0x0eb44B96bC23A6362d383eF04bE67501251cF227",
+          "name": "BalanceMoved",
+          "args": {
+            "from": "GuardianWallet #1",
+            "to": "contact ana",
+            "currency": "0",
+            "amount": "250"
+          }
+        },
+        {
+          "contract": "GuardianWallet #1",
+          "address": "0xB8357F7f41125d4b24AD052c1b7288BeF5C43446",
+          "name": "PendingApproved",
+          "args": {
+            "pendingId": "1",
+            "intentId": "0x3e956230032a698a1bbed4f96ac2597221ad1d812b6ecfab6af092dbcc139a1a",
+            "to": "contact ana",
+            "amount": "250"
+          }
+        }
+      ],
+      "result": "BalanceMoved, PendingApproved"
+    },
+    {
+      "scenario": "E04",
+      "label": "Agent saveToSavings(100 USD)",
+      "hash": "0x6c1e8a8f326e5618d54414ec4ce5098c2a3d091bcd77e9906f8c44ea864609ee",
+      "blockNumber": 1788,
+      "blockHash": "0x9bbb30b5d75c5f17ce2ff41f3b57b5efb5aa4141860e6f33998ffa2f80f40c9f",
+      "transactionIndex": 0,
+      "timestamp": "2026-10-16T12:02:03.000Z",
+      "from": "0x70997970C51812dc3A010C7d01b50e0d17dc79C8",
+      "fromRole": "agent",
+      "to": "0xB8357F7f41125d4b24AD052c1b7288BeF5C43446",
+      "toRole": "GuardianWallet #1",
+      "contractAddress": null,
+      "call": "saveToSavings(0, 100000000, 0x27b13346eac976b8542e421175a04f9d6cf38718b72235a03ba7b5712a123ba6)",
+      "status": "success",
+      "gasUsed": "114746",
+      "inputBytes": {
+        "zero": 61,
+        "nonzero": 39
+      },
+      "events": [
+        {
+          "contract": "DemoLedger #1",
+          "address": "0x0eb44B96bC23A6362d383eF04bE67501251cF227",
+          "name": "SavingsChanged",
+          "args": {
+            "account": "GuardianWallet #1",
+            "currency": "0",
+            "available": "1600000000",
+            "savings": "100000000"
+          }
+        },
+        {
+          "contract": "GuardianWallet #1",
+          "address": "0xB8357F7f41125d4b24AD052c1b7288BeF5C43446",
+          "name": "SavingsFunded",
+          "args": {
+            "intentId": "0x27b13346eac976b8542e421175a04f9d6cf38718b72235a03ba7b5712a123ba6",
+            "currency": "0",
+            "amount": "100"
+          }
+        }
+      ],
+      "result": "SavingsChanged, SavingsFunded"
+    },
+    {
+      "scenario": "E05",
+      "label": "Agent payServiceFee(0.05 USD)",
+      "hash": "0x0285aa1a73bd8c8af80f2a9269714511e7ab8dd3eccef58e8116d68577e89647",
+      "blockNumber": 1789,
+      "blockHash": "0x294e959f4609ce78f74b302a347a5ee64a53e7d34a62f174350f9243900224cb",
+      "transactionIndex": 0,
+      "timestamp": "2026-10-16T12:02:04.000Z",
+      "from": "0x70997970C51812dc3A010C7d01b50e0d17dc79C8",
+      "fromRole": "agent",
+      "to": "0xB8357F7f41125d4b24AD052c1b7288BeF5C43446",
+      "toRole": "GuardianWallet #1",
+      "contractAddress": null,
+      "call": "payServiceFee(50000, 0x7dd17369463609a72ae42bcf41c40d2d917dc0cfe2878b5ac63ec154f753948a)",
+      "status": "success",
+      "gasUsed": "113151",
+      "inputBytes": {
+        "zero": 30,
+        "nonzero": 38
+      },
+      "events": [
+        {
+          "contract": "DemoLedger #1",
+          "address": "0x0eb44B96bC23A6362d383eF04bE67501251cF227",
+          "name": "BalanceMoved",
+          "args": {
+            "from": "GuardianWallet #1",
+            "to": "fee account",
+            "currency": "0",
+            "amount": "0.05"
+          }
+        },
+        {
+          "contract": "GuardianWallet #1",
+          "address": "0xB8357F7f41125d4b24AD052c1b7288BeF5C43446",
+          "name": "ServiceFeePaid",
+          "args": {
+            "requestId": "0x7dd17369463609a72ae42bcf41c40d2d917dc0cfe2878b5ac63ec154f753948a",
+            "feeAccount": "fee account",
+            "amount": "0.05"
+          }
+        }
+      ],
+      "result": "BalanceMoved, ServiceFeePaid"
+    },
+    {
+      "scenario": "E06",
+      "label": "Agent requestApproval(ana, 600 USD) refused",
+      "hash": "0x9ecebd36a40e0a833bd51517776624095dd930b4917b31a6aaef19e61d7994eb",
+      "blockNumber": 1790,
+      "blockHash": "0x0fb4c19e6b3d11423246771eb78851858f718f0b1cb96b0054f963c79f60b922",
+      "transactionIndex": 0,
+      "timestamp": "2026-10-16T12:02:04.000Z",
+      "from": "0x70997970C51812dc3A010C7d01b50e0d17dc79C8",
+      "fromRole": "agent",
+      "to": "0xB8357F7f41125d4b24AD052c1b7288BeF5C43446",
+      "toRole": "GuardianWallet #1",
+      "contractAddress": null,
+      "call": "requestApproval(contact ana, 0, 600000000, 0x879a8c151acb5094435610376596add2b63659af847fb43598a2a21474ef9dff)",
+      "status": "success",
+      "gasUsed": "49365",
+      "inputBytes": {
+        "zero": 92,
+        "nonzero": 40
+      },
+      "events": [
+        {
+          "contract": "GuardianWallet #1",
+          "address": "0xB8357F7f41125d4b24AD052c1b7288BeF5C43446",
+          "name": "PolicyViolation",
+          "args": {
+            "intentId": "0x879a8c151acb5094435610376596add2b63659af847fb43598a2a21474ef9dff",
+            "action": "REQUEST_APPROVAL",
+            "reason": "OVER_PER_TX_LIMIT",
+            "amount": "600"
+          }
+        }
+      ],
+      "result": "BLOCKED OVER_PER_TX_LIMIT"
+    },
+    {
+      "scenario": "E07",
+      "label": "Owner pause()",
+      "hash": "0x98aeaf654ac86ac0178a4ae4a956a2a31f2a84d1a9708203f36fc9bcceb92de0",
+      "blockNumber": 1791,
+      "blockHash": "0x0b2f3143222eaf11906e3b4544c75025caeff4efc372440f8526530f7a98ca58",
+      "transactionIndex": 0,
+      "timestamp": "2026-10-16T12:02:05.000Z",
+      "from": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
+      "fromRole": "owner",
+      "to": "0xB8357F7f41125d4b24AD052c1b7288BeF5C43446",
+      "toRole": "GuardianWallet #1",
+      "contractAddress": null,
+      "call": "pause()",
+      "status": "success",
+      "gasUsed": "31680",
+      "inputBytes": {
+        "zero": 0,
+        "nonzero": 4
+      },
+      "events": [
+        {
+          "contract": "GuardianWallet #1",
+          "address": "0xB8357F7f41125d4b24AD052c1b7288BeF5C43446",
+          "name": "Paused",
+          "args": {
+            "by": "owner"
+          }
+        }
+      ],
+      "result": "Paused"
+    },
+    {
+      "scenario": "E07",
+      "label": "Agent pay(bob, 20 USD) while paused",
+      "hash": "0xd674ec531f59390cf6092012cf99a26b292a5dd27851bc9de0c7673bc96d636d",
+      "blockNumber": 1792,
+      "blockHash": "0xbc2c68cd127ebbf7f5a5d9b32f9dda9fa3851782066ec2bc364e99c13ae084bf",
+      "transactionIndex": 0,
+      "timestamp": "2026-10-16T12:02:06.000Z",
+      "from": "0x70997970C51812dc3A010C7d01b50e0d17dc79C8",
+      "fromRole": "agent",
+      "to": "0xB8357F7f41125d4b24AD052c1b7288BeF5C43446",
+      "toRole": "GuardianWallet #1",
+      "contractAddress": null,
+      "call": "pay(contact bob, 0, 20000000, 0x716c1a92f5ad5ce24830ef60b014b229f68d1b3b3deced74d5a6782f7078ec85)",
+      "status": "success",
+      "gasUsed": "40526",
+      "inputBytes": {
+        "zero": 92,
+        "nonzero": 40
+      },
+      "events": [
+        {
+          "contract": "GuardianWallet #1",
+          "address": "0xB8357F7f41125d4b24AD052c1b7288BeF5C43446",
+          "name": "PolicyViolation",
+          "args": {
+            "intentId": "0x716c1a92f5ad5ce24830ef60b014b229f68d1b3b3deced74d5a6782f7078ec85",
+            "action": "PAY",
+            "reason": "PAUSED",
+            "amount": "20"
+          }
+        }
+      ],
+      "result": "BLOCKED PAUSED"
+    },
+    {
+      "scenario": "E07",
+      "label": "Owner unpause()",
+      "hash": "0x0371d9ef6568a0bfdb61585a76c005c7d3fcd69c5b9221a0efda502e7e034546",
+      "blockNumber": 1793,
+      "blockHash": "0xedf1d3406d57834ed0989365bb6438b1bbfc9077c37a77412ee0f54e615c84b8",
+      "transactionIndex": 0,
+      "timestamp": "2026-10-16T12:02:06.000Z",
+      "from": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
+      "fromRole": "owner",
+      "to": "0xB8357F7f41125d4b24AD052c1b7288BeF5C43446",
+      "toRole": "GuardianWallet #1",
+      "contractAddress": null,
+      "call": "unpause()",
+      "status": "success",
+      "gasUsed": "31690",
+      "inputBytes": {
+        "zero": 0,
+        "nonzero": 4
+      },
+      "events": [
+        {
+          "contract": "GuardianWallet #1",
+          "address": "0xB8357F7f41125d4b24AD052c1b7288BeF5C43446",
+          "name": "Unpaused",
+          "args": {
+            "by": "owner"
+          }
+        }
+      ],
+      "result": "Unpaused"
+    },
+    {
+      "scenario": "E07",
+      "label": "Agent pay(bob, 20 USD) after resume",
+      "hash": "0x2ec5f146557111a84908315f6730d06c378facf04cec67e0a65b4ca62e71b462",
+      "blockNumber": 1794,
+      "blockHash": "0x4aee72188a223143a7683229cd0374e07fc7963e086e879affe8229a1ef48e5d",
+      "transactionIndex": 0,
+      "timestamp": "2026-10-16T12:02:07.000Z",
+      "from": "0x70997970C51812dc3A010C7d01b50e0d17dc79C8",
+      "fromRole": "agent",
+      "to": "0xB8357F7f41125d4b24AD052c1b7288BeF5C43446",
+      "toRole": "GuardianWallet #1",
+      "contractAddress": null,
+      "call": "pay(contact bob, 0, 20000000, 0x38a45397db8c2c729b4cdda77d26968a7953a3fcaa36c4a89412812919663e13)",
+      "status": "success",
+      "gasUsed": "106109",
+      "inputBytes": {
+        "zero": 92,
+        "nonzero": 40
+      },
+      "events": [
+        {
+          "contract": "DemoLedger #1",
+          "address": "0x0eb44B96bC23A6362d383eF04bE67501251cF227",
+          "name": "BalanceMoved",
+          "args": {
+            "from": "GuardianWallet #1",
+            "to": "contact bob",
+            "currency": "0",
+            "amount": "20"
+          }
+        },
+        {
+          "contract": "GuardianWallet #1",
+          "address": "0xB8357F7f41125d4b24AD052c1b7288BeF5C43446",
+          "name": "PaymentCompleted",
+          "args": {
+            "intentId": "0x38a45397db8c2c729b4cdda77d26968a7953a3fcaa36c4a89412812919663e13",
+            "currency": "0",
+            "to": "contact bob",
+            "amount": "20"
+          }
+        }
+      ],
+      "result": "BalanceMoved, PaymentCompleted"
+    },
+    {
+      "scenario": "E-A2",
+      "label": "Owner deploys DemoLedger #2",
+      "hash": "0x90cbe63c3a1eae20bbff19bc52dfb1d969459c31b6cb1db864b68763fb7b6b3c",
+      "blockNumber": 1795,
+      "blockHash": "0x5da48466dc777ffb6b5e9ad41059a2056cfdb53450dbc8d12e3076e5ad1201ed",
+      "transactionIndex": 0,
+      "timestamp": "2026-10-16T12:02:07.000Z",
+      "from": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
+      "fromRole": "owner",
+      "to": null,
+      "toRole": "create DemoLedger #2",
+      "contractAddress": "0x6C3c8F75da59F5880D9e60b8f8ae639c2bC2E1DA",
+      "call": "constructor",
+      "status": "success",
+      "gasUsed": "85913",
+      "inputBytes": {
+        "zero": 108,
+        "nonzero": 4023
+      },
+      "events": [
+        {
+          "contract": "DemoLedger #2",
+          "address": "0x6C3c8F75da59F5880D9e60b8f8ae639c2bC2E1DA",
+          "name": "OwnershipTransferred",
+          "args": {
+            "previousOwner": "0x0000000000000000000000000000000000000000",
+            "newOwner": "owner"
+          }
+        }
+      ],
+      "result": "OwnershipTransferred"
+    },
+    {
+      "scenario": "E-A2",
+      "label": "Owner deploys GuardianWallet #2",
+      "hash": "0x27edca0c927154a87c2dfa9a212b8461002916d6bdfb79dbe6dbfad5ae967efa",
+      "blockNumber": 1796,
+      "blockHash": "0xf26d18712e5f414139f4b5fc52f86820cd0275848fd69f5052bf837b17260ab6",
+      "transactionIndex": 0,
+      "timestamp": "2026-10-16T12:02:08.000Z",
+      "from": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
+      "fromRole": "owner",
+      "to": null,
+      "toRole": "create GuardianWallet #2",
+      "contractAddress": "0x8642500aC47424De5FA9756e16407f8bbfc1E039",
+      "call": "constructor",
+      "status": "success",
+      "gasUsed": "286007",
+      "inputBytes": {
+        "zero": 789,
+        "nonzero": 10992
+      },
+      "events": [
+        {
+          "contract": "GuardianWallet #2",
+          "address": "0x8642500aC47424De5FA9756e16407f8bbfc1E039",
+          "name": "OwnershipTransferred",
+          "args": {
+            "previousOwner": "0x0000000000000000000000000000000000000000",
+            "newOwner": "owner"
+          }
+        },
+        {
+          "contract": "GuardianWallet #2",
+          "address": "0x8642500aC47424De5FA9756e16407f8bbfc1E039",
+          "name": "AgentSet",
+          "args": {
+            "previousAgent": "0x0000000000000000000000000000000000000000",
+            "newAgent": "agent"
+          }
+        },
+        {
+          "contract": "GuardianWallet #2",
+          "address": "0x8642500aC47424De5FA9756e16407f8bbfc1E039",
+          "name": "GuardianSet",
+          "args": {
+            "previousGuardian": "0x0000000000000000000000000000000000000000",
+            "newGuardian": "0x0000000000000000000000000000000000000000"
+          }
+        },
+        {
+          "contract": "GuardianWallet #2",
+          "address": "0x8642500aC47424De5FA9756e16407f8bbfc1E039",
+          "name": "FeeAccountSet",
+          "args": {
+            "account": "fee account"
+          }
+        },
+        {
+          "contract": "GuardianWallet #2",
+          "address": "0x8642500aC47424De5FA9756e16407f8bbfc1E039",
+          "name": "PolicyUpdated",
+          "args": {
+            "policy": "(perTxLimit: 500000000, dailyLimit: 1000000000, approvalThreshold: 200000000, recipientCooldown: 0, pendingExpiry: 86400, opsPerCallLimit: 100000, opsDailyLimit: 5000000)"
+          }
+        }
+      ],
+      "result": "OwnershipTransferred, AgentSet, GuardianSet, FeeAccountSet, PolicyUpdated"
+    },
+    {
+      "scenario": "E-A2",
+      "label": "Owner setController on DemoLedger #2",
+      "hash": "0xf11a7e144350411669a10d844def82345855f877794c442e0a6cdf866c2aa226",
+      "blockNumber": 1797,
+      "blockHash": "0x801425ba363439868bbbb6577d534a69851eb5df3fa09f745d902ad91c36fee8",
+      "transactionIndex": 0,
+      "timestamp": "2026-10-16T12:02:08.000Z",
+      "from": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
+      "fromRole": "owner",
+      "to": "0x6C3c8F75da59F5880D9e60b8f8ae639c2bC2E1DA",
+      "toRole": "DemoLedger #2",
+      "contractAddress": null,
+      "call": "setController(GuardianWallet #2)",
+      "status": "success",
+      "gasUsed": "31827",
+      "inputBytes": {
+        "zero": 12,
+        "nonzero": 24
+      },
+      "events": [
+        {
+          "contract": "DemoLedger #2",
+          "address": "0x6C3c8F75da59F5880D9e60b8f8ae639c2bC2E1DA",
+          "name": "ControllerSet",
+          "args": {
+            "controller": "GuardianWallet #2"
+          }
+        }
+      ],
+      "result": "ControllerSet"
+    },
+    {
+      "scenario": "E-A2",
+      "label": "Owner mint on DemoLedger #2",
+      "hash": "0xf45f94f36fc66438d539468437cace52a62f135dfac520a34195f182fef2c47e",
+      "blockNumber": 1798,
+      "blockHash": "0x097503dd27e17a868423f358567214249c9d789a63acebc65f89ef4490420132",
+      "transactionIndex": 0,
+      "timestamp": "2026-10-16T12:02:09.000Z",
+      "from": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
+      "fromRole": "owner",
+      "to": "0x6C3c8F75da59F5880D9e60b8f8ae639c2bC2E1DA",
+      "toRole": "DemoLedger #2",
+      "contractAddress": null,
+      "call": "mint(GuardianWallet #2, 0, 2000000000)",
+      "status": "success",
+      "gasUsed": "32964",
+      "inputBytes": {
+        "zero": 73,
+        "nonzero": 27
+      },
+      "events": [
+        {
+          "contract": "DemoLedger #2",
+          "address": "0x6C3c8F75da59F5880D9e60b8f8ae639c2bC2E1DA",
+          "name": "DemoUnitsMinted",
+          "args": {
+            "account": "GuardianWallet #2",
+            "currency": "0",
+            "amount": "2000"
+          }
+        }
+      ],
+      "result": "DemoUnitsMinted"
+    },
+    {
+      "scenario": "E-A2",
+      "label": "Owner mint on DemoLedger #2",
+      "hash": "0x96193c597ee341f3ecf03886221c792b457192ba2ccc958eb14424df00b3def8",
+      "blockNumber": 1799,
+      "blockHash": "0xbabde7587d693f5b7cfb3fd683c063ca83d5dd8ab900574edaa1d00adfd072cd",
+      "transactionIndex": 0,
+      "timestamp": "2026-10-16T12:02:10.000Z",
+      "from": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
+      "fromRole": "owner",
+      "to": "0x6C3c8F75da59F5880D9e60b8f8ae639c2bC2E1DA",
+      "toRole": "DemoLedger #2",
+      "contractAddress": null,
+      "call": "mint(GuardianWallet #2, 1, 200000000000)",
+      "status": "success",
+      "gasUsed": "32964",
+      "inputBytes": {
+        "zero": 71,
+        "nonzero": 29
+      },
+      "events": [
+        {
+          "contract": "DemoLedger #2",
+          "address": "0x6C3c8F75da59F5880D9e60b8f8ae639c2bC2E1DA",
+          "name": "DemoUnitsMinted",
+          "args": {
+            "account": "GuardianWallet #2",
+            "currency": "1",
+            "amount": "200000"
+          }
+        }
+      ],
+      "result": "DemoUnitsMinted"
+    },
+    {
+      "scenario": "E-A2",
+      "label": "Owner setRecipient on GuardianWallet #2",
+      "hash": "0xe81e139b0d8e5e5be9cc9f7c78b5113c39d0e6ac50c27ef0cf6b85c67fc82de6",
+      "blockNumber": 1800,
+      "blockHash": "0x5101d9d060e53a056340bf6b0f876f2a0c12c7aeca07b0f29f1026eeb7b219c3",
+      "transactionIndex": 0,
+      "timestamp": "2026-10-16T12:02:10.000Z",
+      "from": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
+      "fromRole": "owner",
+      "to": "0x8642500aC47424De5FA9756e16407f8bbfc1E039",
+      "toRole": "GuardianWallet #2",
+      "contractAddress": null,
+      "call": "setRecipient(0x00000000000000000000000000000000000000A1, true, Ana · synthetic contact)",
+      "status": "success",
+      "gasUsed": "55012",
+      "inputBytes": {
+        "zero": 132,
+        "nonzero": 32
+      },
+      "events": [
+        {
+          "contract": "GuardianWallet #2",
+          "address": "0x8642500aC47424De5FA9756e16407f8bbfc1E039",
+          "name": "RecipientSet",
+          "args": {
+            "recipient": "0x00000000000000000000000000000000000000A1",
+            "allowed": true,
+            "activeAfter": "1792152130",
+            "label": "Ana · synthetic contact"
+          }
+        }
+      ],
+      "result": "RecipientSet"
+    },
+    {
+      "scenario": "E-A2",
+      "label": "A2: Agent pipeline returned BLOCKED (T1): OVER_PER_TX_LIMIT",
+      "hash": "0xfba5d9eea25d4737ade277b924c1971ea91c11cc0496310b64e79a4875f58d02",
+      "blockNumber": 1801,
+      "blockHash": "0x054c8975cfb2f17c825182a5a74e838c8af52e68c4f1d006443bdf66844dfa46",
+      "transactionIndex": 0,
+      "timestamp": "2026-10-16T12:02:11.000Z",
+      "from": "0x70997970C51812dc3A010C7d01b50e0d17dc79C8",
+      "fromRole": "agent",
+      "to": "0x8642500aC47424De5FA9756e16407f8bbfc1E039",
+      "toRole": "GuardianWallet #2",
+      "contractAddress": null,
+      "call": "requestApproval(0x00000000000000000000000000000000000000A1, 0, 600000000, 0x7a9fa1720f0e97217394de9e180d6f42a5c28c75e71e6d6a31aa7e5fc7882caf)",
+      "status": "success",
+      "gasUsed": "49365",
+      "inputBytes": {
+        "zero": 92,
+        "nonzero": 40
+      },
+      "events": [
+        {
+          "contract": "GuardianWallet #2",
+          "address": "0x8642500aC47424De5FA9756e16407f8bbfc1E039",
+          "name": "PolicyViolation",
+          "args": {
+            "intentId": "0x7a9fa1720f0e97217394de9e180d6f42a5c28c75e71e6d6a31aa7e5fc7882caf",
+            "action": "REQUEST_APPROVAL",
+            "reason": "OVER_PER_TX_LIMIT",
+            "amount": "600"
+          }
+        }
+      ],
+      "result": "BLOCKED OVER_PER_TX_LIMIT"
+    },
+    {
+      "scenario": "E-A2",
+      "label": "A2: Agent key called pay(600 USD) directly: PolicyViolation(OVER_PER_TX_LIMIT)",
+      "hash": "0x68337a4aba7f436bd5488df3c44d3119aa872a41bd090c95c4189276e433172c",
+      "blockNumber": 1802,
+      "blockHash": "0x037de50e4919fcc593883f28683a5ef12ece7c82a1c76ad7faabc8783d1fa165",
+      "transactionIndex": 0,
+      "timestamp": "2026-10-16T12:02:11.000Z",
+      "from": "0x70997970C51812dc3A010C7d01b50e0d17dc79C8",
+      "fromRole": "agent",
+      "to": "0x8642500aC47424De5FA9756e16407f8bbfc1E039",
+      "toRole": "GuardianWallet #2",
+      "contractAddress": null,
+      "call": "pay(0x00000000000000000000000000000000000000A1, 0, 600000000, 0x7cdba366f5fe7282b67fdcd0d95c62681c64a25dd5e2541e15bf5d0456f30703)",
+      "status": "success",
+      "gasUsed": "49311",
+      "inputBytes": {
+        "zero": 92,
+        "nonzero": 40
+      },
+      "events": [
+        {
+          "contract": "GuardianWallet #2",
+          "address": "0x8642500aC47424De5FA9756e16407f8bbfc1E039",
+          "name": "PolicyViolation",
+          "args": {
+            "intentId": "0x7cdba366f5fe7282b67fdcd0d95c62681c64a25dd5e2541e15bf5d0456f30703",
+            "action": "PAY",
+            "reason": "OVER_PER_TX_LIMIT",
+            "amount": "600"
+          }
+        }
+      ],
+      "result": "BLOCKED OVER_PER_TX_LIMIT"
+    },
+    {
+      "scenario": "E-A3",
+      "label": "Owner deploys DemoLedger #3",
+      "hash": "0x3a90c7cb5d952b0af7de0ea401dfda68336d9e5075cc5c6a07fabdc2e54f2da3",
+      "blockNumber": 1803,
+      "blockHash": "0x9f5e3727bfd60fc0f0d69d3abc1fa782d799115ff7657f9b9cae3e33406c5034",
+      "transactionIndex": 0,
+      "timestamp": "2026-10-16T12:02:12.000Z",
+      "from": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
+      "fromRole": "owner",
+      "to": null,
+      "toRole": "create DemoLedger #3",
+      "contractAddress": "0xB970e0fFd20AA28BeC62b1c0717836310d3fF324",
+      "call": "constructor",
+      "status": "success",
+      "gasUsed": "85913",
+      "inputBytes": {
+        "zero": 108,
+        "nonzero": 4023
+      },
+      "events": [
+        {
+          "contract": "DemoLedger #3",
+          "address": "0xB970e0fFd20AA28BeC62b1c0717836310d3fF324",
+          "name": "OwnershipTransferred",
+          "args": {
+            "previousOwner": "0x0000000000000000000000000000000000000000",
+            "newOwner": "owner"
+          }
+        }
+      ],
+      "result": "OwnershipTransferred"
+    },
+    {
+      "scenario": "E-A3",
+      "label": "Owner deploys GuardianWallet #3",
+      "hash": "0x9f39a7c2522164b035de3d983063f325233c667d0f768eb61d51fc00c443aae1",
+      "blockNumber": 1804,
+      "blockHash": "0x102cc2cc3c5906d5467039c47011c9195721dc6d190459244bf84a92e1c0c335",
+      "transactionIndex": 0,
+      "timestamp": "2026-10-16T12:02:12.000Z",
+      "from": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
+      "fromRole": "owner",
+      "to": null,
+      "toRole": "create GuardianWallet #3",
+      "contractAddress": "0xC65cCB966873969179B6b0bA53D67D14Bbf1204C",
+      "call": "constructor",
+      "status": "success",
+      "gasUsed": "286007",
+      "inputBytes": {
+        "zero": 789,
+        "nonzero": 10992
+      },
+      "events": [
+        {
+          "contract": "GuardianWallet #3",
+          "address": "0xC65cCB966873969179B6b0bA53D67D14Bbf1204C",
+          "name": "OwnershipTransferred",
+          "args": {
+            "previousOwner": "0x0000000000000000000000000000000000000000",
+            "newOwner": "owner"
+          }
+        },
+        {
+          "contract": "GuardianWallet #3",
+          "address": "0xC65cCB966873969179B6b0bA53D67D14Bbf1204C",
+          "name": "AgentSet",
+          "args": {
+            "previousAgent": "0x0000000000000000000000000000000000000000",
+            "newAgent": "agent"
+          }
+        },
+        {
+          "contract": "GuardianWallet #3",
+          "address": "0xC65cCB966873969179B6b0bA53D67D14Bbf1204C",
+          "name": "GuardianSet",
+          "args": {
+            "previousGuardian": "0x0000000000000000000000000000000000000000",
+            "newGuardian": "0x0000000000000000000000000000000000000000"
+          }
+        },
+        {
+          "contract": "GuardianWallet #3",
+          "address": "0xC65cCB966873969179B6b0bA53D67D14Bbf1204C",
+          "name": "FeeAccountSet",
+          "args": {
+            "account": "fee account"
+          }
+        },
+        {
+          "contract": "GuardianWallet #3",
+          "address": "0xC65cCB966873969179B6b0bA53D67D14Bbf1204C",
+          "name": "PolicyUpdated",
+          "args": {
+            "policy": "(perTxLimit: 500000000, dailyLimit: 1000000000, approvalThreshold: 200000000, recipientCooldown: 0, pendingExpiry: 86400, opsPerCallLimit: 100000, opsDailyLimit: 5000000)"
+          }
+        }
+      ],
+      "result": "OwnershipTransferred, AgentSet, GuardianSet, FeeAccountSet, PolicyUpdated"
+    },
+    {
+      "scenario": "E-A3",
+      "label": "Owner setController on DemoLedger #3",
+      "hash": "0x8e0597f95499728ad7352df67713dd350bf95d4f15b904111ded3a7ae57960c2",
+      "blockNumber": 1805,
+      "blockHash": "0x66dcf1fae34fcf27c1e0de0cdc67937b4498c23a9ec91b1be76df4a54a94a925",
+      "transactionIndex": 0,
+      "timestamp": "2026-10-16T12:02:13.000Z",
+      "from": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
+      "fromRole": "owner",
+      "to": "0xB970e0fFd20AA28BeC62b1c0717836310d3fF324",
+      "toRole": "DemoLedger #3",
+      "contractAddress": null,
+      "call": "setController(GuardianWallet #3)",
+      "status": "success",
+      "gasUsed": "31827",
+      "inputBytes": {
+        "zero": 12,
+        "nonzero": 24
+      },
+      "events": [
+        {
+          "contract": "DemoLedger #3",
+          "address": "0xB970e0fFd20AA28BeC62b1c0717836310d3fF324",
+          "name": "ControllerSet",
+          "args": {
+            "controller": "GuardianWallet #3"
+          }
+        }
+      ],
+      "result": "ControllerSet"
+    },
+    {
+      "scenario": "E-A3",
+      "label": "Owner mint on DemoLedger #3",
+      "hash": "0x7789544bac38854cc8e56dc9e105dca99ec42577928a501703c69ddc87988a3f",
+      "blockNumber": 1806,
+      "blockHash": "0x958699f8d4fb1efa9267f25453ea6981f7832b929aacbeb6036836c2537c4bfd",
+      "transactionIndex": 0,
+      "timestamp": "2026-10-16T12:02:13.000Z",
+      "from": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
+      "fromRole": "owner",
+      "to": "0xB970e0fFd20AA28BeC62b1c0717836310d3fF324",
+      "toRole": "DemoLedger #3",
+      "contractAddress": null,
+      "call": "mint(GuardianWallet #3, 0, 2000000000)",
+      "status": "success",
+      "gasUsed": "32964",
+      "inputBytes": {
+        "zero": 73,
+        "nonzero": 27
+      },
+      "events": [
+        {
+          "contract": "DemoLedger #3",
+          "address": "0xB970e0fFd20AA28BeC62b1c0717836310d3fF324",
+          "name": "DemoUnitsMinted",
+          "args": {
+            "account": "GuardianWallet #3",
+            "currency": "0",
+            "amount": "2000"
+          }
+        }
+      ],
+      "result": "DemoUnitsMinted"
+    },
+    {
+      "scenario": "E-A3",
+      "label": "Owner mint on DemoLedger #3",
+      "hash": "0x318d00829b6f70c15a3c4694e0f9eb2defd362d23884c59290c19eaa3627f4e7",
+      "blockNumber": 1807,
+      "blockHash": "0xb6e99bfd7c1fb07a951f7527266b3485be7dc2b6b84d83842d07340610b2f143",
+      "transactionIndex": 0,
+      "timestamp": "2026-10-16T12:02:14.000Z",
+      "from": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
+      "fromRole": "owner",
+      "to": "0xB970e0fFd20AA28BeC62b1c0717836310d3fF324",
+      "toRole": "DemoLedger #3",
+      "contractAddress": null,
+      "call": "mint(GuardianWallet #3, 1, 200000000000)",
+      "status": "success",
+      "gasUsed": "32964",
+      "inputBytes": {
+        "zero": 71,
+        "nonzero": 29
+      },
+      "events": [
+        {
+          "contract": "DemoLedger #3",
+          "address": "0xB970e0fFd20AA28BeC62b1c0717836310d3fF324",
+          "name": "DemoUnitsMinted",
+          "args": {
+            "account": "GuardianWallet #3",
+            "currency": "1",
+            "amount": "200000"
+          }
+        }
+      ],
+      "result": "DemoUnitsMinted"
+    },
+    {
+      "scenario": "E-A3",
+      "label": "Owner setRecipient on GuardianWallet #3",
+      "hash": "0xb970e9fbc1b0889dd9df35f00c3461f2f57262f2ae774e27fc4f492b063549c8",
+      "blockNumber": 1808,
+      "blockHash": "0x468b2130426cadb3ecb492ab0529b7482b40daeadf7784f47d80666122c88238",
+      "transactionIndex": 0,
+      "timestamp": "2026-10-16T12:02:15.000Z",
+      "from": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
+      "fromRole": "owner",
+      "to": "0xC65cCB966873969179B6b0bA53D67D14Bbf1204C",
+      "toRole": "GuardianWallet #3",
+      "contractAddress": null,
+      "call": "setRecipient(0x00000000000000000000000000000000000000A1, true, Ana · synthetic contact)",
+      "status": "success",
+      "gasUsed": "55012",
+      "inputBytes": {
+        "zero": 132,
+        "nonzero": 32
+      },
+      "events": [
+        {
+          "contract": "GuardianWallet #3",
+          "address": "0xC65cCB966873969179B6b0bA53D67D14Bbf1204C",
+          "name": "RecipientSet",
+          "args": {
+            "recipient": "0x00000000000000000000000000000000000000A1",
+            "allowed": true,
+            "activeAfter": "1792152135",
+            "label": "Ana · synthetic contact"
+          }
+        }
+      ],
+      "result": "RecipientSet"
+    },
+    {
+      "scenario": "E-A3",
+      "label": "A3: Payment 1: 199 USD executed, risk 10/100 (FIRST_PAYMENT)",
+      "hash": "0x9a18d5fce5bf5f8f8a5be3407c7f5af3af3571f70fdbbe36d3e4c21b7195aa77",
+      "blockNumber": 1809,
+      "blockHash": "0x02709531dee523b08781cf2a089af74b6a98d01ecfd8bce16b552907a9ecd286",
+      "transactionIndex": 0,
+      "timestamp": "2026-10-16T12:02:15.000Z",
+      "from": "0x70997970C51812dc3A010C7d01b50e0d17dc79C8",
+      "fromRole": "agent",
+      "to": "0xC65cCB966873969179B6b0bA53D67D14Bbf1204C",
+      "toRole": "GuardianWallet #3",
+      "contractAddress": null,
+      "call": "pay(0x00000000000000000000000000000000000000A1, 0, 199000000, 0x7d74c3964d80e74bcbd26a28cf3ed34e798fded8341fe687dd69be6097422b26)",
+      "status": "success",
+      "gasUsed": "116114",
+      "inputBytes": {
+        "zero": 91,
+        "nonzero": 41
+      },
+      "events": [
+        {
+          "contract": "DemoLedger #3",
+          "address": "0xB970e0fFd20AA28BeC62b1c0717836310d3fF324",
+          "name": "BalanceMoved",
+          "args": {
+            "from": "GuardianWallet #3",
+            "to": "0x00000000000000000000000000000000000000A1",
+            "currency": "0",
+            "amount": "199"
+          }
+        },
+        {
+          "contract": "GuardianWallet #3",
+          "address": "0xC65cCB966873969179B6b0bA53D67D14Bbf1204C",
+          "name": "PaymentCompleted",
+          "args": {
+            "intentId": "0x7d74c3964d80e74bcbd26a28cf3ed34e798fded8341fe687dd69be6097422b26",
+            "currency": "0",
+            "to": "0x00000000000000000000000000000000000000A1",
+            "amount": "199"
+          }
+        }
+      ],
+      "result": "BalanceMoved, PaymentCompleted"
+    },
+    {
+      "scenario": "E-A3",
+      "label": "A3: Payment 2: 199 USD executed, risk 0/100 (no factors)",
+      "hash": "0xb33efd53d6c751c64734431a9ce95ced20831eecf5907f4d506da312c25d3219",
+      "blockNumber": 1810,
+      "blockHash": "0xb5c55d514f02536a5c9dc1d15affeb61f1f0de4d4ca43ea2143748049ac86a28",
+      "transactionIndex": 0,
+      "timestamp": "2026-10-16T12:02:16.000Z",
+      "from": "0x70997970C51812dc3A010C7d01b50e0d17dc79C8",
+      "fromRole": "agent",
+      "to": "0xC65cCB966873969179B6b0bA53D67D14Bbf1204C",
+      "toRole": "GuardianWallet #3",
+      "contractAddress": null,
+      "call": "pay(0x00000000000000000000000000000000000000A1, 0, 199000000, 0x555d989c65cf7ed7b6f5963520407c29e917f79623ca14f2b1d702a4b109b149)",
+      "status": "success",
+      "gasUsed": "106109",
+      "inputBytes": {
+        "zero": 91,
+        "nonzero": 41
+      },
+      "events": [
+        {
+          "contract": "DemoLedger #3",
+          "address": "0xB970e0fFd20AA28BeC62b1c0717836310d3fF324",
+          "name": "BalanceMoved",
+          "args": {
+            "from": "GuardianWallet #3",
+            "to": "0x00000000000000000000000000000000000000A1",
+            "currency": "0",
+            "amount": "199"
+          }
+        },
+        {
+          "contract": "GuardianWallet #3",
+          "address": "0xC65cCB966873969179B6b0bA53D67D14Bbf1204C",
+          "name": "PaymentCompleted",
+          "args": {
+            "intentId": "0x555d989c65cf7ed7b6f5963520407c29e917f79623ca14f2b1d702a4b109b149",
+            "currency": "0",
+            "to": "0x00000000000000000000000000000000000000A1",
+            "amount": "199"
+          }
+        }
+      ],
+      "result": "BalanceMoved, PaymentCompleted"
+    },
+    {
+      "scenario": "E-A3",
+      "label": "A3: Payment 3: 199 USD executed, risk 0/100 (no factors)",
+      "hash": "0xc7b11dffee431024c3bd53a09e0fec7f3be0583273c61ac87a0e5c969e873438",
+      "blockNumber": 1811,
+      "blockHash": "0x5b10e38c20266ed6172f2a8767be9438631b3142db5ef67b11eab419a2f9b2d8",
+      "transactionIndex": 0,
+      "timestamp": "2026-10-16T12:02:16.000Z",
+      "from": "0x70997970C51812dc3A010C7d01b50e0d17dc79C8",
+      "fromRole": "agent",
+      "to": "0xC65cCB966873969179B6b0bA53D67D14Bbf1204C",
+      "toRole": "GuardianWallet #3",
+      "contractAddress": null,
+      "call": "pay(0x00000000000000000000000000000000000000A1, 0, 199000000, 0x6a7e6c03d240c5bcadd3be3a18663a85417b887f714cdfa4e6e4ec31398be08c)",
+      "status": "success",
+      "gasUsed": "106109",
+      "inputBytes": {
+        "zero": 91,
+        "nonzero": 41
+      },
+      "events": [
+        {
+          "contract": "DemoLedger #3",
+          "address": "0xB970e0fFd20AA28BeC62b1c0717836310d3fF324",
+          "name": "BalanceMoved",
+          "args": {
+            "from": "GuardianWallet #3",
+            "to": "0x00000000000000000000000000000000000000A1",
+            "currency": "0",
+            "amount": "199"
+          }
+        },
+        {
+          "contract": "GuardianWallet #3",
+          "address": "0xC65cCB966873969179B6b0bA53D67D14Bbf1204C",
+          "name": "PaymentCompleted",
+          "args": {
+            "intentId": "0x6a7e6c03d240c5bcadd3be3a18663a85417b887f714cdfa4e6e4ec31398be08c",
+            "currency": "0",
+            "to": "0x00000000000000000000000000000000000000A1",
+            "amount": "199"
+          }
+        }
+      ],
+      "result": "BalanceMoved, PaymentCompleted"
+    },
+    {
+      "scenario": "E-A3",
+      "label": "A3: Payment 4: 199 USD executed, risk 20/100 (HIGH_VELOCITY)",
+      "hash": "0x8027c08f811d9d31f33d1c9f3ffda9fa4a6225ae8ef3f5e747a918b71fcd11dd",
+      "blockNumber": 1812,
+      "blockHash": "0x83ef1c61df4f5f69d3fb5b455f71c16620eefd06d0cdbb98e59e20768b7b6d52",
+      "transactionIndex": 0,
+      "timestamp": "2026-10-16T12:02:17.000Z",
+      "from": "0x70997970C51812dc3A010C7d01b50e0d17dc79C8",
+      "fromRole": "agent",
+      "to": "0xC65cCB966873969179B6b0bA53D67D14Bbf1204C",
+      "toRole": "GuardianWallet #3",
+      "contractAddress": null,
+      "call": "pay(0x00000000000000000000000000000000000000A1, 0, 199000000, 0x6d49bf3577e8e6d4b6456ff73af0b9ed212593b940430e6c9072b41c61b9004f)",
+      "status": "success",
+      "gasUsed": "106109",
+      "inputBytes": {
+        "zero": 92,
+        "nonzero": 40
+      },
+      "events": [
+        {
+          "contract": "DemoLedger #3",
+          "address": "0xB970e0fFd20AA28BeC62b1c0717836310d3fF324",
+          "name": "BalanceMoved",
+          "args": {
+            "from": "GuardianWallet #3",
+            "to": "0x00000000000000000000000000000000000000A1",
+            "currency": "0",
+            "amount": "199"
+          }
+        },
+        {
+          "contract": "GuardianWallet #3",
+          "address": "0xC65cCB966873969179B6b0bA53D67D14Bbf1204C",
+          "name": "PaymentCompleted",
+          "args": {
+            "intentId": "0x6d49bf3577e8e6d4b6456ff73af0b9ed212593b940430e6c9072b41c61b9004f",
+            "currency": "0",
+            "to": "0x00000000000000000000000000000000000000A1",
+            "amount": "199"
+          }
+        }
+      ],
+      "result": "BalanceMoved, PaymentCompleted"
+    },
+    {
+      "scenario": "E-A3",
+      "label": "A3: Payment 5: 199 USD executed, risk 35/100 (MOST_OF_REMAINING_DAILY, HIGH_VELOCITY)",
+      "hash": "0xa8dfe7ec1bfcb3d6366474dc683579f499d8ab7dcfef0f3b5057ac27512dcfdf",
+      "blockNumber": 1813,
+      "blockHash": "0xacbe94c98cc913805a3ac2a271840ebdcec69648d705aba4b9481218b03d059d",
+      "transactionIndex": 0,
+      "timestamp": "2026-10-16T12:02:17.000Z",
+      "from": "0x70997970C51812dc3A010C7d01b50e0d17dc79C8",
+      "fromRole": "agent",
+      "to": "0xC65cCB966873969179B6b0bA53D67D14Bbf1204C",
+      "toRole": "GuardianWallet #3",
+      "contractAddress": null,
+      "call": "pay(0x00000000000000000000000000000000000000A1, 0, 199000000, 0xd5a5db6db2dc132805947ea502d8f052e62bba141892712f6a4c98e92800f733)",
+      "status": "success",
+      "gasUsed": "106109",
+      "inputBytes": {
+        "zero": 92,
+        "nonzero": 40
+      },
+      "events": [
+        {
+          "contract": "DemoLedger #3",
+          "address": "0xB970e0fFd20AA28BeC62b1c0717836310d3fF324",
+          "name": "BalanceMoved",
+          "args": {
+            "from": "GuardianWallet #3",
+            "to": "0x00000000000000000000000000000000000000A1",
+            "currency": "0",
+            "amount": "199"
+          }
+        },
+        {
+          "contract": "GuardianWallet #3",
+          "address": "0xC65cCB966873969179B6b0bA53D67D14Bbf1204C",
+          "name": "PaymentCompleted",
+          "args": {
+            "intentId": "0xd5a5db6db2dc132805947ea502d8f052e62bba141892712f6a4c98e92800f733",
+            "currency": "0",
+            "to": "0x00000000000000000000000000000000000000A1",
+            "amount": "199"
+          }
+        }
+      ],
+      "result": "BalanceMoved, PaymentCompleted"
+    },
+    {
+      "scenario": "E-A3",
+      "label": "A3: Agent pipeline returned BLOCKED (T1): OVER_DAILY_LIMIT",
+      "hash": "0x7d3547dc3f631e046b1bdc090ffeeede4316dd5ed3e1c6eed7cb1f47ac43807f",
+      "blockNumber": 1814,
+      "blockHash": "0x17b45ba2285d1afee132744a7c6c1c5af4d5428e4703f44bfd2b2b78665d6df9",
+      "transactionIndex": 0,
+      "timestamp": "2026-10-16T12:02:18.000Z",
+      "from": "0x70997970C51812dc3A010C7d01b50e0d17dc79C8",
+      "fromRole": "agent",
+      "to": "0xC65cCB966873969179B6b0bA53D67D14Bbf1204C",
+      "toRole": "GuardianWallet #3",
+      "contractAddress": null,
+      "call": "pay(0x00000000000000000000000000000000000000A1, 0, 199000000, 0x1f48930a1900e2c3cf1d9d2d2a0293257b88b94780b4a1acaa4a2dbe8a12c028)",
+      "status": "success",
+      "gasUsed": "58082",
+      "inputBytes": {
+        "zero": 92,
+        "nonzero": 40
+      },
+      "events": [
+        {
+          "contract": "GuardianWallet #3",
+          "address": "0xC65cCB966873969179B6b0bA53D67D14Bbf1204C",
+          "name": "PolicyViolation",
+          "args": {
+            "intentId": "0x1f48930a1900e2c3cf1d9d2d2a0293257b88b94780b4a1acaa4a2dbe8a12c028",
+            "action": "PAY",
+            "reason": "OVER_DAILY_LIMIT",
+            "amount": "199"
+          }
+        }
+      ],
+      "result": "BLOCKED OVER_DAILY_LIMIT"
+    },
+    {
+      "scenario": "E-A3",
+      "label": "A3: Agent key called pay(199 USD) directly past the daily allowance: PolicyViolation(OVER_DAILY_LIMIT)",
+      "hash": "0x913ff57b71ebd7bad20f174ce5f807bb1495ddbda282a41e0d124c0b86b3e25c",
+      "blockNumber": 1815,
+      "blockHash": "0x43a437025d919da5d78a6214ed7c6511563f4fa7d763ac0c57878adc670ed9ff",
+      "transactionIndex": 0,
+      "timestamp": "2026-10-16T12:02:19.000Z",
+      "from": "0x70997970C51812dc3A010C7d01b50e0d17dc79C8",
+      "fromRole": "agent",
+      "to": "0xC65cCB966873969179B6b0bA53D67D14Bbf1204C",
+      "toRole": "GuardianWallet #3",
+      "contractAddress": null,
+      "call": "pay(0x00000000000000000000000000000000000000A1, 0, 199000000, 0x9c9cf5ca377f89db6b5ffb492d55cfb04dbbee0fa85134c32fe7c10c34031c27)",
+      "status": "success",
+      "gasUsed": "58082",
+      "inputBytes": {
+        "zero": 91,
+        "nonzero": 41
+      },
+      "events": [
+        {
+          "contract": "GuardianWallet #3",
+          "address": "0xC65cCB966873969179B6b0bA53D67D14Bbf1204C",
+          "name": "PolicyViolation",
+          "args": {
+            "intentId": "0x9c9cf5ca377f89db6b5ffb492d55cfb04dbbee0fa85134c32fe7c10c34031c27",
+            "action": "PAY",
+            "reason": "OVER_DAILY_LIMIT",
+            "amount": "199"
+          }
+        }
+      ],
+      "result": "BLOCKED OVER_DAILY_LIMIT"
+    },
+    {
+      "scenario": "E-A4",
+      "label": "Owner deploys DemoLedger #4",
+      "hash": "0x1e7fc7be7347390d8005d37571ecf06d2714c6978779f82b80e95d32283c9e8d",
+      "blockNumber": 1816,
+      "blockHash": "0xafdc6e778d8519a954c281d31785ec2ba031f8b194dff33989134d2b015c4310",
+      "transactionIndex": 0,
+      "timestamp": "2026-10-16T12:02:19.000Z",
+      "from": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
+      "fromRole": "owner",
+      "to": null,
+      "toRole": "create DemoLedger #4",
+      "contractAddress": "0xf688e1a4b320C835bB459E7f5F3326dE6aeaFdcb",
+      "call": "constructor",
+      "status": "success",
+      "gasUsed": "85913",
+      "inputBytes": {
+        "zero": 108,
+        "nonzero": 4023
+      },
+      "events": [
+        {
+          "contract": "DemoLedger #4",
+          "address": "0xf688e1a4b320C835bB459E7f5F3326dE6aeaFdcb",
+          "name": "OwnershipTransferred",
+          "args": {
+            "previousOwner": "0x0000000000000000000000000000000000000000",
+            "newOwner": "owner"
+          }
+        }
+      ],
+      "result": "OwnershipTransferred"
+    },
+    {
+      "scenario": "E-A4",
+      "label": "Owner deploys GuardianWallet #4",
+      "hash": "0xb206d80dd544178d07519566b54e343007ac0684574171b4178421823855a543",
+      "blockNumber": 1817,
+      "blockHash": "0xab1a47a5949bf082cc1ca526e0e883d33ef614399af70ca05c570e265ed3bf66",
+      "transactionIndex": 0,
+      "timestamp": "2026-10-16T12:02:20.000Z",
+      "from": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
+      "fromRole": "owner",
+      "to": null,
+      "toRole": "create GuardianWallet #4",
+      "contractAddress": "0x969aA7de33FdFdaB7c11adE6a0288EC79F12fb19",
+      "call": "constructor",
+      "status": "success",
+      "gasUsed": "286007",
+      "inputBytes": {
+        "zero": 789,
+        "nonzero": 10992
+      },
+      "events": [
+        {
+          "contract": "GuardianWallet #4",
+          "address": "0x969aA7de33FdFdaB7c11adE6a0288EC79F12fb19",
+          "name": "OwnershipTransferred",
+          "args": {
+            "previousOwner": "0x0000000000000000000000000000000000000000",
+            "newOwner": "owner"
+          }
+        },
+        {
+          "contract": "GuardianWallet #4",
+          "address": "0x969aA7de33FdFdaB7c11adE6a0288EC79F12fb19",
+          "name": "AgentSet",
+          "args": {
+            "previousAgent": "0x0000000000000000000000000000000000000000",
+            "newAgent": "agent"
+          }
+        },
+        {
+          "contract": "GuardianWallet #4",
+          "address": "0x969aA7de33FdFdaB7c11adE6a0288EC79F12fb19",
+          "name": "GuardianSet",
+          "args": {
+            "previousGuardian": "0x0000000000000000000000000000000000000000",
+            "newGuardian": "0x0000000000000000000000000000000000000000"
+          }
+        },
+        {
+          "contract": "GuardianWallet #4",
+          "address": "0x969aA7de33FdFdaB7c11adE6a0288EC79F12fb19",
+          "name": "FeeAccountSet",
+          "args": {
+            "account": "fee account"
+          }
+        },
+        {
+          "contract": "GuardianWallet #4",
+          "address": "0x969aA7de33FdFdaB7c11adE6a0288EC79F12fb19",
+          "name": "PolicyUpdated",
+          "args": {
+            "policy": "(perTxLimit: 500000000, dailyLimit: 1000000000, approvalThreshold: 200000000, recipientCooldown: 0, pendingExpiry: 86400, opsPerCallLimit: 100000, opsDailyLimit: 5000000)"
+          }
+        }
+      ],
+      "result": "OwnershipTransferred, AgentSet, GuardianSet, FeeAccountSet, PolicyUpdated"
+    },
+    {
+      "scenario": "E-A4",
+      "label": "Owner setController on DemoLedger #4",
+      "hash": "0x8c97fbb7b1ff6be55f2e7282bc245651d425879904a32abd13ffb6a188d4f4b2",
+      "blockNumber": 1818,
+      "blockHash": "0xe433b3d0dd53c0d90c64c3117f560f7864b8740c60d11ca0f187f71fbc1162e2",
+      "transactionIndex": 0,
+      "timestamp": "2026-10-16T12:02:20.000Z",
+      "from": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
+      "fromRole": "owner",
+      "to": "0xf688e1a4b320C835bB459E7f5F3326dE6aeaFdcb",
+      "toRole": "DemoLedger #4",
+      "contractAddress": null,
+      "call": "setController(GuardianWallet #4)",
+      "status": "success",
+      "gasUsed": "31827",
+      "inputBytes": {
+        "zero": 12,
+        "nonzero": 24
+      },
+      "events": [
+        {
+          "contract": "DemoLedger #4",
+          "address": "0xf688e1a4b320C835bB459E7f5F3326dE6aeaFdcb",
+          "name": "ControllerSet",
+          "args": {
+            "controller": "GuardianWallet #4"
+          }
+        }
+      ],
+      "result": "ControllerSet"
+    },
+    {
+      "scenario": "E-A4",
+      "label": "Owner mint on DemoLedger #4",
+      "hash": "0xe6b28c3a8065793f27fe229f41f9d61697cd2c04c4d474236f68cf06defb9062",
+      "blockNumber": 1819,
+      "blockHash": "0x7ed2f07eedf57424a984b3b723f05d52ef29e6d6688dc85d818b9f0619d65779",
+      "transactionIndex": 0,
+      "timestamp": "2026-10-16T12:02:21.000Z",
+      "from": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
+      "fromRole": "owner",
+      "to": "0xf688e1a4b320C835bB459E7f5F3326dE6aeaFdcb",
+      "toRole": "DemoLedger #4",
+      "contractAddress": null,
+      "call": "mint(GuardianWallet #4, 0, 2000000000)",
+      "status": "success",
+      "gasUsed": "32964",
+      "inputBytes": {
+        "zero": 73,
+        "nonzero": 27
+      },
+      "events": [
+        {
+          "contract": "DemoLedger #4",
+          "address": "0xf688e1a4b320C835bB459E7f5F3326dE6aeaFdcb",
+          "name": "DemoUnitsMinted",
+          "args": {
+            "account": "GuardianWallet #4",
+            "currency": "0",
+            "amount": "2000"
+          }
+        }
+      ],
+      "result": "DemoUnitsMinted"
+    },
+    {
+      "scenario": "E-A4",
+      "label": "Owner mint on DemoLedger #4",
+      "hash": "0x8daea0cd2c297590de518047404a92184994f3df17306b0e6ee85820aca86638",
+      "blockNumber": 1820,
+      "blockHash": "0xcb341cece2d87263c7d063c417aa6de21ec9a8098da3ed922d208f669e4e5e54",
+      "transactionIndex": 0,
+      "timestamp": "2026-10-16T12:02:22.000Z",
+      "from": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
+      "fromRole": "owner",
+      "to": "0xf688e1a4b320C835bB459E7f5F3326dE6aeaFdcb",
+      "toRole": "DemoLedger #4",
+      "contractAddress": null,
+      "call": "mint(GuardianWallet #4, 1, 200000000000)",
+      "status": "success",
+      "gasUsed": "32964",
+      "inputBytes": {
+        "zero": 71,
+        "nonzero": 29
+      },
+      "events": [
+        {
+          "contract": "DemoLedger #4",
+          "address": "0xf688e1a4b320C835bB459E7f5F3326dE6aeaFdcb",
+          "name": "DemoUnitsMinted",
+          "args": {
+            "account": "GuardianWallet #4",
+            "currency": "1",
+            "amount": "200000"
+          }
+        }
+      ],
+      "result": "DemoUnitsMinted"
+    },
+    {
+      "scenario": "E-A4",
+      "label": "Owner setRecipient on GuardianWallet #4",
+      "hash": "0xff90ae4afca26fa709871449a6bafb25168aeec2bfbd276830eceb8527c6093f",
+      "blockNumber": 1821,
+      "blockHash": "0x236bcc597ac022de2d2d25b1c87245633a06c6f0bf919ec173acf2972c6f0197",
+      "transactionIndex": 0,
+      "timestamp": "2026-10-16T12:02:22.000Z",
+      "from": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
+      "fromRole": "owner",
+      "to": "0x969aA7de33FdFdaB7c11adE6a0288EC79F12fb19",
+      "toRole": "GuardianWallet #4",
+      "contractAddress": null,
+      "call": "setRecipient(0x00000000000000000000000000000000000000A1, true, Ana · synthetic contact)",
+      "status": "success",
+      "gasUsed": "55012",
+      "inputBytes": {
+        "zero": 132,
+        "nonzero": 32
+      },
+      "events": [
+        {
+          "contract": "GuardianWallet #4",
+          "address": "0x969aA7de33FdFdaB7c11adE6a0288EC79F12fb19",
+          "name": "RecipientSet",
+          "args": {
+            "recipient": "0x00000000000000000000000000000000000000A1",
+            "allowed": true,
+            "activeAfter": "1792152142",
+            "label": "Ana · synthetic contact"
+          }
+        }
+      ],
+      "result": "RecipientSet"
+    },
+    {
+      "scenario": "E-A4",
+      "label": "A4: Agent key called pay() to the unlisted address directly: contract returned BLOCKED and emitted PolicyViolation(RECIPIENT_NOT_ALLOWED)",
+      "hash": "0x2674a658852dfb38a4e3f4605f4207abd762f00d909f84f51068243afbf86e1e",
+      "blockNumber": 1822,
+      "blockHash": "0x0880d268ed13006130d7728469985913d810580e2a439fb431cb6736f8e71f17",
+      "transactionIndex": 0,
+      "timestamp": "2026-10-16T12:02:23.000Z",
+      "from": "0x70997970C51812dc3A010C7d01b50e0d17dc79C8",
+      "fromRole": "agent",
+      "to": "0x969aA7de33FdFdaB7c11adE6a0288EC79F12fb19",
+      "toRole": "GuardianWallet #4",
+      "contractAddress": null,
+      "call": "pay(0x00000000000000000000000000000000000000b7, 0, 50000000, 0xba42132507fd61ad69e3ffc4d7c76d676f28bb33245320009230306e45cc298b)",
+      "status": "success",
+      "gasUsed": "44941",
+      "inputBytes": {
+        "zero": 92,
+        "nonzero": 40
+      },
+      "events": [
+        {
+          "contract": "GuardianWallet #4",
+          "address": "0x969aA7de33FdFdaB7c11adE6a0288EC79F12fb19",
+          "name": "PolicyViolation",
+          "args": {
+            "intentId": "0xba42132507fd61ad69e3ffc4d7c76d676f28bb33245320009230306e45cc298b",
+            "action": "PAY",
+            "reason": "RECIPIENT_NOT_ALLOWED",
+            "amount": "50"
+          }
+        }
+      ],
+      "result": "BLOCKED RECIPIENT_NOT_ALLOWED"
+    },
+    {
+      "scenario": "E-A5",
+      "label": "Owner deploys DemoLedger #5",
+      "hash": "0xef67732766708a985b2d5228c8023b3ca2b5670c9c108aca62de0b6f2bf8a4f1",
+      "blockNumber": 1823,
+      "blockHash": "0x343549668ccab293becbfaeda21cbadf4ceadb639cadbc9e73a4be615a5079a2",
+      "transactionIndex": 0,
+      "timestamp": "2026-10-16T12:02:23.000Z",
+      "from": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
+      "fromRole": "owner",
+      "to": null,
+      "toRole": "create DemoLedger #5",
+      "contractAddress": "0x6007e08B63684166A7CD00C1c80aa532133f26B0",
+      "call": "constructor",
+      "status": "success",
+      "gasUsed": "85913",
+      "inputBytes": {
+        "zero": 108,
+        "nonzero": 4023
+      },
+      "events": [
+        {
+          "contract": "DemoLedger #5",
+          "address": "0x6007e08B63684166A7CD00C1c80aa532133f26B0",
+          "name": "OwnershipTransferred",
+          "args": {
+            "previousOwner": "0x0000000000000000000000000000000000000000",
+            "newOwner": "owner"
+          }
+        }
+      ],
+      "result": "OwnershipTransferred"
+    },
+    {
+      "scenario": "E-A5",
+      "label": "Owner deploys GuardianWallet #5",
+      "hash": "0xdb0b45d212bc42819593d7fdf5968d35f8b683b281d97b927dee7fe9ef582024",
+      "blockNumber": 1824,
+      "blockHash": "0x2ffc0e99bc8ea29c610189a8c2ff51cd512a1116565e25110cc664938eb333bf",
+      "transactionIndex": 0,
+      "timestamp": "2026-10-16T12:02:24.000Z",
+      "from": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
+      "fromRole": "owner",
+      "to": null,
+      "toRole": "create GuardianWallet #5",
+      "contractAddress": "0x8B87065fdfe4A130108E50f74ae7F85cD20A5967",
+      "call": "constructor",
+      "status": "success",
+      "gasUsed": "286007",
+      "inputBytes": {
+        "zero": 790,
+        "nonzero": 10991
+      },
+      "events": [
+        {
+          "contract": "GuardianWallet #5",
+          "address": "0x8B87065fdfe4A130108E50f74ae7F85cD20A5967",
+          "name": "OwnershipTransferred",
+          "args": {
+            "previousOwner": "0x0000000000000000000000000000000000000000",
+            "newOwner": "owner"
+          }
+        },
+        {
+          "contract": "GuardianWallet #5",
+          "address": "0x8B87065fdfe4A130108E50f74ae7F85cD20A5967",
+          "name": "AgentSet",
+          "args": {
+            "previousAgent": "0x0000000000000000000000000000000000000000",
+            "newAgent": "agent"
+          }
+        },
+        {
+          "contract": "GuardianWallet #5",
+          "address": "0x8B87065fdfe4A130108E50f74ae7F85cD20A5967",
+          "name": "GuardianSet",
+          "args": {
+            "previousGuardian": "0x0000000000000000000000000000000000000000",
+            "newGuardian": "0x0000000000000000000000000000000000000000"
+          }
+        },
+        {
+          "contract": "GuardianWallet #5",
+          "address": "0x8B87065fdfe4A130108E50f74ae7F85cD20A5967",
+          "name": "FeeAccountSet",
+          "args": {
+            "account": "fee account"
+          }
+        },
+        {
+          "contract": "GuardianWallet #5",
+          "address": "0x8B87065fdfe4A130108E50f74ae7F85cD20A5967",
+          "name": "PolicyUpdated",
+          "args": {
+            "policy": "(perTxLimit: 500000000, dailyLimit: 1000000000, approvalThreshold: 200000000, recipientCooldown: 0, pendingExpiry: 86400, opsPerCallLimit: 100000, opsDailyLimit: 5000000)"
+          }
+        }
+      ],
+      "result": "OwnershipTransferred, AgentSet, GuardianSet, FeeAccountSet, PolicyUpdated"
+    },
+    {
+      "scenario": "E-A5",
+      "label": "Owner setController on DemoLedger #5",
+      "hash": "0xfc6fa092c200c2d45790fcbf91bd2c110c55f6dd08935180c17cc7e9543a6338",
+      "blockNumber": 1825,
+      "blockHash": "0x789c980efb8ead9929aae54a85e93fa2944e1c6165a1d9b5671d4ff3c7ba3e87",
+      "transactionIndex": 0,
+      "timestamp": "2026-10-16T12:02:24.000Z",
+      "from": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
+      "fromRole": "owner",
+      "to": "0x6007e08B63684166A7CD00C1c80aa532133f26B0",
+      "toRole": "DemoLedger #5",
+      "contractAddress": null,
+      "call": "setController(GuardianWallet #5)",
+      "status": "success",
+      "gasUsed": "31827",
+      "inputBytes": {
+        "zero": 12,
+        "nonzero": 24
+      },
+      "events": [
+        {
+          "contract": "DemoLedger #5",
+          "address": "0x6007e08B63684166A7CD00C1c80aa532133f26B0",
+          "name": "ControllerSet",
+          "args": {
+            "controller": "GuardianWallet #5"
+          }
+        }
+      ],
+      "result": "ControllerSet"
+    },
+    {
+      "scenario": "E-A5",
+      "label": "Owner mint on DemoLedger #5",
+      "hash": "0xfa3f188ef4139e71b87a809a574cdf52e98fee44b017e6a3e63898a8714cd913",
+      "blockNumber": 1826,
+      "blockHash": "0x63edae483a9379031f0e7ad95ad43573f598180b68f6477bdb736888ed23a429",
+      "transactionIndex": 0,
+      "timestamp": "2026-10-16T12:02:25.000Z",
+      "from": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
+      "fromRole": "owner",
+      "to": "0x6007e08B63684166A7CD00C1c80aa532133f26B0",
+      "toRole": "DemoLedger #5",
+      "contractAddress": null,
+      "call": "mint(GuardianWallet #5, 0, 2000000000)",
+      "status": "success",
+      "gasUsed": "32964",
+      "inputBytes": {
+        "zero": 73,
+        "nonzero": 27
+      },
+      "events": [
+        {
+          "contract": "DemoLedger #5",
+          "address": "0x6007e08B63684166A7CD00C1c80aa532133f26B0",
+          "name": "DemoUnitsMinted",
+          "args": {
+            "account": "GuardianWallet #5",
+            "currency": "0",
+            "amount": "2000"
+          }
+        }
+      ],
+      "result": "DemoUnitsMinted"
+    },
+    {
+      "scenario": "E-A5",
+      "label": "Owner mint on DemoLedger #5",
+      "hash": "0x62d2ab2e62f7a32dc5e983a698e80b9e3918beb7ebfee97c3e8d348c31dda756",
+      "blockNumber": 1827,
+      "blockHash": "0x8761c9c8a1178694335aa1baad76e200548d2370341b1c638998d994d5da0182",
+      "transactionIndex": 0,
+      "timestamp": "2026-10-16T12:02:26.000Z",
+      "from": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
+      "fromRole": "owner",
+      "to": "0x6007e08B63684166A7CD00C1c80aa532133f26B0",
+      "toRole": "DemoLedger #5",
+      "contractAddress": null,
+      "call": "mint(GuardianWallet #5, 1, 200000000000)",
+      "status": "success",
+      "gasUsed": "32964",
+      "inputBytes": {
+        "zero": 71,
+        "nonzero": 29
+      },
+      "events": [
+        {
+          "contract": "DemoLedger #5",
+          "address": "0x6007e08B63684166A7CD00C1c80aa532133f26B0",
+          "name": "DemoUnitsMinted",
+          "args": {
+            "account": "GuardianWallet #5",
+            "currency": "1",
+            "amount": "200000"
+          }
+        }
+      ],
+      "result": "DemoUnitsMinted"
+    },
+    {
+      "scenario": "E-A5",
+      "label": "Owner setRecipient on GuardianWallet #5",
+      "hash": "0x525ce0c4b475a4c0c44141062f70535ab23f40f2314b116a925b59c352d2c29c",
+      "blockNumber": 1828,
+      "blockHash": "0x6d2c1cbc4d572f51659da2ae982fb325fd07754a0f3b4a4872cdb306876eb14a",
+      "transactionIndex": 0,
+      "timestamp": "2026-10-16T12:02:26.000Z",
+      "from": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
+      "fromRole": "owner",
+      "to": "0x8B87065fdfe4A130108E50f74ae7F85cD20A5967",
+      "toRole": "GuardianWallet #5",
+      "contractAddress": null,
+      "call": "setRecipient(0x00000000000000000000000000000000000000A1, true, Ana · synthetic contact)",
+      "status": "success",
+      "gasUsed": "55012",
+      "inputBytes": {
+        "zero": 132,
+        "nonzero": 32
+      },
+      "events": [
+        {
+          "contract": "GuardianWallet #5",
+          "address": "0x8B87065fdfe4A130108E50f74ae7F85cD20A5967",
+          "name": "RecipientSet",
+          "args": {
+            "recipient": "0x00000000000000000000000000000000000000A1",
+            "allowed": true,
+            "activeAfter": "1792152146",
+            "label": "Ana · synthetic contact"
+          }
+        }
+      ],
+      "result": "RecipientSet"
+    },
+    {
+      "scenario": "E-A5",
+      "label": "Owner setPolicy on GuardianWallet #5",
+      "hash": "0x112981234f770fe3601270a512190a0aeff788ca169a7ac1ba540d4394e784ad",
+      "blockNumber": 1829,
+      "blockHash": "0x51474a5368a8a8333aaffde6fb6c3d951648a8f103302857964c81de10bf7fd9",
+      "transactionIndex": 0,
+      "timestamp": "2026-10-16T12:02:27.000Z",
+      "from": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
+      "fromRole": "owner",
+      "to": "0x8B87065fdfe4A130108E50f74ae7F85cD20A5967",
+      "toRole": "GuardianWallet #5",
+      "contractAddress": null,
+      "call": "setPolicy((perTxLimit: 500000000, dailyLimit: 1000000000, approvalThreshold: 200000000, recipientCooldown: 600, pendingExpiry: 86400, opsPerCallLimit: 100000, opsDailyLimit: 5000000))",
+      "status": "success",
+      "gasUsed": "59736",
+      "inputBytes": {
+        "zero": 204,
+        "nonzero": 24
+      },
+      "events": [
+        {
+          "contract": "GuardianWallet #5",
+          "address": "0x8B87065fdfe4A130108E50f74ae7F85cD20A5967",
+          "name": "PolicyUpdated",
+          "args": {
+            "policy": "(perTxLimit: 500000000, dailyLimit: 1000000000, approvalThreshold: 200000000, recipientCooldown: 600, pendingExpiry: 86400, opsPerCallLimit: 100000, opsDailyLimit: 5000000)"
+          }
+        }
+      ],
+      "result": "PolicyUpdated"
+    },
+    {
+      "scenario": "E-A5",
+      "label": "A5: Contact ana now resolves to a newly added payout address; 600 second cooldown starts",
+      "hash": "0x7bf699457ffaf4e92eb30109c46efd9d915fb3579eed25b7081f44f5415f864c",
+      "blockNumber": 1830,
+      "blockHash": "0xa402b3e792d2fd3184f884af18e2c41efd42236b87c7a1b13aa5c3090506da86",
+      "transactionIndex": 0,
+      "timestamp": "2026-10-16T12:02:27.000Z",
+      "from": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
+      "fromRole": "owner",
+      "to": "0x8B87065fdfe4A130108E50f74ae7F85cD20A5967",
+      "toRole": "GuardianWallet #5",
+      "contractAddress": null,
+      "call": "setRecipient(0x00000000000000000000000000000000000000A2, true, Ana · changed payout (synthetic))",
+      "status": "success",
+      "gasUsed": "65456",
+      "inputBytes": {
+        "zero": 155,
+        "nonzero": 41
+      },
+      "events": [
+        {
+          "contract": "GuardianWallet #5",
+          "address": "0x8B87065fdfe4A130108E50f74ae7F85cD20A5967",
+          "name": "RecipientSet",
+          "args": {
+            "recipient": "0x00000000000000000000000000000000000000A2",
+            "allowed": true,
+            "activeAfter": "1792152747",
+            "label": "Ana · changed payout (synthetic)"
+          }
+        }
+      ],
+      "result": "RecipientSet"
+    },
+    {
+      "scenario": "E-A5",
+      "label": "A5: Agent pipeline returned BLOCKED (T1): RECIPIENT_NOT_ACTIVE",
+      "hash": "0x14da1066507ee48a97d9fe16762efc81f8eac014db9131dc05f43310c43ca339",
+      "blockNumber": 1831,
+      "blockHash": "0x90dc6838ee8a67fee6ccd9db0605864177bcab7b9f33bb14042b42c8f8869f45",
+      "transactionIndex": 0,
+      "timestamp": "2026-10-16T12:02:28.000Z",
+      "from": "0x70997970C51812dc3A010C7d01b50e0d17dc79C8",
+      "fromRole": "agent",
+      "to": "0x8B87065fdfe4A130108E50f74ae7F85cD20A5967",
+      "toRole": "GuardianWallet #5",
+      "contractAddress": null,
+      "call": "pay(0x00000000000000000000000000000000000000A2, 0, 50000000, 0x3b3bf118dbf925933b25ac653ebdb6c8c07343935cb24de3fb80828aec3ab158)",
+      "status": "success",
+      "gasUsed": "47185",
+      "inputBytes": {
+        "zero": 91,
+        "nonzero": 41
+      },
+      "events": [
+        {
+          "contract": "GuardianWallet #5",
+          "address": "0x8B87065fdfe4A130108E50f74ae7F85cD20A5967",
+          "name": "PolicyViolation",
+          "args": {
+            "intentId": "0x3b3bf118dbf925933b25ac653ebdb6c8c07343935cb24de3fb80828aec3ab158",
+            "action": "PAY",
+            "reason": "RECIPIENT_NOT_ACTIVE",
+            "amount": "50"
+          }
+        }
+      ],
+      "result": "BLOCKED RECIPIENT_NOT_ACTIVE"
+    },
+    {
+      "scenario": "E-A5",
+      "label": "A5: Agent key called pay() to the new address directly: PolicyViolation(RECIPIENT_NOT_ACTIVE)",
+      "hash": "0x56e85db754c1b7d881efaa5637648a2d8c47e74ae649f1372e726dc069842b28",
+      "blockNumber": 1832,
+      "blockHash": "0xc729d5a1c9be36575794149a5ade108c934f1d195d6397a4e516d8ff10ec22c4",
+      "transactionIndex": 0,
+      "timestamp": "2026-10-16T12:02:28.000Z",
+      "from": "0x70997970C51812dc3A010C7d01b50e0d17dc79C8",
+      "fromRole": "agent",
+      "to": "0x8B87065fdfe4A130108E50f74ae7F85cD20A5967",
+      "toRole": "GuardianWallet #5",
+      "contractAddress": null,
+      "call": "pay(0x00000000000000000000000000000000000000A2, 0, 50000000, 0xf8867bae22f45d0a241dcd31aff8d21452afe4725d210346fe87efdbcde7e64d)",
+      "status": "success",
+      "gasUsed": "47185",
+      "inputBytes": {
+        "zero": 91,
+        "nonzero": 41
+      },
+      "events": [
+        {
+          "contract": "GuardianWallet #5",
+          "address": "0x8B87065fdfe4A130108E50f74ae7F85cD20A5967",
+          "name": "PolicyViolation",
+          "args": {
+            "intentId": "0xf8867bae22f45d0a241dcd31aff8d21452afe4725d210346fe87efdbcde7e64d",
+            "action": "PAY",
+            "reason": "RECIPIENT_NOT_ACTIVE",
+            "amount": "50"
+          }
+        }
+      ],
+      "result": "BLOCKED RECIPIENT_NOT_ACTIVE"
+    },
+    {
+      "scenario": "E-A6",
+      "label": "Owner deploys DemoLedger #6",
+      "hash": "0x145cea774abf1757a7ea8e56c846e754452211763cf6d7e6e254100b5b3e17c1",
+      "blockNumber": 1833,
+      "blockHash": "0x928fd5b4880aa4da7015c267e98064ecb34484bf7a0da8bf372321160391ee28",
+      "transactionIndex": 0,
+      "timestamp": "2026-10-16T12:02:29.000Z",
+      "from": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
+      "fromRole": "owner",
+      "to": null,
+      "toRole": "create DemoLedger #6",
+      "contractAddress": "0x9301981F27950e6546033EADD046C86754263f2D",
+      "call": "constructor",
+      "status": "success",
+      "gasUsed": "85913",
+      "inputBytes": {
+        "zero": 108,
+        "nonzero": 4023
+      },
+      "events": [
+        {
+          "contract": "DemoLedger #6",
+          "address": "0x9301981F27950e6546033EADD046C86754263f2D",
+          "name": "OwnershipTransferred",
+          "args": {
+            "previousOwner": "0x0000000000000000000000000000000000000000",
+            "newOwner": "owner"
+          }
+        }
+      ],
+      "result": "OwnershipTransferred"
+    },
+    {
+      "scenario": "E-A6",
+      "label": "Owner deploys GuardianWallet #6",
+      "hash": "0x23b690a96b08a3141272c1a94f3dd277b669f590a1c45ae63f6909a45db01647",
+      "blockNumber": 1834,
+      "blockHash": "0xa7fe6d83e45fac509a48e2d96a9d46a0c91e416dcb708026bf9c4c9852a77395",
+      "transactionIndex": 0,
+      "timestamp": "2026-10-16T12:02:29.000Z",
+      "from": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
+      "fromRole": "owner",
+      "to": null,
+      "toRole": "create GuardianWallet #6",
+      "contractAddress": "0xDFF3455E08AB33B1599D1c5B5A1D65de63d3FCd0",
+      "call": "constructor",
+      "status": "success",
+      "gasUsed": "286007",
+      "inputBytes": {
+        "zero": 789,
+        "nonzero": 10992
+      },
+      "events": [
+        {
+          "contract": "GuardianWallet #6",
+          "address": "0xDFF3455E08AB33B1599D1c5B5A1D65de63d3FCd0",
+          "name": "OwnershipTransferred",
+          "args": {
+            "previousOwner": "0x0000000000000000000000000000000000000000",
+            "newOwner": "owner"
+          }
+        },
+        {
+          "contract": "GuardianWallet #6",
+          "address": "0xDFF3455E08AB33B1599D1c5B5A1D65de63d3FCd0",
+          "name": "AgentSet",
+          "args": {
+            "previousAgent": "0x0000000000000000000000000000000000000000",
+            "newAgent": "agent"
+          }
+        },
+        {
+          "contract": "GuardianWallet #6",
+          "address": "0xDFF3455E08AB33B1599D1c5B5A1D65de63d3FCd0",
+          "name": "GuardianSet",
+          "args": {
+            "previousGuardian": "0x0000000000000000000000000000000000000000",
+            "newGuardian": "0x0000000000000000000000000000000000000000"
+          }
+        },
+        {
+          "contract": "GuardianWallet #6",
+          "address": "0xDFF3455E08AB33B1599D1c5B5A1D65de63d3FCd0",
+          "name": "FeeAccountSet",
+          "args": {
+            "account": "fee account"
+          }
+        },
+        {
+          "contract": "GuardianWallet #6",
+          "address": "0xDFF3455E08AB33B1599D1c5B5A1D65de63d3FCd0",
+          "name": "PolicyUpdated",
+          "args": {
+            "policy": "(perTxLimit: 500000000, dailyLimit: 1000000000, approvalThreshold: 200000000, recipientCooldown: 0, pendingExpiry: 86400, opsPerCallLimit: 100000, opsDailyLimit: 5000000)"
+          }
+        }
+      ],
+      "result": "OwnershipTransferred, AgentSet, GuardianSet, FeeAccountSet, PolicyUpdated"
+    },
+    {
+      "scenario": "E-A6",
+      "label": "Owner setController on DemoLedger #6",
+      "hash": "0x57cd04b96aa68ced4c593a9ddfe9e0b1fc74958f153c89e4c686da150ba12e44",
+      "blockNumber": 1835,
+      "blockHash": "0xfc7ec397136422537ff431e36ee8e93a5951f3424090be5ea4fef8217dbf123f",
+      "transactionIndex": 0,
+      "timestamp": "2026-10-16T12:02:30.000Z",
+      "from": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
+      "fromRole": "owner",
+      "to": "0x9301981F27950e6546033EADD046C86754263f2D",
+      "toRole": "DemoLedger #6",
+      "contractAddress": null,
+      "call": "setController(GuardianWallet #6)",
+      "status": "success",
+      "gasUsed": "31827",
+      "inputBytes": {
+        "zero": 12,
+        "nonzero": 24
+      },
+      "events": [
+        {
+          "contract": "DemoLedger #6",
+          "address": "0x9301981F27950e6546033EADD046C86754263f2D",
+          "name": "ControllerSet",
+          "args": {
+            "controller": "GuardianWallet #6"
+          }
+        }
+      ],
+      "result": "ControllerSet"
+    },
+    {
+      "scenario": "E-A6",
+      "label": "Owner mint on DemoLedger #6",
+      "hash": "0x234358e5d2be38e298f850c55461ec4bf10f010eb4b23af4618ccd403ce83172",
+      "blockNumber": 1836,
+      "blockHash": "0xcc10b3abafc0aec8584d93219141df2b7b12a68d2fefcb27fceef3ae2fc68046",
+      "transactionIndex": 0,
+      "timestamp": "2026-10-16T12:02:31.000Z",
+      "from": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
+      "fromRole": "owner",
+      "to": "0x9301981F27950e6546033EADD046C86754263f2D",
+      "toRole": "DemoLedger #6",
+      "contractAddress": null,
+      "call": "mint(GuardianWallet #6, 0, 2000000000)",
+      "status": "success",
+      "gasUsed": "32964",
+      "inputBytes": {
+        "zero": 73,
+        "nonzero": 27
+      },
+      "events": [
+        {
+          "contract": "DemoLedger #6",
+          "address": "0x9301981F27950e6546033EADD046C86754263f2D",
+          "name": "DemoUnitsMinted",
+          "args": {
+            "account": "GuardianWallet #6",
+            "currency": "0",
+            "amount": "2000"
+          }
+        }
+      ],
+      "result": "DemoUnitsMinted"
+    },
+    {
+      "scenario": "E-A6",
+      "label": "Owner mint on DemoLedger #6",
+      "hash": "0xe6910c065ab106489b767f4e2235035003e035e5c701b5caeb3ff9db2d78d3e1",
+      "blockNumber": 1837,
+      "blockHash": "0x70b089d215639ffa533de4fa0bfccaf5b6fc1a68848a96be1e75652cd81ed036",
+      "transactionIndex": 0,
+      "timestamp": "2026-10-16T12:02:31.000Z",
+      "from": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
+      "fromRole": "owner",
+      "to": "0x9301981F27950e6546033EADD046C86754263f2D",
+      "toRole": "DemoLedger #6",
+      "contractAddress": null,
+      "call": "mint(GuardianWallet #6, 1, 200000000000)",
+      "status": "success",
+      "gasUsed": "32964",
+      "inputBytes": {
+        "zero": 71,
+        "nonzero": 29
+      },
+      "events": [
+        {
+          "contract": "DemoLedger #6",
+          "address": "0x9301981F27950e6546033EADD046C86754263f2D",
+          "name": "DemoUnitsMinted",
+          "args": {
+            "account": "GuardianWallet #6",
+            "currency": "1",
+            "amount": "200000"
+          }
+        }
+      ],
+      "result": "DemoUnitsMinted"
+    },
+    {
+      "scenario": "E-A6",
+      "label": "Owner setRecipient on GuardianWallet #6",
+      "hash": "0xbbb48a3027304d0a24146197353e5d07dac899b02a1bd62917cf1fd4c2372bda",
+      "blockNumber": 1838,
+      "blockHash": "0x13cd514e53e2d23e3eeaccd76132f30313e5d79414ba41fbf686cc7c472bf9b5",
+      "transactionIndex": 0,
+      "timestamp": "2026-10-16T12:02:32.000Z",
+      "from": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
+      "fromRole": "owner",
+      "to": "0xDFF3455E08AB33B1599D1c5B5A1D65de63d3FCd0",
+      "toRole": "GuardianWallet #6",
+      "contractAddress": null,
+      "call": "setRecipient(0x00000000000000000000000000000000000000A1, true, Ana · synthetic contact)",
+      "status": "success",
+      "gasUsed": "55012",
+      "inputBytes": {
+        "zero": 132,
+        "nonzero": 32
+      },
+      "events": [
+        {
+          "contract": "GuardianWallet #6",
+          "address": "0xDFF3455E08AB33B1599D1c5B5A1D65de63d3FCd0",
+          "name": "RecipientSet",
+          "args": {
+            "recipient": "0x00000000000000000000000000000000000000A1",
+            "allowed": true,
+            "activeAfter": "1792152152",
+            "label": "Ana · synthetic contact"
+          }
+        }
+      ],
+      "result": "RecipientSet"
+    },
+    {
+      "scenario": "E-A6",
+      "label": "A6: 250 USD routed to T2 owner approval as pending #1",
+      "hash": "0xa6c0a4264ee348be40197749a7091eb3e26cb893c0531c359fe147a86d0f87c4",
+      "blockNumber": 1839,
+      "blockHash": "0xfc579173ff118545ca392dff1300acc827b796883aa233caa735629bde95e9db",
+      "transactionIndex": 0,
+      "timestamp": "2026-10-16T12:02:32.000Z",
+      "from": "0x70997970C51812dc3A010C7d01b50e0d17dc79C8",
+      "fromRole": "agent",
+      "to": "0xDFF3455E08AB33B1599D1c5B5A1D65de63d3FCd0",
+      "toRole": "GuardianWallet #6",
+      "contractAddress": null,
+      "call": "requestApproval(0x00000000000000000000000000000000000000A1, 0, 250000000, 0x68a3d2eeadac38bf74482db4e32be06789def533c61161b80c0a119893e6cef7)",
+      "status": "success",
+      "gasUsed": "98701",
+      "inputBytes": {
+        "zero": 91,
+        "nonzero": 41
+      },
+      "events": [
+        {
+          "contract": "GuardianWallet #6",
+          "address": "0xDFF3455E08AB33B1599D1c5B5A1D65de63d3FCd0",
+          "name": "ApprovalRequested",
+          "args": {
+            "pendingId": "1",
+            "intentId": "0x68a3d2eeadac38bf74482db4e32be06789def533c61161b80c0a119893e6cef7",
+            "currency": "0",
+            "to": "0x00000000000000000000000000000000000000A1",
+            "amount": "250",
+            "expiresAt": "1792238552"
+          }
+        }
+      ],
+      "result": "ApprovalRequested"
+    },
+    {
+      "scenario": "E-A6",
+      "label": "A6: Owner approved pending #1; 250 USD moved once",
+      "hash": "0x0d3771f1217f7471b12d98f9743b71dcf915e428f282162664ff1a444514f2a9",
+      "blockNumber": 1840,
+      "blockHash": "0x4af8ecf70a7a45caebd67e93905b6a171d55c352b1bea45200d36bfa16f20ef5",
+      "transactionIndex": 0,
+      "timestamp": "2026-10-16T12:02:33.000Z",
+      "from": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
+      "fromRole": "owner",
+      "to": "0xDFF3455E08AB33B1599D1c5B5A1D65de63d3FCd0",
+      "toRole": "GuardianWallet #6",
+      "contractAddress": null,
+      "call": "approve(1)",
+      "status": "success",
+      "gasUsed": "126092",
+      "inputBytes": {
+        "zero": 31,
+        "nonzero": 5
+      },
+      "events": [
+        {
+          "contract": "DemoLedger #6",
+          "address": "0x9301981F27950e6546033EADD046C86754263f2D",
+          "name": "BalanceMoved",
+          "args": {
+            "from": "GuardianWallet #6",
+            "to": "0x00000000000000000000000000000000000000A1",
+            "currency": "0",
+            "amount": "250"
+          }
+        },
+        {
+          "contract": "GuardianWallet #6",
+          "address": "0xDFF3455E08AB33B1599D1c5B5A1D65de63d3FCd0",
+          "name": "PendingApproved",
+          "args": {
+            "pendingId": "1",
+            "intentId": "0x68a3d2eeadac38bf74482db4e32be06789def533c61161b80c0a119893e6cef7",
+            "to": "0x00000000000000000000000000000000000000A1",
+            "amount": "250"
+          }
+        }
+      ],
+      "result": "BalanceMoved, PendingApproved"
+    },
+    {
+      "scenario": "E-A6",
+      "label": "A6: Replayed approve() sent straight to the contract: PendingNotActive(1)",
+      "hash": "0x60c918aff127febfd775785b7ffb636895289505870aac7fe52bb5bd145d7095",
+      "blockNumber": 1841,
+      "blockHash": "0x6560841eeb045c7d04ee066f183319a4a2c2525fef0f752641fe58d78110320a",
+      "transactionIndex": 0,
+      "timestamp": "2026-10-16T12:02:33.000Z",
+      "from": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
+      "fromRole": "owner",
+      "to": "0xDFF3455E08AB33B1599D1c5B5A1D65de63d3FCd0",
+      "toRole": "GuardianWallet #6",
+      "contractAddress": null,
+      "call": "approve(1)",
+      "status": "reverted",
+      "gasUsed": "33010",
+      "inputBytes": {
+        "zero": 31,
+        "nonzero": 5
+      },
+      "events": [],
+      "result": "REVERTED PendingNotActive(1)"
+    },
+    {
+      "scenario": "E-A6",
+      "label": "A6: Agent key re-sent the executed intent directly: contract returned BLOCKED and emitted PolicyViolation(DUPLICATE_INTENT)",
+      "hash": "0xd49f550524f909639c7f7cd4e9bef61fe2bca19e0781e4224bfe637bfa3ca3ef",
+      "blockNumber": 1842,
+      "blockHash": "0x6075f70e0eb7175885f2db6a56e4cef529af9b2c1a5e3cf60d31d6b8526c15d4",
+      "transactionIndex": 0,
+      "timestamp": "2026-10-16T12:02:34.000Z",
+      "from": "0x70997970C51812dc3A010C7d01b50e0d17dc79C8",
+      "fromRole": "agent",
+      "to": "0xDFF3455E08AB33B1599D1c5B5A1D65de63d3FCd0",
+      "toRole": "GuardianWallet #6",
+      "contractAddress": null,
+      "call": "requestApproval(0x00000000000000000000000000000000000000A1, 0, 250000000, 0x68a3d2eeadac38bf74482db4e32be06789def533c61161b80c0a119893e6cef7)",
+      "status": "success",
+      "gasUsed": "42794",
+      "inputBytes": {
+        "zero": 91,
+        "nonzero": 41
+      },
+      "events": [
+        {
+          "contract": "GuardianWallet #6",
+          "address": "0xDFF3455E08AB33B1599D1c5B5A1D65de63d3FCd0",
+          "name": "PolicyViolation",
+          "args": {
+            "intentId": "0x68a3d2eeadac38bf74482db4e32be06789def533c61161b80c0a119893e6cef7",
+            "action": "REQUEST_APPROVAL",
+            "reason": "DUPLICATE_INTENT",
+            "amount": "250"
+          }
+        }
+      ],
+      "result": "BLOCKED DUPLICATE_INTENT"
+    },
+    {
+      "scenario": "E-A7",
+      "label": "Owner deploys DemoLedger #7",
+      "hash": "0xcd6c2264aaf3729b58dd601bddda26704e9c19379816e99c9f6a2cbbd7c75d18",
+      "blockNumber": 1843,
+      "blockHash": "0x06fa3bf5fbd97349c7402c06c1610d5f94c3453b1eeefc3457142f5739fdd41a",
+      "transactionIndex": 0,
+      "timestamp": "2026-10-16T12:02:35.000Z",
+      "from": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
+      "fromRole": "owner",
+      "to": null,
+      "toRole": "create DemoLedger #7",
+      "contractAddress": "0x79613D7834Ad35EE8dC3F9298030eaADc2A8c250",
+      "call": "constructor",
+      "status": "success",
+      "gasUsed": "85913",
+      "inputBytes": {
+        "zero": 108,
+        "nonzero": 4023
+      },
+      "events": [
+        {
+          "contract": "DemoLedger #7",
+          "address": "0x79613D7834Ad35EE8dC3F9298030eaADc2A8c250",
+          "name": "OwnershipTransferred",
+          "args": {
+            "previousOwner": "0x0000000000000000000000000000000000000000",
+            "newOwner": "owner"
+          }
+        }
+      ],
+      "result": "OwnershipTransferred"
+    },
+    {
+      "scenario": "E-A7",
+      "label": "Owner deploys GuardianWallet #7",
+      "hash": "0xe8e49f10ac4897ab9a4c5de68152186d6a3ad982dfbca5b251f3354b5613e77e",
+      "blockNumber": 1844,
+      "blockHash": "0x84e0531c4af1552c69c99d4ccffd8222dce18db48a6c89239d07c725774478e2",
+      "transactionIndex": 0,
+      "timestamp": "2026-10-16T12:02:35.000Z",
+      "from": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
+      "fromRole": "owner",
+      "to": null,
+      "toRole": "create GuardianWallet #7",
+      "contractAddress": "0x6f3203B069cfb6e408ddFa6040d3FD1f26C22F48",
+      "call": "constructor",
+      "status": "success",
+      "gasUsed": "286007",
+      "inputBytes": {
+        "zero": 791,
+        "nonzero": 10990
+      },
+      "events": [
+        {
+          "contract": "GuardianWallet #7",
+          "address": "0x6f3203B069cfb6e408ddFa6040d3FD1f26C22F48",
+          "name": "OwnershipTransferred",
+          "args": {
+            "previousOwner": "0x0000000000000000000000000000000000000000",
+            "newOwner": "owner"
+          }
+        },
+        {
+          "contract": "GuardianWallet #7",
+          "address": "0x6f3203B069cfb6e408ddFa6040d3FD1f26C22F48",
+          "name": "AgentSet",
+          "args": {
+            "previousAgent": "0x0000000000000000000000000000000000000000",
+            "newAgent": "agent"
+          }
+        },
+        {
+          "contract": "GuardianWallet #7",
+          "address": "0x6f3203B069cfb6e408ddFa6040d3FD1f26C22F48",
+          "name": "GuardianSet",
+          "args": {
+            "previousGuardian": "0x0000000000000000000000000000000000000000",
+            "newGuardian": "0x0000000000000000000000000000000000000000"
+          }
+        },
+        {
+          "contract": "GuardianWallet #7",
+          "address": "0x6f3203B069cfb6e408ddFa6040d3FD1f26C22F48",
+          "name": "FeeAccountSet",
+          "args": {
+            "account": "fee account"
+          }
+        },
+        {
+          "contract": "GuardianWallet #7",
+          "address": "0x6f3203B069cfb6e408ddFa6040d3FD1f26C22F48",
+          "name": "PolicyUpdated",
+          "args": {
+            "policy": "(perTxLimit: 500000000, dailyLimit: 1000000000, approvalThreshold: 200000000, recipientCooldown: 0, pendingExpiry: 1, opsPerCallLimit: 100000, opsDailyLimit: 5000000)"
+          }
+        }
+      ],
+      "result": "OwnershipTransferred, AgentSet, GuardianSet, FeeAccountSet, PolicyUpdated"
+    },
+    {
+      "scenario": "E-A7",
+      "label": "Owner setController on DemoLedger #7",
+      "hash": "0xb8465c66e7d652f80ca20d571849bf1f838059319f2329120764961474a78e24",
+      "blockNumber": 1845,
+      "blockHash": "0x0ca1427a9ffa0e226432e52b9905ceb19159ace2bef38ecbb43f17b9c6604048",
+      "transactionIndex": 0,
+      "timestamp": "2026-10-16T12:02:36.000Z",
+      "from": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
+      "fromRole": "owner",
+      "to": "0x79613D7834Ad35EE8dC3F9298030eaADc2A8c250",
+      "toRole": "DemoLedger #7",
+      "contractAddress": null,
+      "call": "setController(GuardianWallet #7)",
+      "status": "success",
+      "gasUsed": "31827",
+      "inputBytes": {
+        "zero": 12,
+        "nonzero": 24
+      },
+      "events": [
+        {
+          "contract": "DemoLedger #7",
+          "address": "0x79613D7834Ad35EE8dC3F9298030eaADc2A8c250",
+          "name": "ControllerSet",
+          "args": {
+            "controller": "GuardianWallet #7"
+          }
+        }
+      ],
+      "result": "ControllerSet"
+    },
+    {
+      "scenario": "E-A7",
+      "label": "Owner mint on DemoLedger #7",
+      "hash": "0x664a22dd6ebeadc6b5957a521e4f5fa768e47c7ec0b915ae76d1b6b5fa83f850",
+      "blockNumber": 1846,
+      "blockHash": "0x2c2ab83fff9380929fab8ca2a31e50dd2c6ff0311f80462c4e52276aeb576ccc",
+      "transactionIndex": 0,
+      "timestamp": "2026-10-16T12:02:36.000Z",
+      "from": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
+      "fromRole": "owner",
+      "to": "0x79613D7834Ad35EE8dC3F9298030eaADc2A8c250",
+      "toRole": "DemoLedger #7",
+      "contractAddress": null,
+      "call": "mint(GuardianWallet #7, 0, 2000000000)",
+      "status": "success",
+      "gasUsed": "32964",
+      "inputBytes": {
+        "zero": 73,
+        "nonzero": 27
+      },
+      "events": [
+        {
+          "contract": "DemoLedger #7",
+          "address": "0x79613D7834Ad35EE8dC3F9298030eaADc2A8c250",
+          "name": "DemoUnitsMinted",
+          "args": {
+            "account": "GuardianWallet #7",
+            "currency": "0",
+            "amount": "2000"
+          }
+        }
+      ],
+      "result": "DemoUnitsMinted"
+    },
+    {
+      "scenario": "E-A7",
+      "label": "Owner mint on DemoLedger #7",
+      "hash": "0xe77ff5f85c963af69958bb29416238a37d72c9a7706b658ce440a724182f1283",
+      "blockNumber": 1847,
+      "blockHash": "0x530c673360661d32e81409d84340b98b0bc5dd231fcccd92d96ec0d5574e2863",
+      "transactionIndex": 0,
+      "timestamp": "2026-10-16T12:02:37.000Z",
+      "from": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
+      "fromRole": "owner",
+      "to": "0x79613D7834Ad35EE8dC3F9298030eaADc2A8c250",
+      "toRole": "DemoLedger #7",
+      "contractAddress": null,
+      "call": "mint(GuardianWallet #7, 1, 200000000000)",
+      "status": "success",
+      "gasUsed": "32964",
+      "inputBytes": {
+        "zero": 71,
+        "nonzero": 29
+      },
+      "events": [
+        {
+          "contract": "DemoLedger #7",
+          "address": "0x79613D7834Ad35EE8dC3F9298030eaADc2A8c250",
+          "name": "DemoUnitsMinted",
+          "args": {
+            "account": "GuardianWallet #7",
+            "currency": "1",
+            "amount": "200000"
+          }
+        }
+      ],
+      "result": "DemoUnitsMinted"
+    },
+    {
+      "scenario": "E-A7",
+      "label": "Owner setRecipient on GuardianWallet #7",
+      "hash": "0x3ebfa570ee724b1aed3f5bb06f0beda15e4139c1815ea44848ecf9614d6ea33f",
+      "blockNumber": 1848,
+      "blockHash": "0x83d02b5b1f9bfff4fbfa3bb59ef46efc4a1ac23e2deae8b484e61fb82bcdd8a4",
+      "transactionIndex": 0,
+      "timestamp": "2026-10-16T12:02:37.000Z",
+      "from": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
+      "fromRole": "owner",
+      "to": "0x6f3203B069cfb6e408ddFa6040d3FD1f26C22F48",
+      "toRole": "GuardianWallet #7",
+      "contractAddress": null,
+      "call": "setRecipient(0x00000000000000000000000000000000000000A1, true, Ana · synthetic contact)",
+      "status": "success",
+      "gasUsed": "55012",
+      "inputBytes": {
+        "zero": 132,
+        "nonzero": 32
+      },
+      "events": [
+        {
+          "contract": "GuardianWallet #7",
+          "address": "0x6f3203B069cfb6e408ddFa6040d3FD1f26C22F48",
+          "name": "RecipientSet",
+          "args": {
+            "recipient": "0x00000000000000000000000000000000000000A1",
+            "allowed": true,
+            "activeAfter": "1792152157",
+            "label": "Ana · synthetic contact"
+          }
+        }
+      ],
+      "result": "RecipientSet"
+    },
+    {
+      "scenario": "E-A7",
+      "label": "A7: 250 USD routed to T2 owner approval as pending #1",
+      "hash": "0xa5b40c1ec43930698762418d3fe9898c881a492dce4ffa0f4273125721208ec9",
+      "blockNumber": 1849,
+      "blockHash": "0xd586d7c27474d1773bee9e322d57fde17d8f6a6fed2536a805184b694f72fb43",
+      "transactionIndex": 0,
+      "timestamp": "2026-10-16T12:02:38.000Z",
+      "from": "0x70997970C51812dc3A010C7d01b50e0d17dc79C8",
+      "fromRole": "agent",
+      "to": "0x6f3203B069cfb6e408ddFa6040d3FD1f26C22F48",
+      "toRole": "GuardianWallet #7",
+      "contractAddress": null,
+      "call": "requestApproval(0x00000000000000000000000000000000000000A1, 0, 250000000, 0x54379cde5c1b24b565e8a0c20bb393175bdae1febaac1278d15cbd5d175fc533)",
+      "status": "success",
+      "gasUsed": "98701",
+      "inputBytes": {
+        "zero": 91,
+        "nonzero": 41
+      },
+      "events": [
+        {
+          "contract": "GuardianWallet #7",
+          "address": "0x6f3203B069cfb6e408ddFa6040d3FD1f26C22F48",
+          "name": "ApprovalRequested",
+          "args": {
+            "pendingId": "1",
+            "intentId": "0x54379cde5c1b24b565e8a0c20bb393175bdae1febaac1278d15cbd5d175fc533",
+            "currency": "0",
+            "to": "0x00000000000000000000000000000000000000A1",
+            "amount": "250",
+            "expiresAt": "1792152159"
+          }
+        }
+      ],
+      "result": "ApprovalRequested"
+    },
+    {
+      "scenario": "E-A7",
+      "label": "A7: Late approve() sent straight to the contract: PendingHasExpired(1)",
+      "hash": "0x99401b523142b0576cc406e5176c26ddb7158a76901311ef3b888d99136e8f85",
+      "blockNumber": 1850,
+      "blockHash": "0x0e17cbe4cddc66d80e32541cd5121709eac8238f93c4d5b2160b1322fd7ba1a7",
+      "transactionIndex": 0,
+      "timestamp": "2026-10-16T12:02:41.000Z",
+      "from": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
+      "fromRole": "owner",
+      "to": "0x6f3203B069cfb6e408ddFa6040d3FD1f26C22F48",
+      "toRole": "GuardianWallet #7",
+      "contractAddress": null,
+      "call": "approve(1)",
+      "status": "reverted",
+      "gasUsed": "35266",
+      "inputBytes": {
+        "zero": 31,
+        "nonzero": 5
+      },
+      "events": [],
+      "result": "REVERTED PendingHasExpired(1)"
+    },
+    {
+      "scenario": "E-A8",
+      "label": "Owner deploys DemoLedger #8",
+      "hash": "0x45967cac06d0d3925dcc29f7406100eb5a0dda4215bc6ac72da2c57eecf51721",
+      "blockNumber": 1851,
+      "blockHash": "0x5529885dba5d0e49c60ad4a37da8b89a96fde5d3443ba1f6237ee17c00b135dc",
+      "transactionIndex": 0,
+      "timestamp": "2026-10-16T12:02:41.000Z",
+      "from": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
+      "fromRole": "owner",
+      "to": null,
+      "toRole": "create DemoLedger #8",
+      "contractAddress": "0xED2c0B4fAE32e94a8e3A96a2F999A235ef95a746",
+      "call": "constructor",
+      "status": "success",
+      "gasUsed": "85913",
+      "inputBytes": {
+        "zero": 108,
+        "nonzero": 4023
+      },
+      "events": [
+        {
+          "contract": "DemoLedger #8",
+          "address": "0xED2c0B4fAE32e94a8e3A96a2F999A235ef95a746",
+          "name": "OwnershipTransferred",
+          "args": {
+            "previousOwner": "0x0000000000000000000000000000000000000000",
+            "newOwner": "owner"
+          }
+        }
+      ],
+      "result": "OwnershipTransferred"
+    },
+    {
+      "scenario": "E-A8",
+      "label": "Owner deploys GuardianWallet #8",
+      "hash": "0xe3f2ff4e6cf472c226ba581eced11bcec7f753dc7b5bf9894cfc2e25e300b2a2",
+      "blockNumber": 1852,
+      "blockHash": "0x2f45b15ce63f866f7bdab737b259507bdb45f3e564240199115b647b8736ccab",
+      "transactionIndex": 0,
+      "timestamp": "2026-10-16T12:02:42.000Z",
+      "from": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
+      "fromRole": "owner",
+      "to": null,
+      "toRole": "create GuardianWallet #8",
+      "contractAddress": "0x2B09d54B5cA65dEB169c29c2D3e01cc3Dd214cd3",
+      "call": "constructor",
+      "status": "success",
+      "gasUsed": "286007",
+      "inputBytes": {
+        "zero": 789,
+        "nonzero": 10992
+      },
+      "events": [
+        {
+          "contract": "GuardianWallet #8",
+          "address": "0x2B09d54B5cA65dEB169c29c2D3e01cc3Dd214cd3",
+          "name": "OwnershipTransferred",
+          "args": {
+            "previousOwner": "0x0000000000000000000000000000000000000000",
+            "newOwner": "owner"
+          }
+        },
+        {
+          "contract": "GuardianWallet #8",
+          "address": "0x2B09d54B5cA65dEB169c29c2D3e01cc3Dd214cd3",
+          "name": "AgentSet",
+          "args": {
+            "previousAgent": "0x0000000000000000000000000000000000000000",
+            "newAgent": "agent"
+          }
+        },
+        {
+          "contract": "GuardianWallet #8",
+          "address": "0x2B09d54B5cA65dEB169c29c2D3e01cc3Dd214cd3",
+          "name": "GuardianSet",
+          "args": {
+            "previousGuardian": "0x0000000000000000000000000000000000000000",
+            "newGuardian": "0x0000000000000000000000000000000000000000"
+          }
+        },
+        {
+          "contract": "GuardianWallet #8",
+          "address": "0x2B09d54B5cA65dEB169c29c2D3e01cc3Dd214cd3",
+          "name": "FeeAccountSet",
+          "args": {
+            "account": "fee account"
+          }
+        },
+        {
+          "contract": "GuardianWallet #8",
+          "address": "0x2B09d54B5cA65dEB169c29c2D3e01cc3Dd214cd3",
+          "name": "PolicyUpdated",
+          "args": {
+            "policy": "(perTxLimit: 500000000, dailyLimit: 1000000000, approvalThreshold: 200000000, recipientCooldown: 0, pendingExpiry: 86400, opsPerCallLimit: 100000, opsDailyLimit: 5000000)"
+          }
+        }
+      ],
+      "result": "OwnershipTransferred, AgentSet, GuardianSet, FeeAccountSet, PolicyUpdated"
+    },
+    {
+      "scenario": "E-A8",
+      "label": "Owner setController on DemoLedger #8",
+      "hash": "0x9d0cce663d1e92bf056cd6b1c5dbef057fe9227396e1315fc87d24586e7ab38d",
+      "blockNumber": 1853,
+      "blockHash": "0x2506dac9b7440ef651e45d90f2ec7fd9832294d32c6ab74a17b97746250425d3",
+      "transactionIndex": 0,
+      "timestamp": "2026-10-16T12:02:42.000Z",
+      "from": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
+      "fromRole": "owner",
+      "to": "0xED2c0B4fAE32e94a8e3A96a2F999A235ef95a746",
+      "toRole": "DemoLedger #8",
+      "contractAddress": null,
+      "call": "setController(GuardianWallet #8)",
+      "status": "success",
+      "gasUsed": "31827",
+      "inputBytes": {
+        "zero": 12,
+        "nonzero": 24
+      },
+      "events": [
+        {
+          "contract": "DemoLedger #8",
+          "address": "0xED2c0B4fAE32e94a8e3A96a2F999A235ef95a746",
+          "name": "ControllerSet",
+          "args": {
+            "controller": "GuardianWallet #8"
+          }
+        }
+      ],
+      "result": "ControllerSet"
+    },
+    {
+      "scenario": "E-A8",
+      "label": "Owner mint on DemoLedger #8",
+      "hash": "0xdcf92499e0d67d1cba4da28e9c92a3225a214a409ac43e8d690e427e102b0728",
+      "blockNumber": 1854,
+      "blockHash": "0x8bbd8f8bcc35e88fd5c2a7a0d996926a3f7fb10e13223ec95b9fd1c0ae76fd65",
+      "transactionIndex": 0,
+      "timestamp": "2026-10-16T12:02:43.000Z",
+      "from": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
+      "fromRole": "owner",
+      "to": "0xED2c0B4fAE32e94a8e3A96a2F999A235ef95a746",
+      "toRole": "DemoLedger #8",
+      "contractAddress": null,
+      "call": "mint(GuardianWallet #8, 0, 2000000000)",
+      "status": "success",
+      "gasUsed": "32964",
+      "inputBytes": {
+        "zero": 73,
+        "nonzero": 27
+      },
+      "events": [
+        {
+          "contract": "DemoLedger #8",
+          "address": "0xED2c0B4fAE32e94a8e3A96a2F999A235ef95a746",
+          "name": "DemoUnitsMinted",
+          "args": {
+            "account": "GuardianWallet #8",
+            "currency": "0",
+            "amount": "2000"
+          }
+        }
+      ],
+      "result": "DemoUnitsMinted"
+    },
+    {
+      "scenario": "E-A8",
+      "label": "Owner mint on DemoLedger #8",
+      "hash": "0x9caf7357c7ee32b76634bc7a0470408b2a541026e6d4cf5d1156a02bf9370a28",
+      "blockNumber": 1855,
+      "blockHash": "0xf9db801d89914e24c70d6fc90e73f1dd6f3e18bdeb4eac2d74aa5142965d1cb7",
+      "transactionIndex": 0,
+      "timestamp": "2026-10-16T12:02:43.000Z",
+      "from": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
+      "fromRole": "owner",
+      "to": "0xED2c0B4fAE32e94a8e3A96a2F999A235ef95a746",
+      "toRole": "DemoLedger #8",
+      "contractAddress": null,
+      "call": "mint(GuardianWallet #8, 1, 200000000000)",
+      "status": "success",
+      "gasUsed": "32964",
+      "inputBytes": {
+        "zero": 71,
+        "nonzero": 29
+      },
+      "events": [
+        {
+          "contract": "DemoLedger #8",
+          "address": "0xED2c0B4fAE32e94a8e3A96a2F999A235ef95a746",
+          "name": "DemoUnitsMinted",
+          "args": {
+            "account": "GuardianWallet #8",
+            "currency": "1",
+            "amount": "200000"
+          }
+        }
+      ],
+      "result": "DemoUnitsMinted"
+    },
+    {
+      "scenario": "E-A8",
+      "label": "Owner setRecipient on GuardianWallet #8",
+      "hash": "0x0072685efbfda242d15f37b923141be7ce5731464c038503b638511d9c526704",
+      "blockNumber": 1856,
+      "blockHash": "0xafb8054b8b473f22d0c3729a85d4463d9a264859599046ea9621555413f0ca1b",
+      "transactionIndex": 0,
+      "timestamp": "2026-10-16T12:02:44.000Z",
+      "from": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
+      "fromRole": "owner",
+      "to": "0x2B09d54B5cA65dEB169c29c2D3e01cc3Dd214cd3",
+      "toRole": "GuardianWallet #8",
+      "contractAddress": null,
+      "call": "setRecipient(0x00000000000000000000000000000000000000A1, true, Ana · synthetic contact)",
+      "status": "success",
+      "gasUsed": "55012",
+      "inputBytes": {
+        "zero": 132,
+        "nonzero": 32
+      },
+      "events": [
+        {
+          "contract": "GuardianWallet #8",
+          "address": "0x2B09d54B5cA65dEB169c29c2D3e01cc3Dd214cd3",
+          "name": "RecipientSet",
+          "args": {
+            "recipient": "0x00000000000000000000000000000000000000A1",
+            "allowed": true,
+            "activeAfter": "1792152164",
+            "label": "Ana · synthetic contact"
+          }
+        }
+      ],
+      "result": "RecipientSet"
+    },
+    {
+      "scenario": "E-A8",
+      "label": "A8: Owner engaged the kill switch",
+      "hash": "0x952c166cb92f36be0b9e6c6e6ccb18ccaa31b4140d83e6470bee41da6a04df6d",
+      "blockNumber": 1857,
+      "blockHash": "0xbc26fabc99cc9c29aec119fdd4b139eda869c954dc513c97021e3ff612f063c9",
+      "transactionIndex": 0,
+      "timestamp": "2026-10-16T12:02:44.000Z",
+      "from": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
+      "fromRole": "owner",
+      "to": "0x2B09d54B5cA65dEB169c29c2D3e01cc3Dd214cd3",
+      "toRole": "GuardianWallet #8",
+      "contractAddress": null,
+      "call": "pause()",
+      "status": "success",
+      "gasUsed": "31680",
+      "inputBytes": {
+        "zero": 0,
+        "nonzero": 4
+      },
+      "events": [
+        {
+          "contract": "GuardianWallet #8",
+          "address": "0x2B09d54B5cA65dEB169c29c2D3e01cc3Dd214cd3",
+          "name": "Paused",
+          "args": {
+            "by": "owner"
+          }
+        }
+      ],
+      "result": "Paused"
+    },
+    {
+      "scenario": "E-A8",
+      "label": "A8: Agent pipeline returned BLOCKED (T1): PAUSED",
+      "hash": "0x92c6c2c7e545fdcb39e93f76eb2805185dcd8f0d9a4aa61e70fbfb9b7d913ba4",
+      "blockNumber": 1858,
+      "blockHash": "0x155d246bdd5b5c5055f7bc2564b82171dbcfccf56a7448ddd4b4029247977f58",
+      "transactionIndex": 0,
+      "timestamp": "2026-10-16T12:02:45.000Z",
+      "from": "0x70997970C51812dc3A010C7d01b50e0d17dc79C8",
+      "fromRole": "agent",
+      "to": "0x2B09d54B5cA65dEB169c29c2D3e01cc3Dd214cd3",
+      "toRole": "GuardianWallet #8",
+      "contractAddress": null,
+      "call": "pay(0x00000000000000000000000000000000000000A1, 0, 20000000, 0x359303cfe5eae2d42f16415b67c50cb6e56e8fb49112f8f6f0e16a3d0bef7755)",
+      "status": "success",
+      "gasUsed": "40526",
+      "inputBytes": {
+        "zero": 92,
+        "nonzero": 40
+      },
+      "events": [
+        {
+          "contract": "GuardianWallet #8",
+          "address": "0x2B09d54B5cA65dEB169c29c2D3e01cc3Dd214cd3",
+          "name": "PolicyViolation",
+          "args": {
+            "intentId": "0x359303cfe5eae2d42f16415b67c50cb6e56e8fb49112f8f6f0e16a3d0bef7755",
+            "action": "PAY",
+            "reason": "PAUSED",
+            "amount": "20"
+          }
+        }
+      ],
+      "result": "BLOCKED PAUSED"
+    },
+    {
+      "scenario": "E-A8",
+      "label": "A8: unpause() from the agent key: OwnableUnauthorizedAccount(0x70997970C51812dc3A010C7d01b50e0d17dc79C8)",
+      "hash": "0x76fe580548d56a064692dbbbed7e2e280052037912e7cd161aa5786114f273cf",
+      "blockNumber": 1859,
+      "blockHash": "0xfbb005f429368ab8945ed4135bcd4aea6529d0d41757a03512bc8576dbfbaaf0",
+      "transactionIndex": 0,
+      "timestamp": "2026-10-16T12:02:46.000Z",
+      "from": "0x70997970C51812dc3A010C7d01b50e0d17dc79C8",
+      "fromRole": "agent",
+      "to": "0x2B09d54B5cA65dEB169c29c2D3e01cc3Dd214cd3",
+      "toRole": "GuardianWallet #8",
+      "contractAddress": null,
+      "call": "unpause()",
+      "status": "reverted",
+      "gasUsed": "23480",
+      "inputBytes": {
+        "zero": 0,
+        "nonzero": 4
+      },
+      "events": [],
+      "result": "REVERTED OwnableUnauthorizedAccount(agent)"
+    },
+    {
+      "scenario": "E-A9",
+      "label": "Owner deploys DemoLedger #9",
+      "hash": "0x7ac977f2882b8e1eb66b4be02694ea74c55c0066c37ebefb8a152bf6f9b77169",
+      "blockNumber": 1860,
+      "blockHash": "0x98f53d23a7cb7cc386b88603dd639a7ca05ca7ada82013ed2ddc76d8a9911a99",
+      "transactionIndex": 0,
+      "timestamp": "2026-10-16T12:02:46.000Z",
+      "from": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
+      "fromRole": "owner",
+      "to": null,
+      "toRole": "create DemoLedger #9",
+      "contractAddress": "0xc90C13734D20e27904dF248FB850f50C81CE3642",
+      "call": "constructor",
+      "status": "success",
+      "gasUsed": "85913",
+      "inputBytes": {
+        "zero": 108,
+        "nonzero": 4023
+      },
+      "events": [
+        {
+          "contract": "DemoLedger #9",
+          "address": "0xc90C13734D20e27904dF248FB850f50C81CE3642",
+          "name": "OwnershipTransferred",
+          "args": {
+            "previousOwner": "0x0000000000000000000000000000000000000000",
+            "newOwner": "owner"
+          }
+        }
+      ],
+      "result": "OwnershipTransferred"
+    },
+    {
+      "scenario": "E-A9",
+      "label": "Owner deploys GuardianWallet #9",
+      "hash": "0x694c1f5c0bb1b869aa1091b1c55cb0e67b4d0332a065404c776a8bfd0f3a58d0",
+      "blockNumber": 1861,
+      "blockHash": "0x535db4b56f1f2de5115e3f0f97d6c170a154a7dd343c8c14fb58ed31cb50a2d5",
+      "transactionIndex": 0,
+      "timestamp": "2026-10-16T12:02:47.000Z",
+      "from": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
+      "fromRole": "owner",
+      "to": null,
+      "toRole": "create GuardianWallet #9",
+      "contractAddress": "0xFCc4Ba754Ae127396D3c6dCA507389b5A5b6EFAe",
+      "call": "constructor",
+      "status": "success",
+      "gasUsed": "286007",
+      "inputBytes": {
+        "zero": 789,
+        "nonzero": 10992
+      },
+      "events": [
+        {
+          "contract": "GuardianWallet #9",
+          "address": "0xFCc4Ba754Ae127396D3c6dCA507389b5A5b6EFAe",
+          "name": "OwnershipTransferred",
+          "args": {
+            "previousOwner": "0x0000000000000000000000000000000000000000",
+            "newOwner": "owner"
+          }
+        },
+        {
+          "contract": "GuardianWallet #9",
+          "address": "0xFCc4Ba754Ae127396D3c6dCA507389b5A5b6EFAe",
+          "name": "AgentSet",
+          "args": {
+            "previousAgent": "0x0000000000000000000000000000000000000000",
+            "newAgent": "agent"
+          }
+        },
+        {
+          "contract": "GuardianWallet #9",
+          "address": "0xFCc4Ba754Ae127396D3c6dCA507389b5A5b6EFAe",
+          "name": "GuardianSet",
+          "args": {
+            "previousGuardian": "0x0000000000000000000000000000000000000000",
+            "newGuardian": "0x0000000000000000000000000000000000000000"
+          }
+        },
+        {
+          "contract": "GuardianWallet #9",
+          "address": "0xFCc4Ba754Ae127396D3c6dCA507389b5A5b6EFAe",
+          "name": "FeeAccountSet",
+          "args": {
+            "account": "fee account"
+          }
+        },
+        {
+          "contract": "GuardianWallet #9",
+          "address": "0xFCc4Ba754Ae127396D3c6dCA507389b5A5b6EFAe",
+          "name": "PolicyUpdated",
+          "args": {
+            "policy": "(perTxLimit: 500000000, dailyLimit: 1000000000, approvalThreshold: 200000000, recipientCooldown: 0, pendingExpiry: 86400, opsPerCallLimit: 100000, opsDailyLimit: 5000000)"
+          }
+        }
+      ],
+      "result": "OwnershipTransferred, AgentSet, GuardianSet, FeeAccountSet, PolicyUpdated"
+    },
+    {
+      "scenario": "E-A9",
+      "label": "Owner setController on DemoLedger #9",
+      "hash": "0xfbb0d27acc3a85afffdd3dd7e099db4fccff3b02ecfbdb860fb966652f04a2aa",
+      "blockNumber": 1862,
+      "blockHash": "0x8b928b3e45a41d56842e57fcdbc6b2c55dd6f1c037c0d81f440f328deaf2c883",
+      "transactionIndex": 0,
+      "timestamp": "2026-10-16T12:02:47.000Z",
+      "from": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
+      "fromRole": "owner",
+      "to": "0xc90C13734D20e27904dF248FB850f50C81CE3642",
+      "toRole": "DemoLedger #9",
+      "contractAddress": null,
+      "call": "setController(GuardianWallet #9)",
+      "status": "success",
+      "gasUsed": "31827",
+      "inputBytes": {
+        "zero": 12,
+        "nonzero": 24
+      },
+      "events": [
+        {
+          "contract": "DemoLedger #9",
+          "address": "0xc90C13734D20e27904dF248FB850f50C81CE3642",
+          "name": "ControllerSet",
+          "args": {
+            "controller": "GuardianWallet #9"
+          }
+        }
+      ],
+      "result": "ControllerSet"
+    },
+    {
+      "scenario": "E-A9",
+      "label": "Owner mint on DemoLedger #9",
+      "hash": "0x27a70a5cbd5b30ce626830071c79ba059e87100d798bd59eb056fc1899fe1218",
+      "blockNumber": 1863,
+      "blockHash": "0xbea61428a94243913162ea1a43b646355679c768dd1c61a4b54004edf03de786",
+      "transactionIndex": 0,
+      "timestamp": "2026-10-16T12:02:48.000Z",
+      "from": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
+      "fromRole": "owner",
+      "to": "0xc90C13734D20e27904dF248FB850f50C81CE3642",
+      "toRole": "DemoLedger #9",
+      "contractAddress": null,
+      "call": "mint(GuardianWallet #9, 0, 2000000000)",
+      "status": "success",
+      "gasUsed": "32964",
+      "inputBytes": {
+        "zero": 73,
+        "nonzero": 27
+      },
+      "events": [
+        {
+          "contract": "DemoLedger #9",
+          "address": "0xc90C13734D20e27904dF248FB850f50C81CE3642",
+          "name": "DemoUnitsMinted",
+          "args": {
+            "account": "GuardianWallet #9",
+            "currency": "0",
+            "amount": "2000"
+          }
+        }
+      ],
+      "result": "DemoUnitsMinted"
+    },
+    {
+      "scenario": "E-A9",
+      "label": "Owner mint on DemoLedger #9",
+      "hash": "0x0ece7f468b8bb8f9e4ff7b01fb81319a9e10a726790cf59007350d21d1cf711a",
+      "blockNumber": 1864,
+      "blockHash": "0x7c8e22dc25a836951e56db026b443d90796b48fce9ae7728a3b0350c5d6d771b",
+      "transactionIndex": 0,
+      "timestamp": "2026-10-16T12:02:48.000Z",
+      "from": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
+      "fromRole": "owner",
+      "to": "0xc90C13734D20e27904dF248FB850f50C81CE3642",
+      "toRole": "DemoLedger #9",
+      "contractAddress": null,
+      "call": "mint(GuardianWallet #9, 1, 200000000000)",
+      "status": "success",
+      "gasUsed": "32964",
+      "inputBytes": {
+        "zero": 71,
+        "nonzero": 29
+      },
+      "events": [
+        {
+          "contract": "DemoLedger #9",
+          "address": "0xc90C13734D20e27904dF248FB850f50C81CE3642",
+          "name": "DemoUnitsMinted",
+          "args": {
+            "account": "GuardianWallet #9",
+            "currency": "1",
+            "amount": "200000"
+          }
+        }
+      ],
+      "result": "DemoUnitsMinted"
+    },
+    {
+      "scenario": "E-A9",
+      "label": "Owner setRecipient on GuardianWallet #9",
+      "hash": "0xc027a7ae5ef24102e85f939a7c0b92b2bf51ab1d056a9fa6c7acbc77d43db292",
+      "blockNumber": 1865,
+      "blockHash": "0xb9ab4d6d35708c880eea892348ec67b1d13b17747270e09845978ca49ed0ffae",
+      "transactionIndex": 0,
+      "timestamp": "2026-10-16T12:02:49.000Z",
+      "from": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
+      "fromRole": "owner",
+      "to": "0xFCc4Ba754Ae127396D3c6dCA507389b5A5b6EFAe",
+      "toRole": "GuardianWallet #9",
+      "contractAddress": null,
+      "call": "setRecipient(0x00000000000000000000000000000000000000A1, true, Ana · synthetic contact)",
+      "status": "success",
+      "gasUsed": "55012",
+      "inputBytes": {
+        "zero": 132,
+        "nonzero": 32
+      },
+      "events": [
+        {
+          "contract": "GuardianWallet #9",
+          "address": "0xFCc4Ba754Ae127396D3c6dCA507389b5A5b6EFAe",
+          "name": "RecipientSet",
+          "args": {
+            "recipient": "0x00000000000000000000000000000000000000A1",
+            "allowed": true,
+            "activeAfter": "1792152169",
+            "label": "Ana · synthetic contact"
+          }
+        }
+      ],
+      "result": "RecipientSet"
+    },
+    {
+      "scenario": "E-A9",
+      "label": "A9: Raw ledger move() from the agent key: NotController",
+      "hash": "0x1785c70daf7c52719e330fcaf1d4ca1e740386190be10bac0adca4674c06cf68",
+      "blockNumber": 1866,
+      "blockHash": "0xab597ee53671f9a2c7a772c16d3b364634f486499763e6b79ce9bbaece130125",
+      "transactionIndex": 0,
+      "timestamp": "2026-10-16T12:02:49.000Z",
+      "from": "0x70997970C51812dc3A010C7d01b50e0d17dc79C8",
+      "fromRole": "agent",
+      "to": "0xc90C13734D20e27904dF248FB850f50C81CE3642",
+      "toRole": "DemoLedger #9",
+      "contractAddress": null,
+      "call": "move(GuardianWallet #9, outside address, 0, 2000000000)",
+      "status": "reverted",
+      "gasUsed": "23727",
+      "inputBytes": {
+        "zero": 103,
+        "nonzero": 29
+      },
+      "events": [],
+      "result": "REVERTED NotController()"
+    },
+    {
+      "scenario": "E-A9",
+      "label": "A9: Raw DemoLedger.mint() of new demo units: reverted with OwnableUnauthorizedAccount(0x70997970C51812dc3A010C7d01b50e0d17dc79C8)",
+      "hash": "0x4b20938a85898816bccbfb3ff4338692f52704ec892ddd3c9b4a2fc953bb6972",
+      "blockNumber": 1867,
+      "blockHash": "0x9030b71d6c610ca34cd5bf7fb0d536054e5d4471bb99b10722a83a29b759576b",
+      "transactionIndex": 0,
+      "timestamp": "2026-10-16T12:02:50.000Z",
+      "from": "0x70997970C51812dc3A010C7d01b50e0d17dc79C8",
+      "fromRole": "agent",
+      "to": "0xc90C13734D20e27904dF248FB850f50C81CE3642",
+      "toRole": "DemoLedger #9",
+      "contractAddress": null,
+      "call": "mint(outside address, 0, 1000000000000)",
+      "status": "reverted",
+      "gasUsed": "23695",
+      "inputBytes": {
+        "zero": 90,
+        "nonzero": 10
+      },
+      "events": [],
+      "result": "REVERTED OwnableUnauthorizedAccount(agent)"
+    },
+    {
+      "scenario": "E-A9",
+      "label": "A9: Raw GuardianWallet.pay() to the outside address: contract returned BLOCKED and emitted PolicyViolation(RECIPIENT_NOT_ALLOWED)",
+      "hash": "0x9197e4cc327d25c07d53eec2d6dc7ae93a8928d80b182d73923f478bbb846b4f",
+      "blockNumber": 1868,
+      "blockHash": "0x4f268729329c9666bfab19f678aaafce9ac826d5f841e95de73b59b3dc478d0f",
+      "transactionIndex": 0,
+      "timestamp": "2026-10-16T12:02:51.000Z",
+      "from": "0x70997970C51812dc3A010C7d01b50e0d17dc79C8",
+      "fromRole": "agent",
+      "to": "0xFCc4Ba754Ae127396D3c6dCA507389b5A5b6EFAe",
+      "toRole": "GuardianWallet #9",
+      "contractAddress": null,
+      "call": "pay(outside address, 0, 150000000, 0x5ef7466ec373c46cff120d89e47011171a1a812240a4cc869d4899fa41a1ea43)",
+      "status": "success",
+      "gasUsed": "44941",
+      "inputBytes": {
+        "zero": 90,
+        "nonzero": 42
+      },
+      "events": [
+        {
+          "contract": "GuardianWallet #9",
+          "address": "0xFCc4Ba754Ae127396D3c6dCA507389b5A5b6EFAe",
+          "name": "PolicyViolation",
+          "args": {
+            "intentId": "0x5ef7466ec373c46cff120d89e47011171a1a812240a4cc869d4899fa41a1ea43",
+            "action": "PAY",
+            "reason": "RECIPIENT_NOT_ALLOWED",
+            "amount": "150"
+          }
+        }
+      ],
+      "result": "BLOCKED RECIPIENT_NOT_ALLOWED"
+    },
+    {
+      "scenario": "E-A10",
+      "label": "Owner deploys DemoLedger #10",
+      "hash": "0x74dc9029827e7e9c6b6a4a1fa48569f8084de6944e3f910b76ec68aa122a6658",
+      "blockNumber": 1869,
+      "blockHash": "0x6803f78dcb6184178f157407fd7b6b72f790b9300b62b03b091b5d1a5ab378db",
+      "transactionIndex": 0,
+      "timestamp": "2026-10-16T12:02:51.000Z",
+      "from": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
+      "fromRole": "owner",
+      "to": null,
+      "toRole": "create DemoLedger #10",
+      "contractAddress": "0xE65B75e7A8de220bcfec86F58c4c25A62aB7CD9b",
+      "call": "constructor",
+      "status": "success",
+      "gasUsed": "85913",
+      "inputBytes": {
+        "zero": 108,
+        "nonzero": 4023
+      },
+      "events": [
+        {
+          "contract": "DemoLedger #10",
+          "address": "0xE65B75e7A8de220bcfec86F58c4c25A62aB7CD9b",
+          "name": "OwnershipTransferred",
+          "args": {
+            "previousOwner": "0x0000000000000000000000000000000000000000",
+            "newOwner": "owner"
+          }
+        }
+      ],
+      "result": "OwnershipTransferred"
+    },
+    {
+      "scenario": "E-A10",
+      "label": "Owner deploys GuardianWallet #10",
+      "hash": "0xf5b9d356e0e0f082358975fee1a7b446dcf72092c1071358e0d44ad2a7500428",
+      "blockNumber": 1870,
+      "blockHash": "0xe34d881e4c5a9555f81c2adf7c7f41408ae0235dd5ad36e8ef686940a40d45d6",
+      "transactionIndex": 0,
+      "timestamp": "2026-10-16T12:02:52.000Z",
+      "from": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
+      "fromRole": "owner",
+      "to": null,
+      "toRole": "create GuardianWallet #10",
+      "contractAddress": "0x1Fb0D426927Dab092Def63b73E1397b3F29E7b33",
+      "call": "constructor",
+      "status": "success",
+      "gasUsed": "286007",
+      "inputBytes": {
+        "zero": 789,
+        "nonzero": 10992
+      },
+      "events": [
+        {
+          "contract": "GuardianWallet #10",
+          "address": "0x1Fb0D426927Dab092Def63b73E1397b3F29E7b33",
+          "name": "OwnershipTransferred",
+          "args": {
+            "previousOwner": "0x0000000000000000000000000000000000000000",
+            "newOwner": "owner"
+          }
+        },
+        {
+          "contract": "GuardianWallet #10",
+          "address": "0x1Fb0D426927Dab092Def63b73E1397b3F29E7b33",
+          "name": "AgentSet",
+          "args": {
+            "previousAgent": "0x0000000000000000000000000000000000000000",
+            "newAgent": "agent"
+          }
+        },
+        {
+          "contract": "GuardianWallet #10",
+          "address": "0x1Fb0D426927Dab092Def63b73E1397b3F29E7b33",
+          "name": "GuardianSet",
+          "args": {
+            "previousGuardian": "0x0000000000000000000000000000000000000000",
+            "newGuardian": "0x0000000000000000000000000000000000000000"
+          }
+        },
+        {
+          "contract": "GuardianWallet #10",
+          "address": "0x1Fb0D426927Dab092Def63b73E1397b3F29E7b33",
+          "name": "FeeAccountSet",
+          "args": {
+            "account": "fee account"
+          }
+        },
+        {
+          "contract": "GuardianWallet #10",
+          "address": "0x1Fb0D426927Dab092Def63b73E1397b3F29E7b33",
+          "name": "PolicyUpdated",
+          "args": {
+            "policy": "(perTxLimit: 500000000, dailyLimit: 1000000000, approvalThreshold: 200000000, recipientCooldown: 0, pendingExpiry: 86400, opsPerCallLimit: 100000, opsDailyLimit: 5000000)"
+          }
+        }
+      ],
+      "result": "OwnershipTransferred, AgentSet, GuardianSet, FeeAccountSet, PolicyUpdated"
+    },
+    {
+      "scenario": "E-A10",
+      "label": "Owner setController on DemoLedger #10",
+      "hash": "0xf84efd09f55451b50e4f28d1bb248557c22749c6ae72c5c51792b1e611f1af1b",
+      "blockNumber": 1871,
+      "blockHash": "0x568231f26bacbf5817e5ce06cf71108722edeee9b007506b9b8eb4973ef81121",
+      "transactionIndex": 0,
+      "timestamp": "2026-10-16T12:02:52.000Z",
+      "from": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
+      "fromRole": "owner",
+      "to": "0xE65B75e7A8de220bcfec86F58c4c25A62aB7CD9b",
+      "toRole": "DemoLedger #10",
+      "contractAddress": null,
+      "call": "setController(GuardianWallet #10)",
+      "status": "success",
+      "gasUsed": "31827",
+      "inputBytes": {
+        "zero": 12,
+        "nonzero": 24
+      },
+      "events": [
+        {
+          "contract": "DemoLedger #10",
+          "address": "0xE65B75e7A8de220bcfec86F58c4c25A62aB7CD9b",
+          "name": "ControllerSet",
+          "args": {
+            "controller": "GuardianWallet #10"
+          }
+        }
+      ],
+      "result": "ControllerSet"
+    },
+    {
+      "scenario": "E-A10",
+      "label": "Owner mint on DemoLedger #10",
+      "hash": "0xc0cc52342bab253514ba30f1ac1fc198f9fd2261ee5072dbc0d9d8d018b6dd42",
+      "blockNumber": 1872,
+      "blockHash": "0x4d3073aad9f6126389ab4ccf8a09a0dd8a9c663583fa7fe4db9af881faf25696",
+      "transactionIndex": 0,
+      "timestamp": "2026-10-16T12:02:53.000Z",
+      "from": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
+      "fromRole": "owner",
+      "to": "0xE65B75e7A8de220bcfec86F58c4c25A62aB7CD9b",
+      "toRole": "DemoLedger #10",
+      "contractAddress": null,
+      "call": "mint(GuardianWallet #10, 0, 2000000000)",
+      "status": "success",
+      "gasUsed": "32964",
+      "inputBytes": {
+        "zero": 73,
+        "nonzero": 27
+      },
+      "events": [
+        {
+          "contract": "DemoLedger #10",
+          "address": "0xE65B75e7A8de220bcfec86F58c4c25A62aB7CD9b",
+          "name": "DemoUnitsMinted",
+          "args": {
+            "account": "GuardianWallet #10",
+            "currency": "0",
+            "amount": "2000"
+          }
+        }
+      ],
+      "result": "DemoUnitsMinted"
+    },
+    {
+      "scenario": "E-A10",
+      "label": "Owner mint on DemoLedger #10",
+      "hash": "0x52753c54fdf7e6873e9038402603c673e1ac72d8d23e8182c7707d7d019c222a",
+      "blockNumber": 1873,
+      "blockHash": "0x6391fbfd7c4d68c4fc85b590e56d1f77f889de0e2f9b1f86513edeb60cae47d4",
+      "transactionIndex": 0,
+      "timestamp": "2026-10-16T12:02:53.000Z",
+      "from": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
+      "fromRole": "owner",
+      "to": "0xE65B75e7A8de220bcfec86F58c4c25A62aB7CD9b",
+      "toRole": "DemoLedger #10",
+      "contractAddress": null,
+      "call": "mint(GuardianWallet #10, 1, 200000000000)",
+      "status": "success",
+      "gasUsed": "32964",
+      "inputBytes": {
+        "zero": 71,
+        "nonzero": 29
+      },
+      "events": [
+        {
+          "contract": "DemoLedger #10",
+          "address": "0xE65B75e7A8de220bcfec86F58c4c25A62aB7CD9b",
+          "name": "DemoUnitsMinted",
+          "args": {
+            "account": "GuardianWallet #10",
+            "currency": "1",
+            "amount": "200000"
+          }
+        }
+      ],
+      "result": "DemoUnitsMinted"
+    },
+    {
+      "scenario": "E-A10",
+      "label": "Owner setRecipient on GuardianWallet #10",
+      "hash": "0x21b388243f6375831489998ccbf55cb00116b9030e8ebffe3dccb06244d86fd6",
+      "blockNumber": 1874,
+      "blockHash": "0xe99b076cbe97c5a2fe5c8bbc23bed2ebee1f3f0a22cb6281b6550df461799c08",
+      "transactionIndex": 0,
+      "timestamp": "2026-10-16T12:02:54.000Z",
+      "from": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
+      "fromRole": "owner",
+      "to": "0x1Fb0D426927Dab092Def63b73E1397b3F29E7b33",
+      "toRole": "GuardianWallet #10",
+      "contractAddress": null,
+      "call": "setRecipient(0x00000000000000000000000000000000000000A1, true, Ana · synthetic contact)",
+      "status": "success",
+      "gasUsed": "55012",
+      "inputBytes": {
+        "zero": 132,
+        "nonzero": 32
+      },
+      "events": [
+        {
+          "contract": "GuardianWallet #10",
+          "address": "0x1Fb0D426927Dab092Def63b73E1397b3F29E7b33",
+          "name": "RecipientSet",
+          "args": {
+            "recipient": "0x00000000000000000000000000000000000000A1",
+            "allowed": true,
+            "activeAfter": "1792152174",
+            "label": "Ana · synthetic contact"
+          }
+        }
+      ],
+      "result": "RecipientSet"
+    },
+    {
+      "scenario": "E-A10",
+      "label": "A10: setPolicy() from the agent key: OwnableUnauthorizedAccount(0x70997970C51812dc3A010C7d01b50e0d17dc79C8)",
+      "hash": "0x193e9fc9594e6837548482a070d3aac8e07750cd04df68f95574335427b16039",
+      "blockNumber": 1875,
+      "blockHash": "0x4299a78dc800e95b5f7efecc53a60614c2f29572ea3d9f9aa8f3d31ccdb6b4b8",
+      "transactionIndex": 0,
+      "timestamp": "2026-10-16T12:02:55.000Z",
+      "from": "0x70997970C51812dc3A010C7d01b50e0d17dc79C8",
+      "fromRole": "agent",
+      "to": "0x1Fb0D426927Dab092Def63b73E1397b3F29E7b33",
+      "toRole": "GuardianWallet #10",
+      "contractAddress": null,
+      "call": "setPolicy((perTxLimit: 1000000000000, dailyLimit: 1000000000000, approvalThreshold: 1000000000000, recipientCooldown: 0, pendingExpiry: 86400, opsPerCallLimit: 100000, opsDailyLimit: 5000000))",
+      "status": "reverted",
+      "gasUsed": "23529",
+      "inputBytes": {
+        "zero": 203,
+        "nonzero": 25
+      },
+      "events": [],
+      "result": "REVERTED OwnableUnauthorizedAccount(agent)"
+    }
+  ]
+}

@@ -86,6 +86,9 @@ export class AttackExecutor {
   }
 
   get publicClient(): PublicClient<Transport, Chain> { return this.client; }
+  /** Public addresses only; the signing values never leave this module. */
+  get ownerAddress(): Address { return this.owner.address; }
+  get agentAddress(): Address { return this.agent.address; }
 
   async fixture(options: AttackFixtureOptions): Promise<AttackFixture> {
     const base: Policy = {
