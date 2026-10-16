@@ -40,6 +40,7 @@ pnpm --filter agent dev
 pnpm --filter agent test:parity
 pnpm risk-intel:dev
 pnpm --filter web dev
+pnpm --filter web test:e2e
 pnpm eval
 pnpm lint && pnpm typecheck && pnpm test
 ./scripts/chain-down.sh

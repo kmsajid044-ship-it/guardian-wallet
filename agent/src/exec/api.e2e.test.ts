@@ -40,7 +40,7 @@ describe("agent API pipeline", () => {
     };
     app = buildServer(config, {
       deployment,
-      environment: { AGENT_PRIVATE_KEY: fixture.agentKey },
+      environment: { AGENT_PRIVATE_KEY: fixture.agentKey, OWNER_PRIVATE_KEY: fixture.ownerKey },
       contacts: { ana: fixture.activeRecipient },
       riskIntel: {
         checkPayee: async (address) => {
@@ -93,6 +93,18 @@ describe("agent API pipeline", () => {
     expect(pending.statusCode).toBe(200);
     expect(pending.json()).toMatchObject([{ id: "1", amount: "200", recipientContactId: "ana", status: "PENDING" }]);
   }, 10_000);
+
+  it("lets the owner approve T2 work and operate the kill switch", async () => {
+    const approval = await app.inject({ method: "POST", url: "/owner/pending/1/approve", payload: {} });
+    expect(approval.statusCode).toBe(200);
+    expect(approval.json()).toMatchObject({ status: "success", blockNumber: expect.any(String) });
+    const pause = await app.inject({ method: "POST", url: "/owner/pause", payload: {} });
+    expect(pause.statusCode).toBe(200);
+    expect((await app.inject({ method: "GET", url: "/state" })).json()).toMatchObject({ paused: true });
+    const resume = await app.inject({ method: "POST", url: "/owner/unpause", payload: {} });
+    expect(resume.statusCode).toBe(200);
+    expect((await app.inject({ method: "GET", url: "/state" })).json()).toMatchObject({ paused: false });
+  }, 15_000);
 
   it("records a contract policy violation with a transaction hash", async () => {
     const response = await app.inject({ method: "POST", url: "/chat", payload: { message: "Pay Ana 600 USD", source: "trusted" } });

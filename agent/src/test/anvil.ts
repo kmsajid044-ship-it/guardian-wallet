@@ -54,6 +54,7 @@ export type AnvilFixture = {
   owner: Address;
   agent: Address;
   agentKey: `0x${string}`;
+  ownerKey: `0x${string}`;
   activeRecipient: Address;
   service: Address;
   stop(): Promise<void>;
@@ -130,6 +131,7 @@ export async function startAnvilFixture(): Promise<AnvilFixture> {
     owner,
     agent,
     agentKey,
+    ownerKey,
     activeRecipient,
     service,
     async stop() {

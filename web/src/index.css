@@ -5,3 +5,33 @@
   --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", "Noto Sans", Roboto, "Helvetica Neue", Arial, sans-serif;
   --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 }
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+@layer base {
+  * { box-sizing: border-box; }
+  body { margin: 0; min-width: 320px; font-feature-settings: "tnum" 1, "ss01" 1; }
+  button, input { font: inherit; }
+  button { cursor: pointer; }
+  button:disabled { cursor: wait; opacity: .65; }
+  th { padding: .75rem 1rem .75rem 0; }
+  td { padding-right: 1rem; }
+}
+
+@layer components {
+  .card { @apply rounded-2xl border border-slate-200 bg-white p-5 shadow-[0_14px_35px_rgba(15,23,42,.055)] dark:border-white/10 dark:bg-[#0d1b17] dark:shadow-none lg:p-6; }
+  .page-title { @apply text-3xl font-bold tracking-[-.035em] md:text-4xl; }
+  .eyebrow { @apply text-xs font-bold uppercase tracking-[.18em] text-emerald-700 dark:text-emerald-400; }
+  .status-pill { @apply inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-xs font-bold; }
+  .field { @apply rounded-xl border border-slate-300 bg-white px-4 py-3 text-base outline-none transition focus:border-emerald-600 focus:ring-4 focus:ring-emerald-600/10 dark:border-white/15 dark:bg-white/[.06] dark:focus:border-emerald-400; }
+  .primary-button { @apply rounded-xl bg-emerald-700 px-5 py-3 text-sm font-bold text-white shadow-sm transition hover:bg-emerald-800 dark:bg-emerald-500 dark:text-emerald-950 dark:hover:bg-emerald-400; }
+  .secondary-button { @apply rounded-lg border border-slate-300 px-3 py-2 text-xs font-bold hover:bg-slate-50 dark:border-white/15 dark:hover:bg-white/10; }
+  .icon-button { @apply grid size-10 place-items-center rounded-xl border border-slate-200 bg-white text-lg hover:bg-slate-50 dark:border-white/10 dark:bg-white/5 dark:hover:bg-white/10; }
+}
+
+.dark .app-shell { background-color: #07110f; color: #f1f5f9; }
+.dark .card, .dark header { color: #f1f5f9; }
+.dark .text-slate-950 { color: #f8fafc !important; }
+.dark .text-slate-700, .dark .text-slate-600, .dark .text-slate-500 { color: #cbd5e1 !important; }
+.dark .text-slate-400, .dark .text-slate-300 { color: #94a3b8 !important; }
+.dark .text-emerald-700 { color: #34d399 !important; }

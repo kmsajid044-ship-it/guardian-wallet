@@ -16,6 +16,7 @@
     "test:parity": "pnpm test:parity:evm-local && pnpm test:parity:fisco"
   },
   "dependencies": {
+    "@fastify/cors": "^11.3.1",
     "better-sqlite3": "^13.0.3",
     "dotenv": "^18.0.7",
     "fastify": "^5.12.7",

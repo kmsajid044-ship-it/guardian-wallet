@@ -98,6 +98,8 @@ scripts/     Local development and repository checks
 docs/        Security, testing, and architecture evidence
 ```
 
+The web owner console provides agent chat with visible pipeline steps and clarification, a T2 approval inbox, T3 policy and allowlist settings, pause/resume controls, USD and BDT balance cards, a labelled cached FX reference, and a live receipt-verifiable audit table. Light and dark themes use bundled system fonts and large-format presentation sizing. Attack Lab and Value Dashboard routes are reserved for their dedicated builds.
+
 ## 11. Chain runtime
 
 The primary runtime is a four-node local FISCO BCOS v3.16.4 Air network with PBFT and numeric chain ID 1337. Each node exposes a loopback-only Web3 JSON-RPC endpoint; the primary endpoint is `http://127.0.0.1:8545`. The application reuses viem for reads, simulation, and restricted signing. The official Java SDK console is used only to initialize local Web3 execution balances.
