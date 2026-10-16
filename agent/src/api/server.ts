@@ -17,6 +17,7 @@ import { attackIds, type AttackId } from "../attack/types.js";
 import { readEvalSummary } from "../value/evalSummary.js";
 import { liveValueMetrics } from "../value/valueMetrics.js";
 import { z } from "zod";
+import { createOwnerSessionGuard } from "./ownerSession.js";
 
 type ServerOptions = {
   deployment?: Deployment;
@@ -25,6 +26,8 @@ type ServerOptions = {
   llmAdapter?: LlmAdapter;
   riskIntel?: RiskIntelGateway;
   evalResultsPath?: string;
+  /** Per-run secret required on every /owner/* route. A random one is generated when omitted. */
+  ownerSessionToken?: string;
 };
 
 const ChatRequestSchema = z.object({
@@ -57,6 +60,8 @@ const RecipientUpdateSchema = z.object({ allowed: z.boolean(), label: z.string()
 export function buildServer(config: Config, options: ServerOptions = {}): FastifyInstance {
   const app = Fastify({ logger: true });
   void app.register(cors, { origin: [/^http:\/\/(?:127\.0\.0\.1|localhost):\d+$/] });
+  // Owner routes sign with the owner key, so they require the per-run owner session token.
+  app.addHook("preParsing", createOwnerSessionGuard(options.ownerSessionToken));
   const audit = new AuditLog(resolveRepoPath(config.AUDIT_DB_PATH));
   const deployment = options.deployment ?? loadDeployment(config);
   const contacts = options.contacts ?? contactsFromEnvironment(options.environment ?? process.env);

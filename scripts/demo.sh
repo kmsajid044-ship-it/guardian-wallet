@@ -24,8 +24,13 @@ for port in "$agent_port" "$risk_port" "$web_port"; do
 done
 
 mkdir -p "$logs"
+# The agent writes a fresh owner session token here (mode 0600) at each start; the console reads it
+# through the Vite dev server, same-origin only. It is never printed. A stale one is removed first.
+owner_session="${OWNER_SESSION_FILE:-$logs/owner-session}"
+export OWNER_SESSION_FILE="$owner_session"
+rm -f "$owner_session"
 pids=()
-stop() { for pid in "${pids[@]}"; do kill "$pid" 2>/dev/null || true; done; wait 2>/dev/null || true; echo; echo "Demo stopped."; }
+stop() { for pid in "${pids[@]}"; do kill "$pid" 2>/dev/null || true; done; wait 2>/dev/null || true; rm -f "$owner_session"; echo; echo "Demo stopped."; }
 trap stop EXIT INT TERM
 start() { local name="$1"; shift; ("$@" >"$logs/$name.log" 2>&1) & pids+=("$!"); }
 start risk-intel pnpm --dir "$repo_root/risk-intel" exec tsx src/index.ts
@@ -42,6 +47,7 @@ for check in "agent http://127.0.0.1:$agent_port/health" "risk-intel http://127.
   set -- $check
   ready "$2" || { echo "$1 did not start; see $logs/$1.log" >&2; exit 1; }
 done
+[[ -s "$owner_session" ]] || { echo "agent did not write its owner session; see $logs/agent.log" >&2; exit 1; }
 
 cat <<INFO
 Guardian Wallet demo is running on local FISCO BCOS (chain ID 1337). No real money.
@@ -50,6 +56,7 @@ Guardian Wallet demo is running on local FISCO BCOS (chain ID 1337). No real mon
   Agent API      http://127.0.0.1:$agent_port
   Risk Intel     http://127.0.0.1:$risk_port
   Logs           $logs/
+  Owner session  $owner_session (per run, 0600; required as x-owner-session on /owner/*)
 
 60-second tour:
   1. Chat: "Pay ana 50 USD"          -> T1, executed, transaction hash shown

@@ -120,7 +120,7 @@ scripts/     Local development and repository checks
 docs/        Security, testing, and architecture evidence
 ```
 
-The web owner console provides agent chat with visible pipeline steps and clarification, a T2 approval inbox, T3 policy and allowlist settings, pause/resume controls, USD and BDT balance cards, a labelled cached FX reference, and a live receipt-verifiable audit table. Light and dark themes use bundled system fonts and large-format presentation sizing. The Attack Lab route runs the §9 scenarios with per-layer evidence. The Value Dashboard shows the latest evaluation metrics against their targets, plus live counts from the audit log: decisions by route, owner approvals, value paid, saved, and blocked, Attack Lab results, and estimated time saved.
+The web owner console provides agent chat with visible pipeline steps and clarification, a T2 approval inbox, T3 policy and allowlist settings, pause/resume controls, USD and BDT balance cards, a labelled cached FX reference, and a live receipt-verifiable audit table. In the local demo the agent service signs owner actions only for requests carrying a per-run owner session token, which the Vite dev server hands to the same-origin console alone; production builds sign owner actions in the injected browser wallet. Light and dark themes use bundled system fonts and large-format presentation sizing. The Attack Lab route runs the §9 scenarios with per-layer evidence. The Value Dashboard shows the latest evaluation metrics against their targets, plus live counts from the audit log: decisions by route, owner approvals, value paid, saved, and blocked, Attack Lab results, and estimated time saved.
 
 ## 11. Chain runtime
 

@@ -23,9 +23,18 @@ const valueResponse = {
 const proofHash = `0x${"b".repeat(64)}`;
 const attacks = Array.from({ length: 11 }, (_, index) => ({ id: `A${index + 1}`, title: `Safety scenario ${index + 1}`, description: "Synthetic adversarial scenario", status: "READY", directProofRequired: [2, 3, 6, 7, 8, 9, 10].includes(index + 1) }));
 
+const ownerSession = "synthetic-owner-session-token-for-e2e-only";
+const ownerHeaderSeen: string[] = [];
+
 async function mockApi(page: Page) {
+  await page.route("**/__owner-session", route => route.fulfill({ json: { token: ownerSession }, headers: { "cache-control": "no-store" } }));
   await page.route("http://127.0.0.1:8787/**", async route => {
     const url = new URL(route.request().url());
+    if (url.pathname.startsWith("/owner/") && route.request().method() !== "OPTIONS") {
+      const supplied = await route.request().headerValue("x-owner-session");
+      if (supplied !== ownerSession) return route.fulfill({ status: 401, json: { error: "OWNER_SESSION_REQUIRED" } });
+      ownerHeaderSeen.push(url.pathname);
+    }
     if (url.pathname === "/state") return route.fulfill({ json: state });
     if (url.pathname === "/pending") return route.fulfill({ json: pending });
     if (url.pathname === "/contacts") return route.fulfill({ json: [{ id: "ana", address: "0x1000000000000000000000000000000000000001", label: "Ana · synthetic contact", allowed: true, activeAfter: "0" }] });
@@ -43,7 +52,7 @@ async function mockApi(page: Page) {
   });
 }
 
-test.beforeEach(async ({ page }) => { state.paused = false; pending.splice(0, pending.length, { id: "1", recipientContactId: "ana", amount: "200", currency: "USD", status: "PENDING", expiresAt: "1792200000" }); await mockApi(page); await page.goto("/"); });
+test.beforeEach(async ({ page }) => { ownerHeaderSeen.splice(0); state.paused = false; pending.splice(0, pending.length, { id: "1", recipientContactId: "ana", amount: "200", currency: "USD", status: "PENDING", expiresAt: "1792200000" }); await mockApi(page); await page.goto("/"); });
 
 test("chat executes a T1 payment and shows the plan", async ({ page }) => {
   await page.getByLabel("Message the agent").fill("Pay Ana 100 USD");
@@ -57,6 +66,7 @@ test("owner approves a T2 inbox item", async ({ page }) => {
   await expect(page.getByTestId("approval-inbox")).toContainText("200 USD");
   await page.getByTestId("approve-1").click();
   await expect(page.getByTestId("approval-inbox")).toContainText("No items need your approval");
+  expect(ownerHeaderSeen).toEqual(["/owner/pending/1/approve"]);
 });
 
 test("kill switch pauses and resumes the agent", async ({ page }) => {
@@ -65,6 +75,15 @@ test("kill switch pauses and resumes the agent", async ({ page }) => {
   await expect(page.getByTestId("kill-switch")).toContainText("Resume agent");
   await page.getByTestId("kill-switch").click();
   await expect(page.getByText("Active", { exact: true })).toBeVisible();
+  expect(ownerHeaderSeen).toEqual(["/owner/pause", "/owner/unpause"]);
+});
+
+test("owner actions fail closed without an owner session", async ({ page }) => {
+  await page.route("**/__owner-session", route => route.fulfill({ status: 503, json: { error: "OWNER_SESSION_UNAVAILABLE" } }));
+  await page.getByTestId("kill-switch").click();
+  await expect(page.getByTestId("kill-switch")).toContainText("Pause agent");
+  expect(ownerHeaderSeen).toEqual([]);
+  expect(state.paused).toBe(false);
 });
 
 test("captures light and dark owner-console screenshots", async ({ page }) => {

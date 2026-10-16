@@ -1,5 +1,6 @@
 // Generates docs/LICENSES.md from the installed dependency tree (`pnpm licenses list`) plus the
 // non-npm components. Run with `pnpm licenses:doc` after changing dependencies.
+/* global URL, process, console -- Node script */
 import { execFileSync } from "node:child_process";
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";

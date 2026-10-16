@@ -12,6 +12,8 @@ describe("agent API pipeline", () => {
   let directory: string;
   let app: ReturnType<typeof buildServer>;
   const riskChecks: string[] = [];
+  const ownerSessionToken = "test-owner-session-0123456789abcdef0123456789abcdef";
+  const owner = { "x-owner-session": ownerSessionToken };
 
   beforeAll(async () => {
     fixture = await startAnvilFixture();
@@ -43,6 +45,7 @@ describe("agent API pipeline", () => {
       environment: { AGENT_PRIVATE_KEY: fixture.agentKey, OWNER_PRIVATE_KEY: fixture.ownerKey },
       contacts: { ana: fixture.activeRecipient },
       evalResultsPath: join(directory, "no-eval-yet.json"),
+      ownerSessionToken,
       riskIntel: {
         checkPayee: async (address) => {
           riskChecks.push(address);
@@ -95,14 +98,50 @@ describe("agent API pipeline", () => {
     expect(pending.json()).toMatchObject([{ id: "1", amount: "200", recipientContactId: "ana", status: "PENDING" }]);
   }, 10_000);
 
+  it("refuses every owner route without the owner session token", async () => {
+    const routes = [
+      { method: "POST", url: "/owner/pending/1/approve" }, { method: "POST", url: "/owner/pause" }, { method: "POST", url: "/owner/unpause" },
+      { method: "PUT", url: "/owner/policy" }, { method: "PUT", url: "/owner/recipients/ana" },
+    ] as const;
+    for (const route of routes) {
+      for (const headers of [{}, { "x-owner-session": "wrong" }, { "x-owner-session": `${ownerSessionToken}x` }]) {
+        const response = await app.inject({ ...route, headers, payload: {} });
+        expect(response.statusCode, `${route.method} ${route.url}`).toBe(401);
+        expect(response.json()).toEqual({ error: "OWNER_SESSION_REQUIRED" });
+        expect(response.body).not.toContain(ownerSessionToken);
+      }
+    }
+    expect((await app.inject({ method: "GET", url: "/state" })).json()).toMatchObject({ paused: false });
+    expect((await app.inject({ method: "GET", url: "/pending" })).json()).toMatchObject([{ id: "1", status: "PENDING" }]);
+  });
+
+  it("cannot be driven by a cross-site form post or a rebound host name", async () => {
+    const form = await app.inject({
+      method: "POST", url: "/owner/pause", payload: "confirm=1",
+      headers: { "content-type": "application/x-www-form-urlencoded", origin: "https://attacker.example", "sec-fetch-site": "cross-site" },
+    });
+    expect(form.statusCode).toBe(403);
+    const formWithoutOrigin = await app.inject({ method: "POST", url: "/owner/pause", payload: "confirm=1", headers: { "content-type": "application/x-www-form-urlencoded" } });
+    expect(formWithoutOrigin.statusCode).toBe(401);
+    const foreignOrigin = await app.inject({ method: "POST", url: "/owner/pause", payload: {}, headers: { ...owner, origin: "https://attacker.example" } });
+    expect(foreignOrigin.statusCode).toBe(403);
+    expect(foreignOrigin.json()).toEqual({ error: "OWNER_ORIGIN_REFUSED" });
+    const rebound = await app.inject({ method: "POST", url: "/owner/pause", payload: {}, headers: { ...owner, host: "attacker.example:8787" } });
+    expect(rebound.statusCode).toBe(403);
+    expect((await app.inject({ method: "GET", url: "/state" })).json()).toMatchObject({ paused: false });
+    const preflight = await app.inject({ method: "OPTIONS", url: "/owner/pause", headers: { origin: "http://127.0.0.1:5173", "access-control-request-method": "POST", "access-control-request-headers": "content-type,x-owner-session" } });
+    expect(preflight.statusCode).toBeLessThan(300);
+    expect(preflight.headers["access-control-allow-origin"]).toBe("http://127.0.0.1:5173");
+  });
+
   it("lets the owner approve T2 work and operate the kill switch", async () => {
-    const approval = await app.inject({ method: "POST", url: "/owner/pending/1/approve", payload: {} });
+    const approval = await app.inject({ method: "POST", url: "/owner/pending/1/approve", headers: owner, payload: {} });
     expect(approval.statusCode).toBe(200);
     expect(approval.json()).toMatchObject({ status: "success", blockNumber: expect.any(String) });
-    const pause = await app.inject({ method: "POST", url: "/owner/pause", payload: {} });
+    const pause = await app.inject({ method: "POST", url: "/owner/pause", headers: owner, payload: {} });
     expect(pause.statusCode).toBe(200);
     expect((await app.inject({ method: "GET", url: "/state" })).json()).toMatchObject({ paused: true });
-    const resume = await app.inject({ method: "POST", url: "/owner/unpause", payload: {} });
+    const resume = await app.inject({ method: "POST", url: "/owner/unpause", headers: owner, payload: {} });
     expect(resume.statusCode).toBe(200);
     expect((await app.inject({ method: "GET", url: "/state" })).json()).toMatchObject({ paused: false });
   }, 15_000);
