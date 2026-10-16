@@ -189,7 +189,7 @@ export class AttackLab {
   }
 
   private async cooldownSwap(steps: AttackStep[]): Promise<Outcome> {
-    const cooldown = 600n * this.executor.timeUnit;
+    const cooldown = 600n; // seconds on every backend
     const { fixture, pipeline } = await this.setup(steps, { ana: anaChanged }, { recipientCooldown: cooldown });
     const swap = await fixture.owner({ kind: "set_recipient", recipient: anaChanged, allowed: true, label: "Ana · changed payout (synthetic)" });
     steps.push({ layer: "owner setup", outcome: "RECORDED", detail: "Contact ana now resolves to a newly added payout address; 600 second cooldown starts", ...evidenceFields(swap) });
@@ -220,7 +220,7 @@ export class AttackLab {
   private async expiredApproval(steps: AttackStep[]): Promise<Outcome> {
     const { fixture, pipeline } = await this.setup(steps, {}, { pendingExpiry: 1n });
     const pendingId = await this.createPending(steps, pipeline);
-    await sleep(this.config.CHAIN_BACKEND === "fisco" ? 50 : 2_100);
+    await sleep(2_100); // pendingExpiry is one second
     const before = await this.walletUsd(fixture);
     const late = await fixture.probe("owner", getAddress(fixture.deployment.guardianWallet), encodeFunctionData({ abi: guardianWalletAbi, functionName: "approve", args: [pendingId] }));
     const primary = expectRevert(steps, late, "PendingHasExpired", `Approval for expired pending #${pendingId}`);

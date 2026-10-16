@@ -87,13 +87,10 @@ export class AttackExecutor {
 
   get publicClient(): PublicClient<Transport, Chain> { return this.client; }
 
-  /** Block timestamps on the local FISCO BCOS network are in milliseconds. */
-  get timeUnit(): bigint { return this.config.CHAIN_BACKEND === "fisco" ? 1_000n : 1n; }
-
   async fixture(options: AttackFixtureOptions): Promise<AttackFixture> {
     const base: Policy = {
       perTxLimit: 500n * UNIT, dailyLimit: 1_000n * UNIT, approvalThreshold: 200n * UNIT,
-      recipientCooldown: 0n, pendingExpiry: options.pendingExpiry ?? 86_400n * this.timeUnit,
+      recipientCooldown: 0n, pendingExpiry: options.pendingExpiry ?? 86_400n,
       opsPerCallLimit: UNIT / 10n, opsDailyLimit: 5n * UNIT,
     };
     const policy: Policy = { ...base, recipientCooldown: options.recipientCooldown ?? 0n };

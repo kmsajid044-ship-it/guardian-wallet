@@ -197,9 +197,10 @@ class ViemChainAdapter implements ChainAdapter {
 
   policyReader(): PolicyReader {
     const deployment = this.requireDeployment();
-    // This backend exposes its block timestamp in milliseconds; mirror that unit
-    // so recipient activation checks agree with contract execution.
-    const timestampSource = this.backend === "fisco" ? () => BigInt(Date.now()) : undefined;
+    // FISCO BCOS reports block timestamps in milliseconds and only seals blocks for new
+    // transactions, so the latest block can be stale. The contracts divide by their clockScale
+    // and keep time in seconds; mirror that with wall-clock seconds.
+    const timestampSource = this.backend === "fisco" ? () => BigInt(Math.floor(Date.now() / 1_000)) : undefined;
     return new GuardianReader(this.client, getAddress(deployment.guardianWallet), getAddress(deployment.demoLedger), timestampSource);
   }
 

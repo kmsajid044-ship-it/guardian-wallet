@@ -8,6 +8,8 @@ contract DemoLedger is Ownable {
     enum Currency { USD, BDT }
     uint256 public constant RATE_BPS = 500;
     uint256 public constant YEAR = 365 days;
+    /// @notice Block timestamp units per second (1 on EVM chains, 1000 on FISCO BCOS); fixed at deployment.
+    uint256 public immutable clockScale;
     address public controller;
     mapping(address => mapping(Currency => uint256)) private _balances;
     mapping(address => mapping(Currency => uint256)) private _savingsPrincipal;
@@ -22,7 +24,10 @@ contract DemoLedger is Ownable {
     error InsufficientBalance();
     error InsufficientSavings();
 
-    constructor(address owner_) Ownable(owner_) {}
+    // Seconds since 1970 stay below 1e11 until the year 5138; milliseconds passed it in 1973.
+    uint256 private constant MILLISECOND_CLOCK_THRESHOLD = 100_000_000_000;
+
+    constructor(address owner_) Ownable(owner_) { clockScale = block.timestamp >= MILLISECOND_CLOCK_THRESHOLD ? 1_000 : 1; }
     modifier onlyController() { if (msg.sender != controller) revert NotController(); _; }
 
     function setController(address controller_) external onlyOwner {
@@ -40,7 +45,7 @@ contract DemoLedger is Ownable {
         uint256 principal = _savingsPrincipal[account][currency];
         uint64 since = _savingsSince[account][currency];
         if (principal == 0 || since == 0) return principal;
-        return principal + (principal * RATE_BPS * (block.timestamp - since)) / (10_000 * YEAR);
+        return principal + (principal * RATE_BPS * (_now() - since)) / (10_000 * YEAR);
     }
     function move(address from, address to, Currency currency, uint256 amount) external onlyController {
         if (to == address(0)) revert ZeroAddress();
@@ -54,7 +59,7 @@ contract DemoLedger is Ownable {
         _checkpoint(account, currency);
         _balances[account][currency] -= amount;
         _savingsPrincipal[account][currency] += amount;
-        if (_savingsSince[account][currency] == 0) _savingsSince[account][currency] = uint64(block.timestamp);
+        if (_savingsSince[account][currency] == 0) _savingsSince[account][currency] = uint64(_now());
         emit SavingsChanged(account, currency, _balances[account][currency], _savingsPrincipal[account][currency]);
     }
     function withdrawSavings(address account, Currency currency, uint256 amount) external onlyController {
@@ -64,9 +69,10 @@ contract DemoLedger is Ownable {
         _balances[account][currency] += amount;
         emit SavingsChanged(account, currency, _balances[account][currency], _savingsPrincipal[account][currency]);
     }
+    function _now() internal view returns (uint256) { return block.timestamp / clockScale; }
     function _checkpoint(address account, Currency currency) internal {
         uint256 current = savingsBalance(account, currency);
         _savingsPrincipal[account][currency] = current;
-        _savingsSince[account][currency] = current == 0 ? 0 : uint64(block.timestamp);
+        _savingsSince[account][currency] = current == 0 ? 0 : uint64(_now());
     }
 }

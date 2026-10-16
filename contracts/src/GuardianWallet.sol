@@ -23,6 +23,12 @@ contract GuardianWallet is IGuardianWallet, Ownable2Step, ReentrancyGuard {
     mapping(bytes32 => bool) public usedIntent;
     mapping(uint256 => Pending) private _pendings;
     uint256 public pendingCount;
+    /// @notice Block timestamp units per second: 1 on EVM chains, 1000 on FISCO BCOS, which reports
+    ///         milliseconds. Fixed at deployment so every policy duration and the daily bucket are seconds.
+    uint256 public immutable clockScale;
+
+    // Seconds since 1970 stay below 1e11 until the year 5138; milliseconds passed it in 1973.
+    uint256 private constant MILLISECOND_CLOCK_THRESHOLD = 100_000_000_000;
 
     modifier onlyAgent() { if (msg.sender != agent) revert NotAgent(); _; }
 
@@ -31,6 +37,7 @@ contract GuardianWallet is IGuardianWallet, Ownable2Step, ReentrancyGuard {
     {
         if (agent_ == address(0) || ledger_ == address(0) || feeAccount_ == address(0)) revert ZeroAddress();
         _validatePolicy(policy_);
+        clockScale = block.timestamp >= MILLISECOND_CLOCK_THRESHOLD ? 1_000 : 1;
         agent = agent_;
         guardian = guardian_;
         ledger = DemoLedger(ledger_);
@@ -50,7 +57,7 @@ contract GuardianWallet is IGuardianWallet, Ownable2Step, ReentrancyGuard {
         if (common == Outcome.BLOCKED) return common;
         Recipient storage r = _recipients[to];
         if (!r.allowed) return _violation(intentId, action, Reason.RECIPIENT_NOT_ALLOWED, amount);
-        if (block.timestamp < r.activeAfter) return _violation(intentId, action, Reason.RECIPIENT_NOT_ACTIVE, amount);
+        if (_now() < r.activeAfter) return _violation(intentId, action, Reason.RECIPIENT_NOT_ACTIVE, amount);
         if (amount > _policy.perTxLimit) return _violation(intentId, action, Reason.OVER_PER_TX_LIMIT, amount);
         if (amount >= _policy.approvalThreshold) return _violation(intentId, action, Reason.BELOW_APPROVAL_THRESHOLD, amount);
         _rollDay();
@@ -71,13 +78,13 @@ contract GuardianWallet is IGuardianWallet, Ownable2Step, ReentrancyGuard {
         if (common == Outcome.BLOCKED) return (common, 0);
         Recipient storage r = _recipients[to];
         if (!r.allowed) return (_violation(intentId, action, Reason.RECIPIENT_NOT_ALLOWED, amount), 0);
-        if (block.timestamp < r.activeAfter) return (_violation(intentId, action, Reason.RECIPIENT_NOT_ACTIVE, amount), 0);
+        if (_now() < r.activeAfter) return (_violation(intentId, action, Reason.RECIPIENT_NOT_ACTIVE, amount), 0);
         if (amount > _policy.perTxLimit) return (_violation(intentId, action, Reason.OVER_PER_TX_LIMIT, amount), 0);
         if (amount < _policy.approvalThreshold) return (_violation(intentId, action, Reason.BELOW_APPROVAL_THRESHOLD, amount), 0);
         usedIntent[intentId] = true;
         pendingId = ++pendingCount;
-        uint64 expiresAt = uint64(block.timestamp) + _policy.pendingExpiry;
-        _pendings[pendingId] = Pending(uint8(currency), to, amount, intentId, uint64(block.timestamp), expiresAt, PendingStatus.PENDING);
+        uint64 expiresAt = uint64(_now()) + _policy.pendingExpiry;
+        _pendings[pendingId] = Pending(uint8(currency), to, amount, intentId, uint64(_now()), expiresAt, PendingStatus.PENDING);
         emit ApprovalRequested(pendingId, intentId, uint8(currency), to, amount, expiresAt);
         return (Outcome.PENDING, pendingId);
     }
@@ -113,10 +120,10 @@ contract GuardianWallet is IGuardianWallet, Ownable2Step, ReentrancyGuard {
     function approve(uint256 pendingId) external nonReentrant onlyOwner {
         Pending storage p = _pendings[pendingId];
         if (p.status != PendingStatus.PENDING) revert PendingNotActive(pendingId);
-        if (block.timestamp > p.expiresAt) revert PendingHasExpired(pendingId);
+        if (_now() > p.expiresAt) revert PendingHasExpired(pendingId);
         Recipient storage r = _recipients[p.to];
         if (!r.allowed) revert PendingNoLongerValid(pendingId, Reason.RECIPIENT_NOT_ALLOWED);
-        if (block.timestamp < r.activeAfter) revert PendingNoLongerValid(pendingId, Reason.RECIPIENT_NOT_ACTIVE);
+        if (_now() < r.activeAfter) revert PendingNoLongerValid(pendingId, Reason.RECIPIENT_NOT_ACTIVE);
         DemoLedger.Currency currency = DemoLedger.Currency(p.currency);
         if (ledger.balanceOf(address(this), currency) < p.amount) revert PendingNoLongerValid(pendingId, Reason.INSUFFICIENT_BALANCE);
         p.status = PendingStatus.EXECUTED;
@@ -135,7 +142,7 @@ contract GuardianWallet is IGuardianWallet, Ownable2Step, ReentrancyGuard {
     function expire(uint256 pendingId) external {
         Pending storage p = _pendings[pendingId];
         if (p.status != PendingStatus.PENDING) revert PendingNotActive(pendingId);
-        if (block.timestamp <= p.expiresAt) revert PendingNotExpired(pendingId);
+        if (_now() <= p.expiresAt) revert PendingNotExpired(pendingId);
         p.status = PendingStatus.EXPIRED;
         emit PendingExpired(pendingId, p.intentId);
     }
@@ -145,7 +152,7 @@ contract GuardianWallet is IGuardianWallet, Ownable2Step, ReentrancyGuard {
         if (recipient == address(0)) revert ZeroAddress();
         Recipient storage r = _recipients[recipient];
         if (!allowed) { r.allowed = false; r.activeAfter = 0; }
-        else if (!r.allowed) { r.allowed = true; r.activeAfter = uint64(block.timestamp) + _policy.recipientCooldown; }
+        else if (!r.allowed) { r.allowed = true; r.activeAfter = uint64(_now()) + _policy.recipientCooldown; }
         r.label = label;
         emit RecipientSet(recipient, r.allowed, r.activeAfter, label);
     }
@@ -159,7 +166,9 @@ contract GuardianWallet is IGuardianWallet, Ownable2Step, ReentrancyGuard {
     function getPolicy() external view returns (Policy memory) { return _policy; }
     function getRecipient(address recipient) external view returns (Recipient memory) { return _recipients[recipient]; }
     function getPending(uint256 pendingId) external view returns (Pending memory) { return _pendings[pendingId]; }
-    function currentDay() public view returns (uint256) { return block.timestamp / 1 days; }
+    function currentDay() public view returns (uint256) { return _now() / 1 days; }
+    /// @notice Current time in seconds, independent of the chain's timestamp unit.
+    function _now() internal view returns (uint256) { return block.timestamp / clockScale; }
     function spentToday() public view returns (uint256) { return _spentDay == currentDay() ? _spentToday : 0; }
     function remainingDaily() external view returns (uint256) { uint256 s = spentToday(); return s >= _policy.dailyLimit ? 0 : _policy.dailyLimit - s; }
     function opsSpentToday() public view returns (uint256) { return _opsDay == currentDay() ? _opsSpentToday : 0; }
