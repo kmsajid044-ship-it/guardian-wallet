@@ -4,7 +4,9 @@ Guardian Wallet is MIT-licensed. All project code is written by the team. It dep
 third-party packages below, all under licenses compatible with MIT. Full license texts ship
 with each package (`node_modules/<pkg>/LICENSE`, `contracts/lib/forge-std/LICENSE-*`).
 
-Keep this list updated whenever a direct dependency is added (CLAUDE.md conventions).
+Keep this list updated whenever a direct dependency is added (CLAUDE.md conventions). The complete,
+generated inventory of every installed package and its license is in `docs/LICENSES.md`
+(`pnpm licenses:doc`).
 
 ## Smart contracts
 | Package | Version | License | Use |

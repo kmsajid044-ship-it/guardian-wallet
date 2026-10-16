@@ -23,3 +23,4 @@ contracts/broadcast/*/1337/
 contracts/cache/*/1337/
 
 web/test-results/
+.demo/

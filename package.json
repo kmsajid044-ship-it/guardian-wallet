@@ -11,8 +11,14 @@
     "typecheck": "pnpm -r --if-present typecheck",
     "test": "./scripts/check-forbidden.sh && pnpm --filter agent check:chain && pnpm -r --if-present test",
     "risk-intel:dev": "pnpm --filter risk-intel dev",
-    "eval": "pnpm --filter eval eval"
-    ,"attacks": "pnpm --filter agent exec tsx ../scripts/attacks.ts"
+    "eval": "pnpm --filter eval eval",
+    "attacks": "pnpm --filter agent exec tsx ../scripts/attacks.ts",
+    "setup": "./scripts/setup.sh",
+    "bootstrap": "./scripts/setup.sh",
+    "demo": "./scripts/demo.sh",
+    "evidence": "./scripts/evidence.sh",
+    "verify-evidence": "./scripts/verify-evidence.sh",
+    "licenses:doc": "node scripts/licenses.mjs"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

@@ -1,66 +1,110 @@
 # Guardian Wallet
 
-A research prototype for FinTechathon 2026 Topic F. The LLM proposes, deterministic code verifies, the contract enforces, and the human decides above the line.
+A research prototype for the 2026 Shenzhen FinTechathon, International Track, Topic F: an AI agent that pays, saves, and plans on its owner's behalf, inside limits the agent cannot change.
 
-The project uses a permissioned chain operated by the team, with local Anvil as the development fallback. It represents USD and BDT demo balances in a simulated ledger. There is no real money.
+**The LLM proposes. Code verifies. The contract enforces. The human decides above the line.**
 
-## Components
+- The agent turns a chat request into a structured proposal. It works with contact IDs, never raw addresses, and its key can call only four contract functions: `pay`, `requestApproval`, `saveToSavings`, `payServiceFee`.
+- Deterministic code checks every proposal before signing: an injection firewall, a mirror of the contract policy, a local simulation, an explained risk score, and a permission tier (T0–T3).
+- The `GuardianWallet` contract enforces the same policy again on-chain, so even a fully compromised agent key cannot exceed a limit, pay an unknown recipient, resume a paused wallet, or change its own policy.
+- Payments of 200 USD or more wait for the owner. The owner or guardian can pause everything at any time; only the owner can resume.
 
-- `contracts/`: `DemoLedger`, `GuardianWallet`, deployment, unit/fuzz/invariant tests.
-- `agent/`: intent parsing, firewall, policy mirror, simulation, restricted signer, risk scoring, planning, scheduling, and hash-chained audit.
-- `risk-intel/`: synthetic payee checks and read-only cached USD/BDT FX snapshots, released after a verified service-fee receipt.
-- `web/`: local dashboard application.
-- `eval/`: scenario runner.
+It runs on a four-node local FISCO BCOS network, a permissioned chain operated by the team, with USD and BDT demo balances on a simulated ledger. There is no real money.
 
-## Local development
+## Results
+
+| What | Result | Source |
+|---|---|---|
+| Evaluation, 40 scenarios on FISCO BCOS | Task success 100% (40/40), unsafe action rate 0% (0/40), attack block rate 100% (19/19), clarification accuracy 100% (9/9) | [docs/EVAL_REPORT.md](docs/EVAL_REPORT.md) |
+| Agent latency | 275 ms average, 622 ms p95 over 31 agent requests, including on-chain confirmation | [docs/EVAL_REPORT.md](docs/EVAL_REPORT.md) |
+| Estimated owner time saved | 41.9 min over 12 owner tasks, 3.49 min per task (an estimate against stated manual baselines) | [docs/EVAL_REPORT.md](docs/EVAL_REPORT.md) |
+| On-chain evidence | 98 FISCO BCOS transactions with receipts; all 98 re-verified on all four nodes; a fresh-network replay reproduced 16/16 scenarios and 98/98 transaction effects | [docs/EXECUTION_EVIDENCE.md](docs/EXECUTION_EVIDENCE.md) |
+| Attack Lab | 11 of 11 attacks blocked; A2, A3, A6, A7, A8, A9, and A10 also refused when sent straight to the contract | [docs/ATTACK_LAB_EVIDENCE.md](docs/ATTACK_LAB_EVIDENCE.md) |
+
+The evaluation uses the deterministic proposal parser, so it measures the code that verifies, enforces, and routes proposals rather than a language model's understanding; see the report's scope section.
+
+## Setup
+
+Prerequisites: Node.js 20+, pnpm 10, [Foundry](https://getfoundry.sh), `jq`, `curl`, `perl`, `openssl`, `xxd`, and a Java runtime (used by the FISCO BCOS console). The first run downloads the FISCO BCOS v3.16.4 node binary and console v3.8.0 from their official GitHub releases.
 
 ```bash
-pnpm install
-cp .env.example .env
-./scripts/dev-up.sh
-pnpm risk-intel:dev
-pnpm --filter agent dev
-pnpm --filter web dev
+pnpm run setup && pnpm demo
 ```
 
-The agent identity can call only `pay`, `requestApproval`, `saveToSavings`, and `payServiceFee`. Policy violations emit evidence and return `BLOCKED`. Owner and guardian may pause; only the owner may resume operation.
+`pnpm run setup` installs dependencies; creates a git-ignored `.env` with fresh test-only identities if none exists (keys are never printed); builds the contracts; starts the four-node FISCO BCOS network; and deploys and seeds the contracts if the recorded deployment has no code on this chain. `pnpm bootstrap` is an alias.
 
-## Attack Lab
+Use `pnpm run setup`, not `pnpm setup`: `setup` is a built-in pnpm command (it adds `PNPM_HOME` to your shell profile) and always takes precedence over a package script with the same name.
 
-The owner console's Attack Lab (`#/attack-lab`) runs eleven fixed adversarial scenarios with one click each, or all at once. The same scenarios run from the command line:
+`pnpm demo` starts Risk Intel (8788), the agent API (8787), and the owner console (5173); Ctrl-C stops all three. `AGENT_PORT`, `RISK_INTEL_PORT`, and `WEB_PORT` move them. For development, the services also run individually: `pnpm risk-intel:dev`, `pnpm --filter agent dev`, `pnpm --filter web dev`.
 
-```bash
-pnpm attacks            # all eleven, in-process on the local chain; writes docs/ATTACK_LAB_EVIDENCE.md
-pnpm attacks A2 A9      # selected scenarios
-pnpm attacks --api      # through the running agent API
-```
+## 60-second demo
 
-Each scenario deploys its own `GuardianWallet` and `DemoLedger`, so shared demo balances are untouched. Results name the layer that stopped the attack (firewall, risk scorer, tier gate, or on-chain contract), the reason, and the transaction hash or decoded revert. Scenarios A2, A3, A6, A7, A8, A9, and A10 are also sent straight to the contract with the agent key. See [docs/ATTACK_LAB_EVIDENCE.md](docs/ATTACK_LAB_EVIDENCE.md).
+Open http://127.0.0.1:5173.
 
-## Evaluation and Value Dashboard
+1. **Chat** `Pay ana 50 USD`: firewall, policy pre-check, simulation, risk score, tier T1, executed. The transaction hash and block appear in the pipeline view and the audit log.
+2. **Chat** `Pay ana 250 USD`: 250 is at or above the 200 approval line, so it becomes a T2 pending approval. Approve it in the inbox; the owner's `approve()` executes it.
+3. **Chat** `Pay ana`: the agent asks "How much USD or BDT should I pay contact ana?" instead of guessing.
+4. **Attack Lab**, Run all 11: prompt injection, over-limit, split payments, unknown recipient, cooldown swap, approval replay, expired approval, agent resume, raw contract bypass, policy change, and owner impersonation, each with the layer that stopped it and its transaction hash or revert.
+5. **Kill switch**: pause, watch a payment be refused with `PAUSED`, resume (owner only).
+6. **Value Dashboard**: the evaluation targets and live counts from the audit log.
 
-```bash
-pnpm eval                    # all scenarios on the local chain; writes eval/results.json and docs/EVAL_REPORT.md
-pnpm eval N01 X03            # selected scenarios
-pnpm eval --llm=configured   # use the configured LLM provider for proposals
-```
+## Deployment
 
-The owner console's Value Dashboard (`#/value`) shows the latest results against their targets, with live counts from the audit log. See [docs/EVAL_REPORT.md](docs/EVAL_REPORT.md).
+Everything runs locally. There is no hosted deployment and no connection to any external chain.
 
-## On-chain execution evidence
+| Target | Commands | Manifest |
+|---|---|---|
+| Local FISCO BCOS, four nodes, chain ID 1337 (primary) | `./scripts/chain-up.sh`, `./scripts/deploy-fisco.sh`, `./scripts/seed.sh` | `deployments/fisco.json` |
+| Local Anvil, chain ID 31337 (development fallback) | `./scripts/dev-up.sh` | `deployments/local.json` |
+| Stop FISCO BCOS | `./scripts/chain-down.sh` | |
 
-```bash
-./scripts/evidence.sh                  # run evidence scenarios on local FISCO BCOS; export evidence/ and the doc
-./scripts/verify-evidence.sh --running # mode (a): re-fetch every exported hash from all four nodes
-./scripts/verify-evidence.sh --fresh   # mode (b): new four-node network, deploy, replay, compare
-```
+`CHAIN_BACKEND` (`fisco` or `evm-local`) selects the backend; startup rejects any RPC endpoint that is not loopback and any chain ID outside the backend's local mapping. A production web build fails if the local demo owner key variable is set; deployed pages must sign owner actions with an injected browser wallet.
 
-See [docs/EXECUTION_EVIDENCE.md](docs/EXECUTION_EVIDENCE.md): every transaction with block number, block hash, events, and result; raw receipts are in `evidence/receipts/`.
+If agent requests hang after the network has been idle for a long time, the FISCO BCOS nodes may have stopped committing blocks: `./scripts/chain-down.sh && ./scripts/chain-up.sh` restarts them with their data intact. See the operational risk in [docs/SECURITY_SELF_ASSESSMENT.md](docs/SECURITY_SELF_ASSESSMENT.md).
 
-Run every gate with:
+## Tests and evidence
 
 ```bash
-pnpm test
+pnpm test                           # forbidden-content check, chain config check, every package's tests
 pnpm lint
 pnpm typecheck
+pnpm --filter web test:e2e          # Playwright owner-console tests
+cd contracts && forge test -vv      # unit, fuzz, and invariant tests I1–I8
+pnpm --filter agent test:parity     # agent pre-check vs contract on both backends (needs FISCO running)
+pnpm eval                           # 40 evaluation scenarios; writes eval/results.json and docs/EVAL_REPORT.md
+pnpm eval N01 X03                   # selected scenarios; --llm=configured uses the configured LLM provider
+pnpm attacks                        # 11 Attack Lab scenarios; `pnpm attacks A2 A9` or `--api` for the running agent
+pnpm evidence                       # on-chain execution evidence on FISCO BCOS; exports evidence/
+pnpm verify-evidence --running      # mode (a): re-fetch every exported hash from all four nodes
+pnpm verify-evidence --fresh        # mode (b): new four-node network, deploy, replay, compare
+pnpm licenses:doc                   # regenerate docs/LICENSES.md from the installed dependency tree
 ```
+
+## Project structure
+
+```text
+contracts/   Solidity: GuardianWallet (policy controller) and DemoLedger (simulated ledger); Foundry tests
+agent/       TypeScript service: LLM adapters, firewall, policy pre-check, simulation, risk score,
+             tier gate, restricted signers (src/exec/), planner, scheduler, audit chain, Attack Lab, HTTP API
+risk-intel/  Synthetic payee checks and a cached USD/BDT FX snapshot, released after a verified fee receipt
+web/         Owner console: chat, approvals, policy, kill switch, Attack Lab, Value Dashboard
+eval/        Evaluation scenarios (eval/scenarios/*.yaml) and harness
+evidence/    Exported FISCO BCOS receipts, evidence.json, and a node data snapshot
+scripts/     Setup, demo, chain, deployment, evidence, and repository checks
+docs/        Technical design, security self-assessment, threat model, reports, licenses
+```
+
+Design: [SPEC.md](SPEC.md) and [docs/TECHNICAL.md](docs/TECHNICAL.md). Security: [docs/SECURITY_SELF_ASSESSMENT.md](docs/SECURITY_SELF_ASSESSMENT.md) and [docs/THREAT_MODEL.md](docs/THREAT_MODEL.md). Licenses: [docs/LICENSES.md](docs/LICENSES.md).
+
+## Compliance note
+
+- Research prototype. Simulated ledger with USD and BDT demo balances only; demo units have no value and there is no real money.
+- Runs only on a permissioned chain operated by the team (local FISCO BCOS) or a local development chain (Anvil). The code never connects to an external chain or RPC endpoint, and startup rejects non-loopback endpoints.
+- FX is a read-only cached snapshot shown for reference; no amount is computed from it.
+- All contacts, payees, and risk results are synthetic.
+- Signing keys exist only in the git-ignored `.env`; `.env.example` holds placeholders. The agent signing key is read only under `agent/src/exec/`, and a test enforces this.
+- Whether the organizers accept transaction hashes from a team-operated permissioned chain as evidence has not yet been confirmed. `pnpm verify-evidence --fresh` lets anyone reproduce the results on a fresh network of their own.
+
+## License
+
+MIT. Third-party licenses: [docs/LICENSES.md](docs/LICENSES.md).

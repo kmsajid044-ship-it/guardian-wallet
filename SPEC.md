@@ -36,7 +36,7 @@ The agent has no generic call surface.
 
 ## 5. Policy
 
-The policy contains per-transfer limit, daily limit, approval threshold, recipient cooldown, pending expiry, fee-per-call limit, and daily operating-fee limit. Day buckets use `block.timestamp / 1 days`.
+The policy contains per-transfer limit, daily limit, approval threshold, recipient cooldown, pending expiry, fee-per-call limit, and daily operating-fee limit. Day buckets are UTC days in seconds (`block.timestamp / clockScale / 1 days`; §11 explains `clockScale`).
 
 `pay` handles amounts below the approval threshold. `requestApproval` handles amounts from the threshold through the per-transfer limit and creates a pending record. Pending actions execute once only, by the owner, before expiry. Recipient removal or insufficient available balance prevents approval.
 

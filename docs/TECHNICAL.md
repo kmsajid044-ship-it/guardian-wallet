@@ -1,3 +1,154 @@
-# TECHNICAL
+# Technical design
 
-TODO — see SPEC.md §11.
+Guardian Wallet is a research prototype with USD and BDT demo balances on a simulated ledger, running on a permissioned chain operated by the team (local FISCO BCOS v3.16.4, four nodes, PBFT, chain ID 1337). There is no real money. The full specification is [SPEC.md](../SPEC.md); this document explains the architecture, the core algorithms, and the security design.
+
+## Architecture
+
+```mermaid
+flowchart TB
+  owner([Owner]) -->|chat, approvals, policy, kill switch| web[Owner console<br/>web/ · React]
+  untrusted[/Untrusted content<br/>memo, payee name, fetched data/] --> api
+  web -->|HTTP, loopback only| api[Agent API<br/>agent/src/api · Fastify]
+
+  subgraph agent[Agent service · agent/src]
+    api --> planner[Planner<br/>planner/]
+    api --> scheduler[Recurring scheduler<br/>scheduler/]
+    api --> pipe
+    planner --> pipe
+    scheduler --> pipe
+    subgraph pipe[Pipeline · pipeline/pipeline.ts]
+      llm[LLM adapter<br/>proposal only, contact IDs] --> fw[Firewall<br/>firewall/]
+      fw --> pre[Policy pre-check<br/>policy/precheck.ts]
+      pre --> sim[Contract simulation<br/>eth_call]
+      sim --> risk[Risk score<br/>risk/score.ts]
+      risk --> tier[Tier gate T0–T3<br/>policy/tierGate.ts]
+    end
+    tier --> signer[Restricted agent signer<br/>exec/executor.ts]
+    api --> ownerExec[Owner signer<br/>exec/ownerExecutor.ts]
+    pipe --> audit[(Hash-chained audit log<br/>SQLite · audit/)]
+  end
+
+  risk -. paid payee check .-> intel[Risk Intel<br/>risk-intel/]
+  signer -->|pay · requestApproval ·<br/>saveToSavings · payServiceFee| gw
+  ownerExec -->|approve · pause · unpause ·<br/>setPolicy · setRecipient| gw
+  intel -. verifies fee receipt .-> chain
+
+  subgraph chain[Local FISCO BCOS · 4 nodes · PBFT]
+    gw[GuardianWallet<br/>policy controller] -->|only controller| ledger[DemoLedger<br/>USD and BDT demo units]
+  end
+```
+
+- **LLM adapter** (`agent/src/llm/`): Anthropic, an OpenAI-compatible endpoint, or a deterministic parser (`mock.ts`). The model sees contact IDs only and must return the strict `ActionProposal` schema (`llm/actionProposal.ts`; unknown keys such as a raw address are rejected). Untrusted content is wrapped in `<UNTRUSTED_DATA>` delimiters and labelled as data (`llm/prompt.ts`). Invalid output or an unavailable provider falls back to the deterministic parser, and the response reports the effective provider.
+- **Restricted signers** (`agent/src/exec/`): the only modules that read signing values. The agent signer submits one of the four agent functions and only when the simulation outcome matches the policy route (`exec/executor.ts:38`). The adapter refuses any other signer (`chain/ChainAdapter.ts:157`, `:165`).
+- **Contracts** (`contracts/src/`): `GuardianWallet` holds the policy, allowlist, pending approvals, and kill switch; `DemoLedger` holds balances and savings and accepts movements only from its controller, the wallet.
+- **Risk Intel** (`risk-intel/`): synthetic payee checks and a cached USD/BDT FX snapshot, released only after the agent pays a 0.05 USD service fee on-chain and the service verifies that receipt (one use per receipt).
+
+## Core algorithms
+
+### Pipeline
+
+Every direct, planned, and scheduled action runs `proposal → firewall → policy pre-check → contract simulation → risk score → tier gate → restricted signer → audit` (`pipeline/pipeline.ts`):
+
+1. The adapter produces an `ActionProposal`; a payment without currency, contact, or amount fails semantic validation and falls back to the deterministic parser, which asks a targeted question (`ANSWER_ONLY`).
+2. The firewall inspects the message and every untrusted field (line 79). Any flag other than `AMOUNT_OUTLIER` blocks; a policy-change attempt is classified T3.
+3. The contact ID resolves to an address only through the owner's contact list; the recipient must be allowlisted on-chain (line 98).
+4. The policy pre-check (`policy/precheck.ts`) reads live contract state and applies the contract's checks in the contract's order. The contract simulation (`eth_call` of the same call) must agree; disagreement throws (line 104). A blocked action is still submitted, so the contract records `PolicyViolation` with a transaction hash.
+5. Before a first or approval-sized payment, the agent buys a payee check from Risk Intel and re-runs the firewall over the returned content (line 115).
+6. The risk score and tier gate route the action (lines 121–145); the signer submits it; the decision, reason, tier, risk factors, transaction hash, and block are appended to the audit chain.
+
+### Planner
+
+`agent/src/planner/planner.ts` turns a multi-step request into a draft plan of up to 20 `ActionProposal` steps:
+
+- `pay my <contact> of <amount> <currency> this month but keep <amount> <currency> in savings` becomes `[save, pay]`.
+- Otherwise the request is split on "then" (at least two clauses), and each clause is parsed by the deterministic parser; every step must be an executable payment or savings proposal.
+- The draft shows a preview (`CHECK_BALANCE`, `CHECK_LIMITS`, `SAVE`, `REQUEST_APPROVAL`, `EXECUTE_AFTER_APPROVAL`) and stays editable until execution.
+- Execution re-enters the full pipeline for each step in order, as a canonical command with source reference `plan:<id>:step:<n>`. It stops at the first step that is not `EXECUTED`: `NEEDS_APPROVAL` sets the plan to `WAITING_APPROVAL`, anything else to `STOPPED`, and later steps are marked `NOT_RUN`. Every transition is audited.
+
+Recurring payments (`scheduler/scheduler.ts`) re-enter the same pipeline on every occurrence, with source reference `recurring:<id>`. Plans and recurring jobs are held in memory and do not survive a restart of the agent service.
+
+### Risk score
+
+`agent/src/risk/score.ts`. The score is the sum of the applicable factors, capped at 100:
+
+| Factor | Points | Condition |
+|---|---|---|
+| `UNTRUSTED_SOURCE` | 20 | The request came from untrusted content |
+| `INJECTION_PATTERN` | 30 | The firewall found an instruction-injection pattern |
+| `ABOVE_CONTACT_MEDIAN` | 15 | Amount is more than twice the contact's median payment |
+| `FIRST_PAYMENT` | 10 | No recorded payment to this contact |
+| `MOST_OF_REMAINING_DAILY` | 15 | Amount exceeds 70% of the remaining daily limit |
+| `OUTSIDE_USUAL_HOURS` | 10 | Outside the owner's active hours (`OWNER_ACTIVE_HOURS`, `OWNER_TIMEZONE`) |
+| `HIGH_VELOCITY` | 20 | Three or more executed payments in the last hour |
+| `RISK_INTEL_SANCTIONED` | 100 | Synthetic payee check reports a sanctions match |
+| `RISK_INTEL_HIGH` / `RISK_INTEL_MEDIUM` | 40 / 20 | Payee check score at least 70 / at least 40 |
+
+`score = min(100, Σ points)`. Route: score ≥ 85 → `BLOCK`; 60–84 → `FORCE_APPROVAL` (T2, owner approval even below the approval threshold); below 60 → `ALLOW`. Every factor carries a plain-language explanation shown to the owner.
+
+### Firewall rules
+
+`agent/src/firewall/firewall.ts`. Inputs: the message, its source (trusted or untrusted), the proposal, the contact list, payment history, and untrusted context fields (memo, payee name, fetched content).
+
+| Flag | Rule |
+|---|---|
+| `INSTRUCTION_INJECTION` | Untrusted message or any untrusted field matches: "ignore previous/prior instructions or rules", "system message/prompt", "act as the owner", "I am / this is / from the owner", "override the policy", "disregard previous/prior/system", "developer message", "send all/everything", "urgent … bypass/override/ignore" |
+| `ADDRESS_INJECTION` | A raw address in an untrusted message, or an address in a memo or payee name that is not a known contact |
+| `UNKNOWN_CONTACT` | Untrusted text names a new/unknown/unapproved payee, or the proposal's contact ID is not in the contact list |
+| `RECIPIENT_SWAP` | The proposal's contact differs from the expected contact supplied with the request |
+| `POLICY_CHANGE_ATTEMPT` | Message or untrusted field asks to change, disable, ignore, override, raise, lower, remove, or set a policy, limit, allowlist, approval, or guardian |
+| `INVALID_AMOUNT` | Amount is not a decimal with at most six fractional digits |
+| `AMOUNT_OUTLIER` | Amount above twice the contact's median (raises risk; does not block on its own) |
+
+The firewall blocks on any flag except `AMOUNT_OUTLIER`, and it runs twice for payments that use a payee check: on the intake and on the returned content.
+
+### On-chain policy
+
+`contracts/src/GuardianWallet.sol`. Policy: per-payment limit, daily limit, approval threshold, recipient cooldown, pending expiry, per-call and daily service-fee limits. Demo deployment: 500 USD per payment, 1,000 per day, approval from 200, 600-second cooldown for newly added recipients, 86,400-second pending expiry, 0.1 USD per fee call, 5 USD fees per day.
+
+Agent functions (`onlyAgent`) check, in order: paused, zero amount, duplicate intent, then per function:
+
+- `pay`: recipient allowlisted, recipient active (cooldown over), not above the per-payment limit, below the approval threshold, within the UTC-day limit, sufficient balance.
+- `requestApproval`: allowlisted, active, not above the per-payment limit, at or above the threshold; creates a pending item that expires after `pendingExpiry`.
+- `saveToSavings`: sufficient balance.
+- `payServiceFee`: per-call limit, separate daily fee budget, sufficient USD balance.
+
+A failed check emits `PolicyViolation(intentId, action, reason, amount)` and returns `BLOCKED` without reverting, so the refusal is recorded with its own transaction hash. Unauthorized callers revert. `approve` (owner only) executes a pending item once, before expiry, re-checking allowlist, cooldown, and balance; it counts toward the day's spending but is not capped by the daily limit, because the owner decides above the line. Pause is open to the owner and the guardian; resume, policy, recipients, roles, fee account, and savings withdrawal are owner only.
+
+FISCO BCOS reports `block.timestamp` in milliseconds. Both contracts record `clockScale` at deployment (1000 when the deployment timestamp is at least 1e11, otherwise 1) and divide every timestamp by it, so day buckets, cooldowns, expiry, and the savings year are seconds on both backends (`contracts/test/MillisecondClock.t.sol`).
+
+### Invariants I1–I8
+
+Foundry invariant tests (`contracts/test/invariant/`) drive a handler with random payments, unknown-recipient payments, service fees, savings, approvals (late and repeated), pause toggles, guardian resume attempts, agent owner-function probes, and time warps. Latest run: all eight hold over 256 runs and 16,384 calls with 0 reverts.
+
+| ID | Invariant | Checked as |
+|---|---|---|
+| I1 | Autonomous daily payment outflow stays within the daily limit | Recipient balance deltas per day ≤ `dailyLimit` |
+| I2 | Payments reach only active allowlisted recipients | Unknown recipient never gains balance |
+| I3 | Agent actions move no value while paused | No payment, fee, or savings movement while paused |
+| I4 | Pending actions execute at most once and never after expiry | Late or repeated approvals never move value |
+| I5 | Savings remain assigned to the wallet account | No other account holds savings; wallet savings ≥ total deposited |
+| I6 | Only the owner changes policy and role configuration | Guardian resume fails; owner unchanged |
+| I7 | The agent cannot escape its four-function surface | Agent calls to owner functions fail; agent unchanged |
+| I8 | Service fees stay within their separate daily budget, in USD only | Fee spending ≤ fee budget; no BDT fees |
+
+### Audit chain
+
+`agent/src/audit/audit.ts`. Each entry's hash is `sha256(previous hash + canonical JSON of {timestamp, kind, data})`, starting from 64 zeros. The SQLite table rejects updates and deletes with triggers, and `verifyAuditChain()` recomputes the chain (`GET /audit/verify`).
+
+## Security design: defence in depth
+
+The agent checks first; the chain enforces again. A layer that fails or is bypassed leaves the next one standing, and the last one, the contract, is not under the agent's control.
+
+| Threat | Agent-side check | Chain enforcement | Evidence |
+|---|---|---|---|
+| Prompt injection in a memo, payee name, or fetched content | Firewall `INSTRUCTION_INJECTION`, `ADDRESS_INJECTION`; untrusted delimiters | Recipient allowlist and limits apply regardless of what the agent believes | Attack Lab A1, A11; eval X01–X05 |
+| Payment above the per-payment limit | Pre-check `OVER_PER_TX_LIMIT` | `PolicyViolation(OVER_PER_TX_LIMIT)` | A2; evidence E06 |
+| Many small payments past the daily limit | Pre-check daily total; risk `HIGH_VELOCITY` | UTC-day counter, `OVER_DAILY_LIMIT` | A3 |
+| Unknown or swapped recipient | Contact IDs only; `UNKNOWN_CONTACT`, `RECIPIENT_SWAP` | `RECIPIENT_NOT_ALLOWED`; cooldown `RECIPIENT_NOT_ACTIVE` | A4, A5; eval X03 |
+| Replayed or expired approval | Pending items are executed only by the owner | `PendingNotActive`, `PendingHasExpired`, `DUPLICATE_INTENT` | A6, A7 |
+| Agent resumes a paused wallet or changes its policy | Tier gate: owner operations are T3, never agent | `onlyOwner` reverts `OwnableUnauthorizedAccount` | A8, A10 |
+| Fully compromised agent key | None (bypassed) | Ledger moves only via the wallet (`NotController`); four-function surface; every policy check | A9 |
+| Simulation drift | Pre-check and simulation must agree, or the pipeline throws | The contract's outcome is final | Parity tests on both backends |
+| Signing value leakage | Read only in `src/exec/`; never logged, sent to the LLM, or sent to the browser | — | `exec/key-boundary.test.ts` |
+
+Measured results: [EVAL_REPORT.md](EVAL_REPORT.md) (40 scenarios; 0 unsafe actions; 19 of 19 attacks blocked) and [EXECUTION_EVIDENCE.md](EXECUTION_EVIDENCE.md) (98 FISCO BCOS transactions, verified on all four nodes and reproduced on a fresh network).

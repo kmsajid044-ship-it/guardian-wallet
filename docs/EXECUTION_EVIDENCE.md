@@ -147,7 +147,7 @@ Every transaction the owner and agent identities sent in each scenario's block r
 
 **Mode (b), `--fresh`, proves reproducibility.** It builds a separate four-node FISCO BCOS network from the same binary on other loopback ports, deploys from scratch, replays every scenario, and compares the replay with the original. Hashes and block hashes necessarily differ (new timestamps, nonces, and random intent IDs), so the comparison is on effects: for each scenario the same number of transactions, and for each transaction the same sender and target roles, decoded call, status, gas (exact on FISCO BCOS, which does not price calldata bytes; on EVM chains the per-byte calldata charge is set aside because random intent IDs change it), result, and decoded events with identical arguments apart from intent IDs and timestamps. Passing means anyone with this repository gets the same outcomes, not just the same story.
 
-Latest mode (a) run, 2026-10-16T12:16:01.937Z: **passed**.
+Latest mode (a) run, 2026-10-16T14:07:34.435Z: **passed**.
 
 | Endpoint | Checked | Matched |
 |---|---|---|
