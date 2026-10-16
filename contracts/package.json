@@ -1,0 +1,13 @@
+{
+  "name": "contracts",
+  "private": true,
+  "license": "MIT",
+  "scripts": {
+    "build": "forge build",
+    "test": "forge test -vv",
+    "deploy:local": "forge script script/Deploy.s.sol:Deploy --rpc-url ${RPC_URL:-http://127.0.0.1:8545} --broadcast"
+  },
+  "dependencies": {
+    "@openzeppelin/contracts": "^5.6.1"
+  }
+}

@@ -1,0 +1,23 @@
+{
+  "name": "guardian-wallet",
+  "private": true,
+  "license": "MIT",
+  "packageManager": "pnpm@10.33.2",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "lint": "eslint .",
+    "typecheck": "pnpm -r --if-present typecheck",
+    "test": "./scripts/check-forbidden.sh && pnpm -r --if-present test",
+    "risk-intel:dev": "pnpm --filter risk-intel dev",
+    "eval": "pnpm --filter eval eval"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "eslint": "^10.12.0",
+    "typescript": "^6.0.3",
+    "typescript-eslint": "^8.71.2"
+  },
+  "type": "module"
+}

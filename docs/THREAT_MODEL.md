@@ -1,0 +1,3 @@
+# THREAT MODEL
+
+TODO — see SPEC.md §11.

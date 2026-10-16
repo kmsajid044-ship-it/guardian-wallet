@@ -1,0 +1,7 @@
+@import "tailwindcss";
+
+/* System font stack only: no Google Fonts or CDNs (judges are in mainland China). */
+@theme {
+  --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", "Noto Sans", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
