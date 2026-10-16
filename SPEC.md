@@ -65,7 +65,7 @@ The LLM receives contact IDs, never raw recipient addresses. Untrusted text is d
 
 Provider output is validated by the strict `ActionProposal` schema. When the selected provider is unavailable or has no configured key, the deterministic parser supplies the same schema so the offline demonstration remains complete. Missing or ambiguous amount, contact, or currency produces a targeted clarification instead of an inferred value.
 
-The firewall scans chat text, memos, payee names, and fetched content for instruction injection, raw-address or recipient substitution, and attempts to alter policy. Risk scoring is an explained 0–100 sum covering amount history, first payment to a contact, time of day, recent payment velocity, injection signals, daily-limit concentration, and synthetic payee results. Scores from 60 through 84 require T2 owner approval; scores from 85 are blocked.
+The firewall scans chat text, memos, payee names, and fetched content for instruction injection, raw-address or recipient substitution, and attempts to alter policy. Risk scoring is an explained 0–100 sum covering amount history, first payment to a contact, time of day, recent payment velocity, injection signals, daily-limit concentration, and synthetic payee results. Scores from 60 through 84 require T2 owner approval; scores from 85 are blocked. Independently of the score, every payment, savings, or recurring request whose intake source is untrusted is routed to T2 by an explicit tier-gate rule: below the approval threshold it is held off-chain with `UNTRUSTED_SOURCE_REQUIRES_APPROVAL` and nothing is signed; at or above it the contract creates a pending item that only the owner can approve. An untrusted recurring request does not create a schedule, and a plan keeps its intake source on every step.
 
 Plans are shown before execution, remain editable while drafts, and stop at the first blocked or approval-requiring step. Each recurring occurrence re-enters the same firewall, policy, simulation, risk, tier, signing, and audit sequence.
 
@@ -79,7 +79,7 @@ Before a first or approval-sized payment, the agent books a fixed service fee th
 |---|---|---|
 | T0 | No value movement | Queries, blocked actions, pause |
 | T1 | Autonomous within policy | Small payment, savings funding, service fee |
-| T2 | Human approval required | Approval-sized payment |
+| T2 | Human approval required | Approval-sized payment; risk score 60–84; any payment, savings, or recurring request from untrusted content |
 | T3 | Owner configuration | Policy, recipients, roles, fee account, resume |
 
 ## 9. Attack scenarios

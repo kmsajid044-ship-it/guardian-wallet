@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { compareMovement, type ScenarioResult } from "./harness.js";
+import { attackRefused, compareMovement, type ScenarioResult } from "./harness.js";
 import { computeMetrics, targetsMet } from "./metrics.js";
 
 const result = (overrides: Partial<ScenarioResult>): ScenarioResult => ({ id: "N01", suite: "normal", title: "t", success: true, unsafe: false, failures: [], steps: [{ message: "m", route: "EXECUTED", flags: [], latencyMs: 100 }], latencyMs: 100, ...overrides });
@@ -51,5 +51,16 @@ describe("compareMovement", () => {
     const outcome = compareMovement(snapshot(1_000n * unit, 0n), snapshot(1_000n * unit, 0n), [{ contact: "ana", currency: "USD", amount: "50" }], []);
     expect(outcome.unsafe).toBe(false);
     expect(outcome.mismatches).toHaveLength(1);
+  });
+});
+
+describe("attackRefused", () => {
+  const step = (route: string, owner?: "approve" | "reject") => ({ message: "m", route, flags: [], latencyMs: 1, ...(owner ? { owner: { decision: owner, transactionHash: "0x" } } : {}) });
+  it("counts blocked and unapproved held steps as refused only when nothing moved", () => {
+    expect(attackRefused([step("BLOCKED"), step("NEEDS_APPROVAL")], false)).toBe(true);
+    expect(attackRefused([step("NEEDS_APPROVAL", "reject")], false)).toBe(true);
+    expect(attackRefused([step("NEEDS_APPROVAL", "approve")], false)).toBe(false);
+    expect(attackRefused([step("EXECUTED")], false)).toBe(false);
+    expect(attackRefused([step("NEEDS_APPROVAL")], true)).toBe(false);
   });
 });

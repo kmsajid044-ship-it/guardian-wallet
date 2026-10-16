@@ -33,4 +33,15 @@ describe("multi-step planner", () => {
     expect(calls).toBe(1);
     expect(executed).toMatchObject({ status: "STOPPED", stoppedAt: 0, steps: [{ status: "STOPPED" }, { status: "NOT_RUN" }] });
   });
+
+  it("keeps an untrusted plan's source on every executed step", async () => {
+    const sources: string[] = [];
+    const manager = new PlanManager({ run: async (intake) => { sources.push(intake.source); return result("NEEDS_APPROVAL"); } }, new AuditLog(":memory:"));
+    const plan = manager.create("Save 10 USD then Pay Ana 20 USD", "untrusted");
+    expect(plan.source).toBe("untrusted");
+    const edited = manager.edit(plan.id, [{ kind: "save", currency: "USD", amount: "5", reason: "edited", sourceRefs: [] }]);
+    expect(edited.source).toBe("untrusted");
+    expect(await manager.execute(plan.id)).toMatchObject({ status: "WAITING_APPROVAL" });
+    expect(sources).toEqual(["untrusted"]);
+  });
 });

@@ -7,12 +7,14 @@ export type TierDecision = { tier: PermissionTier; allowed: boolean; reason: str
 export function tierGate(input:
   | { operation: "read" }
   | { operation: "owner" }
-  | { operation: "agent"; policyRoute: PolicyVerdict["route"]; riskRoute: RiskResult["route"] },
+  | { operation: "agent"; policyRoute: PolicyVerdict["route"]; riskRoute: RiskResult["route"]; untrustedSource?: boolean },
 ): TierDecision {
   if (input.operation === "read") return { tier: "T0", allowed: true, reason: "Read-only operation" };
   if (input.operation === "owner") return { tier: "T3", allowed: false, reason: "Owner-only configuration cannot be performed by the agent" };
   if (input.riskRoute === "BLOCK") return { tier: "T2", allowed: false, reason: "Risk score is at least 85" };
   if (input.policyRoute === "BLOCKED") return { tier: "T1", allowed: false, reason: "Contract policy blocks the action" };
+  // Value movement requested by untrusted content is never autonomous, whatever its risk score.
+  if (input.untrustedSource) return { tier: "T2", allowed: true, reason: "Untrusted source requires owner approval" };
   if (input.policyRoute === "NEEDS_APPROVAL" || input.riskRoute === "FORCE_APPROVAL") {
     return { tier: "T2", allowed: true, reason: "Owner approval is required" };
   }

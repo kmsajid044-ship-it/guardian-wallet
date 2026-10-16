@@ -33,6 +33,8 @@ export type PipelineResult = {
   blockNumber?: string;
 };
 
+export const UNTRUSTED_APPROVAL_FLAG = "UNTRUSTED_SOURCE_REQUIRES_APPROVAL";
+
 export class AgentPipeline {
   private readonly reader: PolicyReader;
   private readonly chainAdapter: ChainAdapter;
@@ -83,7 +85,10 @@ export class AgentPipeline {
     if (proposal.kind === "answer_only") {
       return this.finish({ proposal, route: "ANSWER_ONLY", tier: "T0", clarification: { required: true, questions: [proposal.reason] } }, llm);
     }
+    const untrusted = intake.source === "untrusted";
     if (proposal.kind === "schedule_recurring") {
+      // Scheduled runs are trusted, so an untrusted request must not create the schedule itself.
+      if (untrusted) return this.finish({ proposal, route: "NEEDS_APPROVAL", tier: "T2", flags: [UNTRUSTED_APPROVAL_FLAG] }, llm);
       return this.finish({ proposal, route: "SCHEDULE_READY", tier: "T1" }, llm);
     }
     if (proposal.kind === "cancel_recurring") {
@@ -119,7 +124,7 @@ export class AgentPipeline {
       }
     }
     const risk = scoreRisk({
-      untrusted: intake.source === "untrusted",
+      untrusted,
       injectionPatternFound: firewall.injectionPatternFound,
       contactHistory: history,
       remainingDaily: chainPolicy.dailyLimit > spent ? chainPolicy.dailyLimit - spent : 0n,
@@ -136,11 +141,12 @@ export class AgentPipeline {
       simulation: { outcome: simulation.outcome, auxiliary: simulation.auxiliary.toString() },
       ...(riskIntelResult ? { riskIntel: riskIntelResult } : {}),
     };
-    const tier = tierGate({ operation: "agent", policyRoute: policy.route, riskRoute: risk.route });
+    const tier = tierGate({ operation: "agent", policyRoute: policy.route, riskRoute: risk.route, untrustedSource: untrusted });
     if (simulation.outcome === "BLOCKED") return this.finish({ ...common, route: "BLOCKED", tier: tier.tier, flags: ["contract simulation"] }, llm);
     if (!tier.allowed) return this.finish({ ...common, route: "BLOCKED", tier: tier.tier, flags: [tier.reason] }, llm);
-    if (risk.route === "FORCE_APPROVAL" && policy.route === "EXECUTE") {
-      return this.finish({ ...common, route: "NEEDS_APPROVAL", tier: tier.tier }, llm);
+    // A T2 action the contract would execute directly is held off-chain for the owner; nothing is signed.
+    if (tier.tier === "T2" && policy.route === "EXECUTE") {
+      return this.finish({ ...common, route: "NEEDS_APPROVAL", tier: tier.tier, ...(untrusted ? { flags: [UNTRUSTED_APPROVAL_FLAG] } : {}) }, llm);
     }
 
     const execution = await this.executor.submit(action, { policy, simulation });

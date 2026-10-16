@@ -51,11 +51,11 @@ flowchart TB
 Every direct, planned, and scheduled action runs `proposal → firewall → policy pre-check → contract simulation → risk score → tier gate → restricted signer → audit` (`pipeline/pipeline.ts`):
 
 1. The adapter produces an `ActionProposal`; a payment without currency, contact, or amount fails semantic validation and falls back to the deterministic parser, which asks a targeted question (`ANSWER_ONLY`).
-2. The firewall inspects the message and every untrusted field (line 79). Any flag other than `AMOUNT_OUTLIER` blocks; a policy-change attempt is classified T3.
-3. The contact ID resolves to an address only through the owner's contact list; the recipient must be allowlisted on-chain (line 98).
-4. The policy pre-check (`policy/precheck.ts`) reads live contract state and applies the contract's checks in the contract's order. The contract simulation (`eth_call` of the same call) must agree; disagreement throws (line 104). A blocked action is still submitted, so the contract records `PolicyViolation` with a transaction hash.
-5. Before a first or approval-sized payment, the agent buys a payee check from Risk Intel and re-runs the firewall over the returned content (line 115).
-6. The risk score and tier gate route the action (lines 121–145); the signer submits it; the decision, reason, tier, risk factors, transaction hash, and block are appended to the audit chain.
+2. The firewall inspects the message and every untrusted field (line 81). Any flag other than `AMOUNT_OUTLIER` blocks; a policy-change attempt is classified T3.
+3. The contact ID resolves to an address only through the owner's contact list; the recipient must be allowlisted on-chain (line 101).
+4. The policy pre-check (`policy/precheck.ts`) reads live contract state and applies the contract's checks in the contract's order. The contract simulation (`eth_call` of the same call) must agree; disagreement throws (line 109). A blocked action is still submitted, so the contract records `PolicyViolation` with a transaction hash.
+5. Before a first or approval-sized payment, the agent buys a payee check from Risk Intel and re-runs the firewall over the returned content (line 120).
+6. The risk score and tier gate route the action (lines 126–161; untrusted-source actions always go to T2, see [Tier gate](#tier-gate)); the signer submits it; the decision, reason, tier, risk factors, transaction hash, and block are appended to the audit chain.
 
 ### Planner
 
@@ -85,6 +85,10 @@ Recurring payments (`scheduler/scheduler.ts`) re-enter the same pipeline on ever
 | `RISK_INTEL_HIGH` / `RISK_INTEL_MEDIUM` | 40 / 20 | Payee check score at least 70 / at least 40 |
 
 `score = min(100, Σ points)`. Route: score ≥ 85 → `BLOCK`; 60–84 → `FORCE_APPROVAL` (T2, owner approval even below the approval threshold); below 60 → `ALLOW`. Every factor carries a plain-language explanation shown to the owner.
+
+### Tier gate
+
+`agent/src/policy/tierGate.ts` maps each agent action to T0–T3, in this order: risk `BLOCK` → T2 refused; policy `BLOCKED` → T1 refused; **untrusted intake source → T2** (owner approval, regardless of score); policy `NEEDS_APPROVAL` or risk `FORCE_APPROVAL` → T2; otherwise T1 autonomous. A T2 action that the contract would execute directly (below the 200 USD approval threshold, or savings) is held off-chain: the pipeline returns `NEEDS_APPROVAL` and signs nothing. An untrusted action at or above the threshold goes to `requestApproval` and waits for the owner's on-chain `approve`. Untrusted holds carry the flag `UNTRUSTED_SOURCE_REQUIRES_APPROVAL`. An untrusted recurring request is held the same way instead of creating a schedule (scheduled runs are trusted), and plan steps keep the plan's intake source (`planner/planner.ts`). Covered by `tierGate.test.ts`, `planner.test.ts`, `api.e2e.test.ts` "holds every untrusted payment or savings request for T2 owner approval", and eval X09.
 
 ### Firewall rules
 
@@ -153,4 +157,4 @@ The agent checks first; the chain enforces again. A layer that fails or is bypas
 | Another user or a web page drives the local owner endpoints | Per-run owner session token, constant-time compare; foreign `Origin` and rebound `Host` refused | Contract `onlyOwner` still applies to the owner key | `api.e2e.test.ts`, `web/owner-session.test.ts` |
 | Signing value leakage | Read only in `src/exec/`; never logged, sent to the LLM, or sent to the browser | — | `exec/key-boundary.test.ts` |
 
-Measured results: [EVAL_REPORT.md](EVAL_REPORT.md) (40 scenarios; 0 unsafe actions; 19 of 19 attacks blocked) and [EXECUTION_EVIDENCE.md](EXECUTION_EVIDENCE.md) (98 FISCO BCOS transactions, verified on all four nodes and reproduced on a fresh network).
+Measured results: [EVAL_REPORT.md](EVAL_REPORT.md) (41 scenarios; 0 unsafe actions; 20 of 20 attacks refused) and [EXECUTION_EVIDENCE.md](EXECUTION_EVIDENCE.md) (98 FISCO BCOS transactions, verified on all four nodes and reproduced on a fresh network).

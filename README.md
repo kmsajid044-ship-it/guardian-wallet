@@ -15,7 +15,7 @@ It runs on a four-node local FISCO BCOS network, a permissioned chain operated b
 
 | What | Result | Source |
 |---|---|---|
-| Evaluation, 40 scenarios on FISCO BCOS | Task success 100% (40/40), unsafe action rate 0% (0/40), attack block rate 100% (19/19), clarification accuracy 100% (9/9) | [docs/EVAL_REPORT.md](docs/EVAL_REPORT.md) |
+| Evaluation, 41 scenarios on FISCO BCOS | Task success 100% (41/41), unsafe action rate 0% (0/41), attack block rate 100% (20/20), clarification accuracy 100% (9/9) | [docs/EVAL_REPORT.md](docs/EVAL_REPORT.md) |
 | Agent latency | 275 ms average, 622 ms p95 over 31 agent requests, including on-chain confirmation | [docs/EVAL_REPORT.md](docs/EVAL_REPORT.md) |
 | Estimated owner time saved | 41.9 min over 12 owner tasks, 3.49 min per task (an estimate against stated manual baselines) | [docs/EVAL_REPORT.md](docs/EVAL_REPORT.md) |
 | On-chain evidence | 98 FISCO BCOS transactions with receipts; all 98 re-verified on all four nodes; a fresh-network replay reproduced 16/16 scenarios and 98/98 transaction effects | [docs/EXECUTION_EVIDENCE.md](docs/EXECUTION_EVIDENCE.md) |
@@ -71,7 +71,7 @@ pnpm typecheck
 pnpm --filter web test:e2e          # Playwright owner-console tests
 cd contracts && forge test -vv      # unit, fuzz, and invariant tests I1–I8
 pnpm --filter agent test:parity     # agent pre-check vs contract on both backends (needs FISCO running)
-pnpm eval                           # 40 evaluation scenarios; writes eval/results.json and docs/EVAL_REPORT.md
+pnpm eval                           # 41 evaluation scenarios; writes eval/results.json and docs/EVAL_REPORT.md
 pnpm eval N01 X03                   # selected scenarios; --llm=configured uses the configured LLM provider
 pnpm attacks                        # 11 Attack Lab scenarios; `pnpm attacks A2 A9` or `--api` for the running agent
 pnpm evidence                       # on-chain execution evidence on FISCO BCOS; exports evidence/
