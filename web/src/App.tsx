@@ -69,7 +69,7 @@ function Dashboard({ state, pending, audit, refresh }: { state: State; pending: 
     <section className="flex flex-col justify-between gap-3 md:flex-row md:items-end"><div><p className="eyebrow">Permissioned operations</p><h1 className="page-title">Good afternoon, owner.</h1><p className="mt-2 text-slate-500 dark:text-slate-400">Review decisions, approve exceptions, and stay in control.</p></div><KillSwitch paused={state.paused} refresh={refresh}/></section>
     <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
       <BalanceCard label="USD available" value={state.usdBalance} savings={state.usdSavings}/><BalanceCard label="BDT available" value={state.bdtBalance} savings={state.bdtSavings}/>
-      <Metric label="Daily capacity" value={`${state.remainingDaily} USD`} sub={`${state.spentToday} used today`}/><Metric label="FX reference" value="1 USD = 122 BDT" sub="Cached snapshot · read only"/>
+      <Metric label="Daily capacity" value={`${state.remainingDaily} USD`} sub={`${state.spentToday} used today`}/><Metric label="FX reference" value="1 USD = 121.50 BDT" sub="Cached snapshot of 2026-10-16 · read only, never used to compute amounts"/>
     </section>
     <section className="grid gap-6 xl:grid-cols-[1.35fr_.65fr]"><Chat refresh={refresh}/><ApprovalInbox items={pending} refresh={refresh}/></section>
     <AuditLog entries={audit}/>

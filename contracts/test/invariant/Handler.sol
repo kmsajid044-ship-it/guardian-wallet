@@ -10,6 +10,7 @@ contract Handler is Test {
     uint256 public constant UNIT = 1_000_000;
     bool public paidUnknown; bool public movedWhilePaused; bool public pendingFailed; bool public unauthorizedChanged; bool public agentEscaped;
     mapping(uint256 => uint256) public autonomousOut;
+    uint256 public totalSavedUsd;
     uint256 nonce;
     constructor(GuardianWallet w, DemoLedger l, address o, address a, address g, address r, address f) { wallet=w; ledger=l; owner=o; agent=a; guardian=g; recipient=r; feeAccount=f; }
     function fresh() internal returns (bytes32) { return bytes32(++nonce); }
@@ -31,8 +32,11 @@ contract Handler is Test {
     }
     function save(uint96 raw) external {
         uint256 beforeBalance=ledger.savingsBalance(address(wallet),DemoLedger.Currency.USD); bool stopped=wallet.paused();
-        vm.prank(agent); wallet.saveToSavings(DemoLedger.Currency.USD,bound(raw,1,100*UNIT),fresh());
-        if(stopped && ledger.savingsBalance(address(wallet),DemoLedger.Currency.USD)>beforeBalance) movedWhilePaused=true;
+        uint256 amount=bound(raw,1,100*UNIT);
+        vm.prank(agent); wallet.saveToSavings(DemoLedger.Currency.USD,amount,fresh());
+        uint256 afterBalance=ledger.savingsBalance(address(wallet),DemoLedger.Currency.USD);
+        if(stopped && afterBalance>beforeBalance) movedWhilePaused=true;
+        if(afterBalance>=beforeBalance+amount) totalSavedUsd+=amount;
     }
     function requestAndApprove(uint96 raw,bool late,bool twice) external {
         uint256 amount=bound(raw,200*UNIT,500*UNIT); vm.prank(agent); (,uint256 id)=wallet.requestApproval(recipient,DemoLedger.Currency.USD,amount,fresh()); if(id==0)return;
