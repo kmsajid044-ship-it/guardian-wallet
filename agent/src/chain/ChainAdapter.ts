@@ -34,6 +34,7 @@ export type BalanceSnapshot = { USD: { available: bigint; savings: bigint }; BDT
 export type PolicySnapshot = Policy & { paused: boolean; spentToday: bigint; opsSpentToday: bigint };
 export type Receipt = { transactionHash: Hex; blockNumber: bigint; status: "success" | "reverted"; from: Address; to: Address | null; gasUsed: bigint };
 export type ChainEvent = { transactionHash: Hex | null; blockNumber: bigint | null; name: string; args: Readonly<Record<string, unknown>> };
+export type AdapterSimulation = { outcome: 0 | 1 | 2; auxiliary: bigint };
 
 export type OwnerAction =
   | { kind: "approve"; pendingId: bigint }
@@ -66,7 +67,7 @@ export interface ChainAdapter {
   ownerTx(action: OwnerAction, signer: Account): Promise<Hex>;
   getReceipt(hash: Hex): Promise<Receipt>;
   getEvents(fromBlock?: bigint, toBlock?: bigint): Promise<ChainEvent[]>;
-  simulateAgentTx(action: AgentAction, agent: Address): Promise<0 | 1 | 2>;
+  simulateAgentTx(action: AgentAction, agent: Address): Promise<AdapterSimulation>;
   policyReader(): PolicyReader;
 }
 
@@ -182,7 +183,7 @@ class ViemChainAdapter implements ChainAdapter {
     });
   }
 
-  async simulateAgentTx(rawAction: AgentAction, agent: Address): Promise<0 | 1 | 2> {
+  async simulateAgentTx(rawAction: AgentAction, agent: Address): Promise<AdapterSimulation> {
     const action = AgentActionSchema.parse(rawAction);
     const deployment = this.requireDeployment();
     const call = agentCall(action);
@@ -190,7 +191,8 @@ class ViemChainAdapter implements ChainAdapter {
     const result = await this.client.call({ account: agent, to: getAddress(deployment.guardianWallet), data });
     if (!result.data) throw new Error("simulation returned no data");
     const decoded = decodeFunctionResult({ abi: guardianWalletAbi, functionName: call.functionName, data: result.data });
-    return (Array.isArray(decoded) ? decoded[0] : decoded) as 0 | 1 | 2;
+    if (Array.isArray(decoded)) return { outcome: decoded[0] as 0 | 1 | 2, auxiliary: decoded[1] as bigint };
+    return { outcome: decoded as 0 | 1 | 2, auxiliary: 0n };
   }
 
   policyReader(): PolicyReader {

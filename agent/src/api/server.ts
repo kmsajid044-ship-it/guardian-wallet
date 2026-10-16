@@ -23,6 +23,11 @@ const ChatRequestSchema = z.object({
   message: z.string().trim().min(1).max(10_000),
   source: z.enum(["trusted", "untrusted"]).default("trusted"),
   sourceRefs: z.array(z.string().min(1)).default([]),
+  context: z.object({
+    memo: z.string().max(10_000).optional(), payeeName: z.string().max(1_000).optional(),
+    fetchedContent: z.string().max(50_000).optional(),
+    expectedRecipientContactId: z.string().regex(/^[a-z][a-z0-9_-]*$/i).optional(),
+  }).strict().optional(),
 }).strict();
 const PlanCreateSchema = ChatRequestSchema;
 const PlanEditSchema = z.object({ steps: PlanStepsSchema }).strict();

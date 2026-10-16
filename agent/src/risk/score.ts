@@ -8,6 +8,7 @@ export function scoreRisk(input: {
   contactHistory: bigint[];
   remainingDaily?: bigint;
   outsideUsualHours: boolean;
+  recentPaymentCount?: number;
   riskIntel?: { score: number; sanctioned: boolean };
 }): RiskResult {
   const factors: RiskFactor[] = [];
@@ -24,6 +25,7 @@ export function scoreRisk(input: {
     add("MOST_OF_REMAINING_DAILY", 15, "The amount uses more than 70% of the remaining daily limit.");
   }
   if (input.outsideUsualHours) add("OUTSIDE_USUAL_HOURS", 10, "The request is outside the owner’s usual hours.");
+  if ((input.recentPaymentCount ?? 0) >= 3) add("HIGH_VELOCITY", 20, "Three or more payments were recorded in the recent activity window.");
   if (input.riskIntel?.sanctioned) add("RISK_INTEL_SANCTIONED", 100, "Risk Intel reported a sanctions match.");
   else if (input.riskIntel && input.riskIntel.score >= 70) add("RISK_INTEL_HIGH", 40, `Risk Intel rated the payee high risk (${input.riskIntel.score}/100).`);
   else if (input.riskIntel && input.riskIntel.score >= 40) add("RISK_INTEL_MEDIUM", 20, `Risk Intel rated the payee medium risk (${input.riskIntel.score}/100).`);

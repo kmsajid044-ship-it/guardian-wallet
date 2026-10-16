@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { getAddress, keccak256, parseUnits, stringToHex, type Address, type Chain, type PublicClient, type Transport } from "viem";
 import type { AuditLog, JsonValue } from "../audit/audit.js";
-import { GuardianReader } from "../chain/reader.js";
+import { createChainAdapter, type ChainAdapter } from "../chain/ChainAdapter.js";
 import type { Config, Deployment } from "../config.js";
 import { AgentExecutor } from "../exec/executor.js";
 import { inspectProposal } from "../firewall/firewall.js";
@@ -10,10 +10,11 @@ import type { ActionProposal } from "../llm/actionProposal.js";
 import type { Intake } from "../llm/mock.js";
 import { createLlmAdapter, MockAdapter } from "../llm/provider.js";
 import { precheckAction } from "../policy/precheck.js";
+import type { PolicyReader } from "../policy/precheck.js";
+import { tierGate, type PermissionTier } from "../policy/tierGate.js";
 import type { AgentAction, PolicyVerdict } from "../policy/types.js";
 import { scoreRisk } from "../risk/score.js";
 import { RiskIntelClient, type PayeeRiskResult, type RiskIntelGateway } from "../riskIntel/client.js";
-import { simulateAgentAction } from "../sim/simulate.js";
 
 export type PipelineResult = {
   proposal: ActionProposal;
@@ -28,10 +29,13 @@ export type PipelineResult = {
   flags?: string[];
   clarification?: { required: true; questions: string[] };
   riskIntel?: PayeeRiskResult;
+  tier?: PermissionTier;
+  blockNumber?: string;
 };
 
 export class AgentPipeline {
-  private readonly reader: GuardianReader;
+  private readonly reader: PolicyReader;
+  private readonly chainAdapter: ChainAdapter;
   private readonly executor: AgentExecutor;
   private readonly adapter: LlmAdapter;
   private readonly mockAdapter = new MockAdapter();
@@ -47,7 +51,8 @@ export class AgentPipeline {
     adapter?: LlmAdapter,
     riskIntel?: RiskIntelGateway,
   ) {
-    this.reader = new GuardianReader(client, getAddress(deployment.guardianWallet), getAddress(deployment.demoLedger));
+    this.chainAdapter = createChainAdapter(config, deployment);
+    this.reader = this.chainAdapter.policyReader();
     this.executor = AgentExecutor.create(config, deployment, environment);
     this.adapter = adapter ?? createLlmAdapter(config.LLM_PROVIDER, environment);
     this.riskIntel = riskIntel ?? (config.RISK_INTEL_URL
@@ -71,18 +76,18 @@ export class AgentPipeline {
       ? this.contacts[proposal.recipientContactId]
       : undefined;
     const proposalHistory = historyAddress ? this.paymentHistory(getAddress(historyAddress)) : [];
-    const firewall = inspectProposal(intake.message, intake.source, proposal, this.contacts, proposalHistory);
+    const firewall = inspectProposal(intake.message, intake.source, proposal, this.contacts, proposalHistory, intake.context);
     if (firewall.blocked) {
-      return this.finish({ proposal, route: "BLOCKED", flags: firewall.flags }, llm);
+      return this.finish({ proposal, route: "BLOCKED", tier: firewall.flags.includes("POLICY_CHANGE_ATTEMPT") ? "T3" : "T0", flags: firewall.flags }, llm);
     }
     if (proposal.kind === "answer_only") {
-      return this.finish({ proposal, route: "ANSWER_ONLY", clarification: { required: true, questions: [proposal.reason] } }, llm);
+      return this.finish({ proposal, route: "ANSWER_ONLY", tier: "T0", clarification: { required: true, questions: [proposal.reason] } }, llm);
     }
     if (proposal.kind === "schedule_recurring") {
-      return this.finish({ proposal, route: "SCHEDULE_READY" }, llm);
+      return this.finish({ proposal, route: "SCHEDULE_READY", tier: "T1" }, llm);
     }
     if (proposal.kind === "cancel_recurring") {
-      return this.finish({ proposal, route: "ANSWER_ONLY", clarification: { required: true, questions: ["Which recurring payment ID should I cancel?"] } }, llm);
+      return this.finish({ proposal, route: "ANSWER_ONLY", tier: "T0", clarification: { required: true, questions: ["Which recurring payment ID should I cancel?"] } }, llm);
     }
 
     const chainPolicy = await this.reader.getPolicy();
@@ -90,15 +95,15 @@ export class AgentPipeline {
     if (action.kind === "pay" || action.kind === "request_approval") {
       const recipient = await this.reader.getRecipient(action.to);
       if (!recipient.allowed) {
-        return this.finish({ proposal, route: "BLOCKED", flags: ["UNKNOWN_CONTACT"] }, llm);
+        return this.finish({ proposal, route: "BLOCKED", tier: "T1", flags: ["UNKNOWN_CONTACT"] }, llm);
       }
     }
     const policy = await precheckAction(this.reader, action);
-    const simulation = await simulateAgentAction(this.client, getAddress(this.deployment.guardianWallet), getAddress(this.deployment.agent), action);
+    const simulation = simulationResult(await this.chainAdapter.simulateAgentTx(action, getAddress(this.deployment.agent)));
     if (policy.route === "BLOCKED") {
       if (simulation.outcome !== "BLOCKED") throw new Error("policy and contract simulation disagree");
       const evidence = await this.executor.submit(action, { policy, simulation });
-      return this.finish({ ...commonWithoutRisk(proposal, policy, simulation), route: "BLOCKED", flags: [policy.reason], transactionHash: evidence.transactionHash }, llm, { action, amount: action.amount.toString(), transactionHash: evidence.transactionHash });
+      return this.finish({ ...commonWithoutRisk(proposal, policy, simulation), route: "BLOCKED", tier: "T1", flags: [policy.reason], transactionHash: evidence.transactionHash, blockNumber: evidence.blockNumber.toString() }, llm, { action, amount: action.amount.toString() });
     }
     const amount = action.amount;
     const spent = await this.reader.getSpentToday();
@@ -107,6 +112,8 @@ export class AgentPipeline {
     if ((action.kind === "pay" || action.kind === "request_approval") && this.riskIntel && (history.length === 0 || action.amount >= chainPolicy.approvalThreshold)) {
       try {
         riskIntelResult = await this.riskIntel.checkPayee(action.to);
+        const fetchedFirewall = inspectProposal(intake.message, intake.source, proposal, this.contacts, history, { ...intake.context, fetchedContent: JSON.stringify(riskIntelResult) });
+        if (fetchedFirewall.blocked) return this.finish({ ...commonWithoutRisk(proposal, policy, simulation), route: "BLOCKED", tier: "T0", flags: fetchedFirewall.flags }, llm);
       } catch {
         return this.finish({ ...commonWithoutRisk(proposal, policy, simulation), route: "BLOCKED", flags: ["RISK_INTEL_UNAVAILABLE"] }, llm);
       }
@@ -117,6 +124,7 @@ export class AgentPipeline {
       contactHistory: history,
       remainingDaily: chainPolicy.dailyLimit > spent ? chainPolicy.dailyLimit - spent : 0n,
       outsideUsualHours: outsideActiveHours(new Date(), this.config.OWNER_TIMEZONE, this.config.OWNER_ACTIVE_HOURS),
+      recentPaymentCount: this.recentPaymentCount(),
       ...(action.kind === "pay" || action.kind === "request_approval" ? { amount } : {}),
       ...(riskIntelResult ? { riskIntel: { score: riskIntelResult.score, sanctioned: riskIntelResult.sanctioned } } : {}),
     });
@@ -128,10 +136,11 @@ export class AgentPipeline {
       simulation: { outcome: simulation.outcome, auxiliary: simulation.auxiliary.toString() },
       ...(riskIntelResult ? { riskIntel: riskIntelResult } : {}),
     };
-    if (simulation.outcome === "BLOCKED") return this.finish({ ...common, route: "BLOCKED", flags: ["contract simulation"] }, llm);
-    if (risk.route === "BLOCK") return this.finish({ ...common, route: "BLOCKED" }, llm);
+    const tier = tierGate({ operation: "agent", policyRoute: policy.route, riskRoute: risk.route });
+    if (simulation.outcome === "BLOCKED") return this.finish({ ...common, route: "BLOCKED", tier: tier.tier, flags: ["contract simulation"] }, llm);
+    if (!tier.allowed) return this.finish({ ...common, route: "BLOCKED", tier: tier.tier, flags: [tier.reason] }, llm);
     if (risk.route === "FORCE_APPROVAL" && policy.route === "EXECUTE") {
-      return this.finish({ ...common, route: "NEEDS_APPROVAL" }, llm);
+      return this.finish({ ...common, route: "NEEDS_APPROVAL", tier: tier.tier }, llm);
     }
 
     const execution = await this.executor.submit(action, { policy, simulation });
@@ -139,7 +148,9 @@ export class AgentPipeline {
     return this.finish({
       ...common,
       route: policy.route === "NEEDS_APPROVAL" ? "NEEDS_APPROVAL" : "EXECUTED",
+      tier: tier.tier,
       transactionHash: execution.transactionHash,
+      blockNumber: execution.blockNumber.toString(),
       ...(pendingId === undefined ? {} : { pendingId }),
     }, llm, { action, amount: amount.toString(), transactionHash: execution.transactionHash });
   }
@@ -168,6 +179,15 @@ export class AgentPipeline {
     });
   }
 
+  private recentPaymentCount(): number {
+    const cutoff = Date.now() - 60 * 60 * 1_000;
+    return this.audit.list().filter((entry) => {
+      if (entry.kind !== "pipeline_result" || Date.parse(entry.timestamp) < cutoff || typeof entry.data !== "object" || entry.data === null || Array.isArray(entry.data) || entry.data.route !== "EXECUTED") return false;
+      const action = entry.data.action;
+      return typeof action === "object" && action !== null && !Array.isArray(action) && (action.kind === "pay" || action.kind === "request_approval");
+    }).length;
+  }
+
   private async finish(
     structured: Omit<PipelineResult, "explanation" | "llm">,
     llm: { adapter: LlmAdapter; fallback: boolean },
@@ -188,11 +208,19 @@ export class AgentPipeline {
       llm: { requested: this.config.LLM_PROVIDER, effective: llm.adapter.provider, fallback: llm.fallback },
     };
     const serializable = JSON.parse(JSON.stringify(result)) as JsonValue;
+    const decision = {
+      outcome: result.route,
+      reason: decisionReason(result),
+      tier: result.tier ?? "T0",
+      riskFactors: result.risk?.factors ?? [],
+      transactionHash: result.transactionHash ?? null,
+      blockNumber: result.blockNumber ?? null,
+    };
     this.audit.append({
       timestamp: new Date().toISOString(),
       kind: "pipeline_result",
       data: typeof serializable === "object" && serializable !== null && !Array.isArray(serializable)
-        ? { ...serializable, ...executionData }
+        ? { ...serializable, ...executionData, decision }
         : executionData,
     });
     return result;
@@ -201,6 +229,20 @@ export class AgentPipeline {
 
 function commonWithoutRisk(proposal: ActionProposal, policy: PolicyVerdict, simulation: { outcome: string; auxiliary: bigint }) {
   return { proposal, policy, simulation: { outcome: simulation.outcome, auxiliary: simulation.auxiliary.toString() } };
+}
+
+function simulationResult(result: { outcome: 0 | 1 | 2; auxiliary: bigint }): { outcome: "EXECUTED" | "PENDING" | "BLOCKED"; auxiliary: bigint } {
+  return { outcome: result.outcome === 0 ? "EXECUTED" : result.outcome === 1 ? "PENDING" : "BLOCKED", auxiliary: result.auxiliary };
+}
+
+function decisionReason(result: PipelineResult): string {
+  if (result.flags?.length) return result.flags.join(", ");
+  if (result.policy?.route === "NEEDS_APPROVAL") return "Contract policy requires owner approval";
+  if (result.risk?.route === "FORCE_APPROVAL") return "Risk score requires owner approval";
+  if (result.route === "EXECUTED") return "Policy, simulation, risk, and tier checks passed";
+  if (result.route === "ANSWER_ONLY") return result.clarification?.questions.join(" ") ?? "No action was executed";
+  if (result.route === "SCHEDULE_READY") return "Recurring action validated for scheduling";
+  return "Action was blocked by the pipeline";
 }
 
 function outsideActiveHours(now: Date, timezone: string, range: string): boolean {

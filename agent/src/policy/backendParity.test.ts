@@ -58,7 +58,7 @@ describe("policy pre-check equivalence", () => {
       const predicted = await precheckAction(adapter.policyReader(), action);
       const actual = await adapter.simulateAgentTx(action, agent);
       const expected = predicted.route === "EXECUTE" ? 0 : predicted.route === "NEEDS_APPROVAL" ? 1 : 2;
-      expect(actual, `case ${index}: ${action.kind}, predicted ${predicted.route}${predicted.route === "BLOCKED" ? `/${predicted.reason}` : ""}`).toBe(expected);
+      expect(actual.outcome, `case ${index}: ${action.kind}, predicted ${predicted.route}${predicted.route === "BLOCKED" ? `/${predicted.reason}` : ""}`).toBe(expected);
     }
   }, 180_000);
 });

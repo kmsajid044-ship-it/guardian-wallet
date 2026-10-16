@@ -1,7 +1,8 @@
 import { isAddress, type Address } from "viem";
 import type { ActionProposal } from "../llm/actionProposal.js";
+import type { IntakeContext } from "../llm/mock.js";
 
-export type FirewallFlag = "ADDRESS_INJECTION" | "INSTRUCTION_INJECTION" | "UNKNOWN_CONTACT" | "INVALID_AMOUNT" | "AMOUNT_OUTLIER";
+export type FirewallFlag = "ADDRESS_INJECTION" | "INSTRUCTION_INJECTION" | "UNKNOWN_CONTACT" | "INVALID_AMOUNT" | "AMOUNT_OUTLIER" | "RECIPIENT_SWAP" | "POLICY_CHANGE_ATTEMPT";
 export type FirewallResult = { blocked: boolean; flags: FirewallFlag[]; injectionPatternFound: boolean; amountOutlier: boolean };
 
 const instructionPatterns = [
@@ -15,6 +16,7 @@ const instructionPatterns = [
   /urgent.*(?:bypass|override|ignore)/i,
 ];
 const addressPattern = /0x[0-9a-fA-F]{40}/g;
+const policyChangePattern = /\b(?:change|disable|ignore|override|raise|lower|remove|set)\b.{0,40}\b(?:policy|limit|allowlist|approval|guardian)\b/i;
 
 export function inspectProposal(
   message: string,
@@ -22,13 +24,18 @@ export function inspectProposal(
   proposal: ActionProposal,
   contacts: Readonly<Record<string, Address>>,
   contactHistory: readonly bigint[] = [],
+  context: IntakeContext = {},
 ): FirewallResult {
   const flags: FirewallFlag[] = [];
-  const injectionPatternFound = source === "untrusted" && instructionPatterns.some((pattern) => pattern.test(message));
+  const untrustedFields = [context.memo, context.payeeName, context.fetchedContent].filter((value): value is string => value !== undefined);
+  const injectionPatternFound = (source === "untrusted" && instructionPatterns.some((pattern) => pattern.test(message)))
+    || untrustedFields.some((value) => instructionPatterns.some((pattern) => pattern.test(value)));
   if (injectionPatternFound) flags.push("INSTRUCTION_INJECTION");
   if (source === "untrusted" && (message.match(addressPattern) ?? []).some((address) => isAddress(address))) flags.push("ADDRESS_INJECTION");
   if (source === "untrusted" && /\b(?:new|unknown|unapproved)\s+(?:vendor|recipient|payee)\b/i.test(message)) flags.push("UNKNOWN_CONTACT");
   if ((proposal.kind === "pay" || proposal.kind === "schedule_recurring") && (!proposal.recipientContactId || !contacts[proposal.recipientContactId])) flags.push("UNKNOWN_CONTACT");
+  if (context.expectedRecipientContactId && proposal.recipientContactId !== context.expectedRecipientContactId.toLowerCase()) flags.push("RECIPIENT_SWAP");
+  if (policyChangePattern.test(message) || untrustedFields.some((value) => policyChangePattern.test(value))) flags.push("POLICY_CHANGE_ATTEMPT");
   if (proposal.amount !== undefined && !/^(?:0|[1-9][0-9]*)(?:\.[0-9]{1,6})?$/.test(proposal.amount)) flags.push("INVALID_AMOUNT");
   let amountOutlier = false;
   if (proposal.amount !== undefined && contactHistory.length > 0 && !flags.includes("INVALID_AMOUNT")) {
@@ -39,7 +46,7 @@ export function inspectProposal(
     if (amountOutlier) flags.push("AMOUNT_OUTLIER");
   }
   return {
-    blocked: flags.some((flag) => flag === "ADDRESS_INJECTION" || flag === "UNKNOWN_CONTACT" || flag === "INVALID_AMOUNT"),
+    blocked: flags.some((flag) => flag !== "AMOUNT_OUTLIER"),
     flags,
     injectionPatternFound,
     amountOutlier,

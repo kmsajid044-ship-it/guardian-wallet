@@ -7,6 +7,15 @@ const llm = { requested: "mock" as const, effective: "mock" as const, fallback: 
 const result = (route: PipelineResult["route"]): PipelineResult => ({ proposal: { kind: "save", currency: "USD", amount: "10", reason: "test", sourceRefs: [] }, route, explanation: route, llm });
 
 describe("multi-step planner", () => {
+  it("expands the tuition-and-savings request into a visible safety plan", () => {
+    const manager = new PlanManager({ run: async () => result("EXECUTED") }, new AuditLog(":memory:"));
+    const plan = manager.create("Pay my tuition of 1,200 USD this month but keep 300 USD in savings");
+    expect(plan.preview).toEqual(["CHECK_BALANCE", "CHECK_LIMITS", "SAVE", "REQUEST_APPROVAL", "EXECUTE_AFTER_APPROVAL"]);
+    expect(plan.steps.map((step) => step.proposal)).toMatchObject([
+      { kind: "save", amount: "300", currency: "USD" },
+      { kind: "pay", recipientContactId: "tuition", amount: "1200", currency: "USD" },
+    ]);
+  });
   it("shows a draft before execution and allows edits", () => {
     const manager = new PlanManager({ run: async () => result("EXECUTED") }, new AuditLog(":memory:"));
     const plan = manager.create("Save 10 USD then Pay Ana 20 USD");

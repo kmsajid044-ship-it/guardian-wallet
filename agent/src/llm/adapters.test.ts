@@ -2,11 +2,16 @@ import { describe, expect, it, vi } from "vitest";
 import { AnthropicAdapter } from "./anthropic.js";
 import type { Fetch } from "./adapter.js";
 import { OpenAiCompatAdapter } from "./openaiCompat.js";
+import { createLlmAdapter } from "./provider.js";
 
 const intake = { message: "Pay Ana 12 USD", source: "untrusted" as const, sourceRefs: ["invoice:1"] };
 const proposal = { kind: "pay", currency: "USD", recipientContactId: "ana", amount: "12", reason: "invoice", sourceRefs: ["invoice:1"] };
 
 describe("provider adapters", () => {
+  it("uses the deterministic parser when the selected provider has no configured key", () => {
+    expect(createLlmAdapter("anthropic", {}).provider).toBe("mock");
+    expect(createLlmAdapter("openai_compat", {}).provider).toBe("mock");
+  });
   it("forces Anthropic tool use without exposing contact addresses", async () => {
     const fetcher = vi.fn<Fetch>().mockResolvedValueOnce(jsonResponse({ content: [{ type: "tool_use", name: "propose_action", input: proposal }] }));
     const result = await new AnthropicAdapter("secret", "model", fetcher).propose(intake, ["ana", "bob"]);

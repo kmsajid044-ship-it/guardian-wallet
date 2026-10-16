@@ -21,6 +21,18 @@ function entryHash(prevHash: string, payloadJson: string): string {
   return createHash("sha256").update(prevHash).update(payloadJson).digest("hex");
 }
 
+export function verifyAuditChain(entries: readonly AuditEntry[]): VerificationResult {
+  let expectedPrev = GENESIS_HASH;
+  for (let index = 0; index < entries.length; index++) {
+    const entry = entries[index]!;
+    const payloadJson = canonicalJson({ timestamp: entry.timestamp, kind: entry.kind, data: entry.data });
+    if (entry.prevHash !== expectedPrev) return { valid: false, count: index, error: `broken prevHash at entry ${entry.id}` };
+    if (entry.hash !== entryHash(expectedPrev, payloadJson)) return { valid: false, count: index, error: `invalid hash at entry ${entry.id}` };
+    expectedPrev = entry.hash;
+  }
+  return { valid: true, count: entries.length };
+}
+
 type Row = { id: number; timestamp: string; kind: string; data_json: string; prev_hash: string; hash: string };
 
 export class AuditLog {
@@ -72,16 +84,7 @@ export class AuditLog {
   }
 
   verify(): VerificationResult {
-    const rows = this.db.prepare("SELECT * FROM audit_entries ORDER BY id").all() as Row[];
-    let expectedPrev = GENESIS_HASH;
-    for (let index = 0; index < rows.length; index++) {
-      const row = rows[index]!;
-      const payloadJson = canonicalJson({ timestamp: row.timestamp, kind: row.kind, data: JSON.parse(row.data_json) as JsonValue });
-      if (row.prev_hash !== expectedPrev) return { valid: false, count: index, error: `broken prevHash at entry ${row.id}` };
-      if (row.hash !== entryHash(expectedPrev, payloadJson)) return { valid: false, count: index, error: `invalid hash at entry ${row.id}` };
-      expectedPrev = row.hash;
-    }
-    return { valid: true, count: rows.length };
+    return verifyAuditChain(this.list());
   }
 
   close(): void {

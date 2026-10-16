@@ -8,7 +8,8 @@ import type { PipelineResult } from "../pipeline/pipeline.js";
 export const PlanStepsSchema = z.array(ActionProposalSchema).min(1).max(20);
 export type PlanStatus = "DRAFT" | "RUNNING" | "COMPLETED" | "STOPPED" | "WAITING_APPROVAL" | "CANCELLED";
 export type PlanStep = { index: number; proposal: ActionProposal; status: "READY" | "EXECUTED" | "STOPPED" | "NOT_RUN"; result?: PipelineResult };
-export type Plan = { id: string; status: PlanStatus; createdAt: string; updatedAt: string; steps: PlanStep[]; stoppedAt?: number };
+export type PlanStage = "CHECK_BALANCE" | "CHECK_LIMITS" | "SAVE" | "PAY" | "REQUEST_APPROVAL" | "EXECUTE_AFTER_APPROVAL";
+export type Plan = { id: string; status: PlanStatus; createdAt: string; updatedAt: string; preview: PlanStage[]; steps: PlanStep[]; stoppedAt?: number };
 
 export interface ActionRunner { run(intake: Intake): Promise<PipelineResult> }
 
@@ -18,6 +19,14 @@ export class PlanManager {
   constructor(private readonly runner: ActionRunner, private readonly audit: AuditLog) {}
 
   create(message: string, source: Intake["source"] = "trusted", sourceRefs: string[] = []): Plan {
+    const tuition = message.match(/^pay my ([a-z][a-z0-9_-]*) of ([0-9][0-9,]*(?:\.[0-9]{1,6})?) (usd|bdt) this month but keep ([0-9][0-9,]*(?:\.[0-9]{1,6})?) (?:usd|bdt) in savings$/i);
+    if (tuition) {
+      const currency = tuition[3]!.toUpperCase() as "USD" | "BDT";
+      return this.storeDraft([
+        { kind: "save", currency, amount: tuition[4]!.replaceAll(",", ""), reason: "Keep the requested amount in savings", sourceRefs },
+        { kind: "pay", currency, recipientContactId: tuition[1]!.toLowerCase(), amount: tuition[2]!.replaceAll(",", ""), reason: "Pay the requested monthly expense", sourceRefs },
+      ]);
+    }
     const clauses = message.split(/\s+(?:and\s+)?then\s+/i).map((part) => part.trim()).filter(Boolean);
     if (clauses.length < 2) throw new Error("a multi-step plan requires at least two steps separated by ‘then’");
     const proposals = PlanStepsSchema.parse(clauses.map((clause) => parseWithMock({ message: clause, source, sourceRefs })));
@@ -77,7 +86,10 @@ export class PlanManager {
 
   private storeDraft(proposals: ActionProposal[]): Plan {
     const timestamp = new Date().toISOString();
-    const plan: Plan = { id: randomUUID(), status: "DRAFT", createdAt: timestamp, updatedAt: timestamp, steps: proposals.map((proposal, index) => ({ index, proposal, status: "READY" })) };
+    const preview: PlanStage[] = ["CHECK_BALANCE", "CHECK_LIMITS"];
+    for (const proposal of proposals) if (proposal.kind === "save") preview.push("SAVE");
+    if (proposals.some((proposal) => proposal.kind === "pay")) preview.push("REQUEST_APPROVAL", "EXECUTE_AFTER_APPROVAL");
+    const plan: Plan = { id: randomUUID(), status: "DRAFT", createdAt: timestamp, updatedAt: timestamp, preview, steps: proposals.map((proposal, index) => ({ index, proposal, status: "READY" })) };
     this.plans.set(plan.id, plan);
     this.log("plan_created", plan);
     return plan;

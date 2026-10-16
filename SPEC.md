@@ -63,6 +63,14 @@ Every direct, planned, and scheduled action runs through:
 
 The LLM receives contact IDs, never raw recipient addresses. Untrusted text is delimited as data. The signer alone reads the agent signing value. Explanations use structured results only.
 
+Provider output is validated by the strict `ActionProposal` schema. When the selected provider is unavailable or has no configured key, the deterministic parser supplies the same schema so the offline demonstration remains complete. Missing or ambiguous amount, contact, or currency produces a targeted clarification instead of an inferred value.
+
+The firewall scans chat text, memos, payee names, and fetched content for instruction injection, raw-address or recipient substitution, and attempts to alter policy. Risk scoring is an explained 0–100 sum covering amount history, first payment to a contact, time of day, recent payment velocity, injection signals, daily-limit concentration, and synthetic payee results. Scores from 60 through 84 require T2 owner approval; scores from 85 are blocked.
+
+Plans are shown before execution, remain editable while drafts, and stop at the first blocked or approval-requiring step. Each recurring occurrence re-enters the same firewall, policy, simulation, risk, tier, signing, and audit sequence.
+
+Every pipeline decision records its outcome, reason, tier, risk factors, transaction hash, and block number when present. Audit entries form an append-only SHA-256 chain verified by `verifyAuditChain()`.
+
 Before a first or approval-sized payment, the agent books a fixed service fee through `payServiceFee`, obtains a synthetic payee check, and adds the result to risk scoring. FX is a read-only cached USD/BDT snapshot.
 
 ## 8. Permission tiers

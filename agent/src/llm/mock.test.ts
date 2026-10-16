@@ -22,4 +22,11 @@ describe("mock LLM adapter", () => {
     expect(parseWithMock({ message: "Pay 25 USD", source: "trusted", sourceRefs: [] })).toMatchObject({ kind: "answer_only" });
     expect(parseWithMock({ message: "Schedule a recurring payment", source: "trusted", sourceRefs: [] }).kind).toBe("answer_only");
   });
+
+  it.each([
+    ["Pay Ana 10", "Which currency, USD or BDT, should I use to pay contact ana?"],
+    ["Pay 10 USD", "Which contact ID should receive 10 USD?"],
+  ])("identifies the missing payment field", (message, question) => {
+    expect(parseWithMock({ message, source: "trusted", sourceRefs: [] })).toMatchObject({ kind: "answer_only", reason: question });
+  });
 });

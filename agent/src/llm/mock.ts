@@ -1,5 +1,6 @@
 import { ActionProposalSchema, type ActionProposal } from "./actionProposal.js";
-export type Intake = { message: string; source: "trusted" | "untrusted"; sourceRefs: string[] };
+export type IntakeContext = { memo?: string | undefined; payeeName?: string | undefined; fetchedContent?: string | undefined; expectedRecipientContactId?: string | undefined };
+export type Intake = { message: string; source: "trusted" | "untrusted"; sourceRefs: string[]; context?: IntakeContext | undefined };
 const amount = "([0-9]+(?:\\.[0-9]{1,6})?)";
 export function parseWithMock(intake: Intake): ActionProposal {
   const modelInput = formatIntakeForModel(intake);
@@ -11,7 +12,15 @@ export function parseWithMock(intake: Intake): ActionProposal {
   const save = text.match(new RegExp(`^save\\s+${amount}\\s+(usd|bdt)$`, "i"));
   if (save) return ActionProposalSchema.parse({ kind: "save", currency: save[2]!.toUpperCase(), amount: save[1], reason: "Move demo units to savings", sourceRefs: intake.sourceRefs });
   const missingAmount = text.match(/^pay\s+([a-z][a-z0-9_-]*)$/i);
-  const question = missingAmount ? `How much USD or BDT should I pay contact ${missingAmount[1]!.toLowerCase()}?` : "Please provide an unambiguous contact ID, amount, currency, and action.";
+  const missingCurrency = text.match(new RegExp(`^pay\\s+([a-z][a-z0-9_-]*)\\s+${amount}$`, "i"));
+  const missingRecipient = text.match(new RegExp(`^pay\\s+${amount}\\s+(usd|bdt)$`, "i"));
+  const question = missingAmount
+    ? `How much USD or BDT should I pay contact ${missingAmount[1]!.toLowerCase()}?`
+    : missingCurrency
+      ? `Which currency, USD or BDT, should I use to pay contact ${missingCurrency[1]!.toLowerCase()}?`
+      : missingRecipient
+        ? `Which contact ID should receive ${missingRecipient[1]} ${missingRecipient[2]!.toUpperCase()}?`
+        : "Please provide an unambiguous contact ID, amount, currency, and action.";
   return ActionProposalSchema.parse({ kind: "answer_only", reason: question, sourceRefs: intake.sourceRefs });
 }
 export function formatIntakeForModel(intake: Intake): string {

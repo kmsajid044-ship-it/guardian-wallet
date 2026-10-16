@@ -9,6 +9,7 @@ describe("risk score", () => {
     ["first payment", { amount: 1n, contactHistory: [] }, "FIRST_PAYMENT", 10],
     ["daily concentration", { amount: 71n, contactHistory: [100n], remainingDaily: 100n }, "MOST_OF_REMAINING_DAILY", 15],
     ["outside hours", { outsideUsualHours: true }, "OUTSIDE_USUAL_HOURS", 10],
+    ["payment velocity", { recentPaymentCount: 3 }, "HIGH_VELOCITY", 20],
   ])("scores %s with its own explanation", (_name, overrides, code, points) => {
     const result = scoreRisk({ untrusted: false, injectionPatternFound: false, contactHistory: [100n], outsideUsualHours: false, ...overrides });
     expect(result.factors).toEqual([expect.objectContaining({ code, points, explanation: expect.any(String) })]);

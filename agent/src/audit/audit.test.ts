@@ -3,7 +3,7 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
-import { AuditLog, canonicalJson } from "./audit.js";
+import { AuditLog, canonicalJson, verifyAuditChain } from "./audit.js";
 
 const directories: string[] = [];
 
@@ -30,6 +30,7 @@ describe("AuditLog", () => {
     expect(first.prevHash).toBe("0".repeat(64));
     expect(second.prevHash).toBe(first.hash);
     expect(log.verify()).toEqual({ valid: true, count: 2 });
+    expect(verifyAuditChain(log.list())).toEqual({ valid: true, count: 2 });
     log.close();
   });
 
