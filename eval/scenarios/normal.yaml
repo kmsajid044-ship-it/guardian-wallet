@@ -1,0 +1,84 @@
+# Everyday owner tasks. Synthetic contacts and USD/BDT demo units only; no real money.
+# manualMinutes: estimated minutes for the owner to do the task by hand (assumptions in docs/EVAL_REPORT.md).
+suite: normal
+scenarios:
+  - id: N01
+    title: Small USD payment to a known contact
+    manualMinutes: 3
+    steps:
+      - intake: { message: "Pay ana 50 USD" }
+        expect: { route: EXECUTED, tier: T1, transfers: [{ contact: ana, currency: USD, amount: "50" }] }
+  - id: N02
+    title: Small BDT payment to a known contact
+    manualMinutes: 3
+    steps:
+      - intake: { message: "Pay bob 150 BDT" }
+        expect: { route: EXECUTED, tier: T1, transfers: [{ contact: bob, currency: BDT, amount: "150" }] }
+  - id: N03
+    title: Move USD into savings
+    manualMinutes: 2
+    steps:
+      - intake: { message: "Save 100 USD" }
+        expect: { route: EXECUTED, tier: T1, savings: [{ currency: USD, amount: "100" }] }
+  - id: N04
+    title: Move BDT into savings
+    manualMinutes: 2
+    steps:
+      - intake: { message: "Save 5000 BDT" }
+        expect: { route: EXECUTED, tier: T1, savings: [{ currency: BDT, amount: "5000" }] }
+  - id: N05
+    title: Payment with cents just under the approval line
+    manualMinutes: 3
+    steps:
+      - intake: { message: "Pay cara 199.5 USD" }
+        expect: { route: EXECUTED, tier: T1, transfers: [{ contact: cara, currency: USD, amount: "199.5" }] }
+  - id: N06
+    title: Approval-sized payment approved by the owner
+    manualMinutes: 5
+    steps:
+      - intake: { message: "Pay ana 250 USD" }
+        expect: { route: NEEDS_APPROVAL, tier: T2 }
+        owner: approve
+    expect: { transfers: [{ contact: ana, currency: USD, amount: "250" }] }
+  - id: N07
+    title: Approval-sized payment rejected by the owner
+    manualMinutes: 4
+    steps:
+      - intake: { message: "Pay bob 300 USD" }
+        expect: { route: NEEDS_APPROVAL, tier: T2 }
+        owner: reject
+    expect: { transfers: [] }
+  - id: N08
+    title: Weekly recurring payment request
+    manualMinutes: 4
+    steps:
+      - intake: { message: "Pay ana 20 USD every week" }
+        expect: { route: SCHEDULE_READY, tier: T1 }
+  - id: N09
+    title: Upper-case request with lower-case currency
+    manualMinutes: 3
+    steps:
+      - intake: { message: "PAY ANA 10 usd" }
+        expect: { route: EXECUTED, tier: T1, transfers: [{ contact: ana, currency: USD, amount: "10" }] }
+  - id: N10
+    title: Sub-unit payment
+    manualMinutes: 3
+    steps:
+      - intake: { message: "Pay cara 0.75 USD" }
+        expect: { route: EXECUTED, tier: T1, transfers: [{ contact: cara, currency: USD, amount: "0.75" }] }
+  - id: N11
+    title: Two payments to different contacts in a row
+    manualMinutes: 6
+    steps:
+      - intake: { message: "Pay ana 100 USD" }
+        expect: { route: EXECUTED, tier: T1, transfers: [{ contact: ana, currency: USD, amount: "100" }] }
+      - intake: { message: "Pay bob 100 USD" }
+        expect: { route: EXECUTED, tier: T1, transfers: [{ contact: bob, currency: USD, amount: "100" }] }
+  - id: N12
+    title: Save, then pay from the remaining balance
+    manualMinutes: 5
+    steps:
+      - intake: { message: "Save 300 USD" }
+        expect: { route: EXECUTED, tier: T1, savings: [{ currency: USD, amount: "300" }] }
+      - intake: { message: "Pay cara 80 BDT" }
+        expect: { route: EXECUTED, tier: T1, transfers: [{ contact: cara, currency: BDT, amount: "80" }] }

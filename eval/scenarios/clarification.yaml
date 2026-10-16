@@ -1,0 +1,49 @@
+# Ambiguous requests. The agent must ask a targeted question and move nothing.
+# questionIncludes: text the clarification must contain to count as targeted.
+suite: clarification
+scenarios:
+  - id: C01
+    title: Amount missing
+    steps:
+      - intake: { message: "Pay ana" }
+        expect: { route: ANSWER_ONLY, questionIncludes: "How much" }
+  - id: C02
+    title: Currency missing
+    steps:
+      - intake: { message: "Pay ana 50" }
+        expect: { route: ANSWER_ONLY, questionIncludes: "Which currency" }
+  - id: C03
+    title: Recipient missing
+    steps:
+      - intake: { message: "Pay 50 USD" }
+        expect: { route: ANSWER_ONLY, questionIncludes: "Which contact" }
+  - id: C04
+    title: Currency missing on a second contact
+    steps:
+      - intake: { message: "Pay bob 25" }
+        expect: { route: ANSWER_ONLY, questionIncludes: "Which currency" }
+  - id: C05
+    title: Recipient missing for a BDT amount
+    steps:
+      - intake: { message: "Pay 10 BDT" }
+        expect: { route: ANSWER_ONLY, questionIncludes: "Which contact" }
+  - id: C06
+    title: Vague amount and recipient
+    steps:
+      - intake: { message: "Send some money to bob" }
+        expect: { route: ANSWER_ONLY, questionIncludes: "How much USD or BDT should I pay contact bob" }
+  - id: C07
+    title: Amount written in words
+    steps:
+      - intake: { message: "Pay ana fifty USD" }
+        expect: { route: ANSWER_ONLY, questionIncludes: "amount in digits" }
+  - id: C08
+    title: Savings without an amount
+    steps:
+      - intake: { message: "Save some USD" }
+        expect: { route: ANSWER_ONLY, questionIncludes: "How much USD should I move to savings" }
+  - id: C09
+    title: Currency named informally
+    steps:
+      - intake: { message: "Pay ana 10 dollars" }
+        expect: { route: ANSWER_ONLY, questionIncludes: "Which currency, USD or BDT" }

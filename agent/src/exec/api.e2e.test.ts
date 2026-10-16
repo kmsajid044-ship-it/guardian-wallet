@@ -42,6 +42,7 @@ describe("agent API pipeline", () => {
       deployment,
       environment: { AGENT_PRIVATE_KEY: fixture.agentKey, OWNER_PRIVATE_KEY: fixture.ownerKey },
       contacts: { ana: fixture.activeRecipient },
+      evalResultsPath: join(directory, "no-eval-yet.json"),
       riskIntel: {
         checkPayee: async (address) => {
           riskChecks.push(address);
@@ -243,6 +244,18 @@ describe("agent API pipeline", () => {
     expect(audit.some((entry) => entry.kind === "attack_lab_result")).toBe(true);
     expect((await app.inject({ method: "GET", url: "/audit/verify" })).json()).toMatchObject({ valid: true });
   }, 30_000);
+
+  it("serves Value Dashboard metrics from the audit log", async () => {
+    const response = await app.inject({ method: "GET", url: "/value" });
+    expect(response.statusCode).toBe(200);
+    const body = response.json();
+    expect(body.eval).toBeNull();
+    expect(body.live.decisions).toBeGreaterThanOrEqual(3);
+    expect(body.live.routes.EXECUTED).toBeGreaterThanOrEqual(1);
+    expect(body.live.ownerApprovals).toBeGreaterThanOrEqual(1);
+    expect(Number(body.live.movedOut.USD)).toBeGreaterThanOrEqual(100);
+    expect(body.live.estimatedMinutesSaved).toBeGreaterThan(0);
+  });
 
   function appConfig(): Config {
     return {

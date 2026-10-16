@@ -37,6 +37,16 @@ pnpm attacks --api      # through the running agent API
 
 Each scenario deploys its own `GuardianWallet` and `DemoLedger`, so shared demo balances are untouched. Results name the layer that stopped the attack (firewall, risk scorer, tier gate, or on-chain contract), the reason, and the transaction hash or decoded revert. Scenarios A2, A3, A6, A7, A8, A9, and A10 are also sent straight to the contract with the agent key. See [docs/ATTACK_LAB_EVIDENCE.md](docs/ATTACK_LAB_EVIDENCE.md).
 
+## Evaluation and Value Dashboard
+
+```bash
+pnpm eval                    # all scenarios on the local chain; writes eval/results.json and docs/EVAL_REPORT.md
+pnpm eval N01 X03            # selected scenarios
+pnpm eval --llm=configured   # use the configured LLM provider for proposals
+```
+
+The owner console's Value Dashboard (`#/value`) shows the latest results against their targets, with live counts from the audit log. See [docs/EVAL_REPORT.md](docs/EVAL_REPORT.md).
+
 Run every gate with:
 
 ```bash

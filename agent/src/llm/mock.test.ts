@@ -29,4 +29,19 @@ describe("mock LLM adapter", () => {
   ])("identifies the missing payment field", (message, question) => {
     expect(parseWithMock({ message, source: "trusted", sourceRefs: [] })).toMatchObject({ kind: "answer_only", reason: question });
   });
+
+  it.each([
+    ["Send some money to bob", "How much USD or BDT should I pay contact bob?"],
+    ["Pay ana fifty USD", "Please give the amount in digits: how much USD should I pay contact ana?"],
+    ["Save some USD", "How much USD should I move to savings?"],
+    ["Save some money", "How much USD or BDT should I move to savings?"],
+    ["Pay ana 10 dollars", "Which currency, USD or BDT, should I use to pay contact ana? \"dollars\" is not a supported currency."],
+  ])("asks a targeted question for the vague request %s", (message, question) => {
+    expect(parseWithMock({ message, source: "trusted", sourceRefs: [] })).toMatchObject({ kind: "answer_only", reason: question });
+  });
+
+  it("keeps exact requests unchanged by the vague-request questions", () => {
+    expect(parseWithMock({ message: "Pay ana 10 USD", source: "trusted", sourceRefs: [] }).kind).toBe("pay");
+    expect(parseWithMock({ message: "Save 10 BDT", source: "trusted", sourceRefs: [] }).kind).toBe("save");
+  });
 });

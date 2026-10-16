@@ -104,6 +104,8 @@ The Attack Lab runs eleven fixed scenarios, each on a freshly deployed `Guardian
 
 A2, A3, A6, A7, A8, A9, and A10 are additionally sent straight to the contract with the agent or owner key, outside the pipeline. Refused calls are broadcast with a fixed gas ceiling so the refusal is packaged into a block with its own hash; the revert reason is decoded from a local call. Every result is appended to the audit chain as `attack_lab_result`, and every scenario is registered in `eval/scenarios/attack-lab.yaml`. A scenario that is not refused is reported as `NOT_BLOCKED`, never hidden.
 
+`pnpm eval` runs the evaluation suite in `eval/scenarios/`: owner tasks, ambiguous requests that must produce a targeted clarification, chat attacks, and the eleven Attack Lab scenarios. Each chat scenario runs on a fresh deployment and is judged on route, tier, flags, question, and exact on-chain balance changes. Targets: task success at least 90%, unsafe action rate 0%, attack block rate 100%; the run also reports clarification accuracy, latency, and estimated owner time saved against stated manual baselines. Results go to `eval/results.json` and `docs/EVAL_REPORT.md`, and the run exits non-zero when a target is missed.
+
 ## 10. Repository layout
 
 ```text
@@ -116,12 +118,14 @@ scripts/     Local development and repository checks
 docs/        Security, testing, and architecture evidence
 ```
 
-The web owner console provides agent chat with visible pipeline steps and clarification, a T2 approval inbox, T3 policy and allowlist settings, pause/resume controls, USD and BDT balance cards, a labelled cached FX reference, and a live receipt-verifiable audit table. Light and dark themes use bundled system fonts and large-format presentation sizing. The Attack Lab route runs the §9 scenarios with per-layer evidence. The Value Dashboard route is reserved for its dedicated build.
+The web owner console provides agent chat with visible pipeline steps and clarification, a T2 approval inbox, T3 policy and allowlist settings, pause/resume controls, USD and BDT balance cards, a labelled cached FX reference, and a live receipt-verifiable audit table. Light and dark themes use bundled system fonts and large-format presentation sizing. The Attack Lab route runs the §9 scenarios with per-layer evidence. The Value Dashboard shows the latest evaluation metrics against their targets, plus live counts from the audit log: decisions by route, owner approvals, value paid, saved, and blocked, Attack Lab results, and estimated time saved.
 
 ## 11. Chain runtime
 
 The primary runtime is a four-node local FISCO BCOS v3.16.4 Air network with PBFT and numeric chain ID 1337. Each node exposes a loopback-only Web3 JSON-RPC endpoint; the primary endpoint is `http://127.0.0.1:8545`. The application reuses viem for reads, simulation, and restricted signing. The official Java SDK console is used only to initialize local Web3 execution balances.
 
 The agent selects `fisco` (default) or `evm-local` through `CHAIN_BACKEND`. Both implementations use the restricted `ChainAdapter`; startup and build reject endpoints outside loopback and chain IDs outside the backend's fixed local mapping.
+
+FISCO BCOS reports `block.timestamp` in milliseconds. `GuardianWallet` and `DemoLedger` record a `clockScale` at deployment (1000 when the deployment timestamp is at least 1e11, otherwise 1) and divide every timestamp by it, so policy durations, pending expiry, recipient cooldown, the UTC-day spending bucket, and the savings year are seconds on both backends. The agent's FISCO policy reader mirrors this with wall-clock seconds.
 
 Contracts remain on Solidity 0.8.24. FISCO BCOS v3.16.4 includes the Cancun EVM feature and the official console supports Solidity through 0.8.26, so the same build artifacts run on FISCO BCOS and the local development fallback.

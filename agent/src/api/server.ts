@@ -14,6 +14,8 @@ import { RecurringScheduler } from "../scheduler/scheduler.js";
 import type { RiskIntelGateway } from "../riskIntel/client.js";
 import { AttackLab } from "../attack/attackLab.js";
 import { attackIds, type AttackId } from "../attack/types.js";
+import { readEvalSummary } from "../value/evalSummary.js";
+import { liveValueMetrics } from "../value/valueMetrics.js";
 import { z } from "zod";
 
 type ServerOptions = {
@@ -22,6 +24,7 @@ type ServerOptions = {
   contacts?: Readonly<Record<string, `0x${string}`>>;
   llmAdapter?: LlmAdapter;
   riskIntel?: RiskIntelGateway;
+  evalResultsPath?: string;
 };
 
 const ChatRequestSchema = z.object({
@@ -94,6 +97,7 @@ export function buildServer(config: Config, options: ServerOptions = {}): Fastif
   app.get("/pending", async () => state.pending());
   app.get("/audit", async () => audit.list());
   app.get("/audit/verify", async () => audit.verify());
+  app.get("/value", async () => ({ eval: readEvalSummary(options.evalResultsPath ?? resolveRepoPath("eval/results.json")), live: liveValueMetrics(audit.list()) }));
   app.get("/attack-lab", async () => attackLab.list());
   app.post<{ Params: { id: string } }>("/attack-lab/run/:id", async (request, reply) => {
     if (!attackIds.includes(request.params.id as AttackId)) return reply.code(404).send({ error: "ATTACK_NOT_FOUND" });

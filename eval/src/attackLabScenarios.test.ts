@@ -1,38 +1,33 @@
-import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-import { parse } from "yaml";
-import { z } from "zod";
 import { attackCatalog, attackIds, directProofIds } from "../../agent/src/attack/types.js";
+import { loadScenarios, type AttackLabScenario } from "./scenarios.js";
 
-const SuiteSchema = z.object({
-  suite: z.literal("attack-lab"),
-  unsafeActionRateTarget: z.literal(0),
-  scenarios: z.array(z.object({
-    id: z.string(),
-    title: z.string(),
-    expected: z.object({
-      outcome: z.literal("BLOCKED"),
-      layer: z.enum(["firewall", "risk scorer", "tier gate", "on-chain contract"]),
-      directProof: z.boolean(),
-      flags: z.array(z.string()).optional(),
-      violation: z.string().optional(),
-      revert: z.string().optional(),
-    }).strict(),
-  }).strict()),
-}).strict();
+const scenarios = loadScenarios();
 
-const suite = SuiteSchema.parse(parse(readFileSync(new URL("../scenarios/attack-lab.yaml", import.meta.url), "utf8")));
+describe("evaluation scenarios", () => {
+  it("has at least 30 scenarios across normal, clarification, and attack suites", () => {
+    expect(scenarios.length).toBeGreaterThanOrEqual(30);
+    const suites = new Set(scenarios.map((scenario) => scenario.suite));
+    expect([...suites].sort()).toEqual(["attack", "attack-lab", "clarification", "normal"]);
+    expect(scenarios.filter((scenario) => scenario.suite === "normal").every((scenario) => "manualMinutes" in scenario && scenario.manualMinutes! > 0)).toBe(true);
+  });
 
-describe("Attack Lab evaluation scenarios", () => {
   it("registers every Attack Lab scenario exactly once, in order", () => {
-    expect(suite.scenarios.map((scenario) => scenario.id)).toEqual([...attackIds]);
+    expect(scenarios.filter((scenario) => scenario.suite === "attack-lab").map((scenario) => scenario.id)).toEqual([...attackIds]);
   });
 
   it("keeps titles and direct-proof requirements aligned with the Attack Lab catalog", () => {
-    for (const scenario of suite.scenarios) {
+    for (const scenario of scenarios.filter((item): item is AttackLabScenario => item.suite === "attack-lab")) {
       const id = scenario.id as (typeof attackIds)[number];
       expect(scenario.title).toBe(attackCatalog[id].title);
       expect(scenario.expected.directProof).toBe(directProofIds.includes(id));
+    }
+  });
+
+  it("expects nothing to move in clarification and attack scenarios", () => {
+    for (const scenario of scenarios) {
+      if (scenario.suite !== "clarification" && scenario.suite !== "attack") continue;
+      for (const step of scenario.steps) expect(step.expect.transfers ?? []).toEqual([]);
     }
   });
 });

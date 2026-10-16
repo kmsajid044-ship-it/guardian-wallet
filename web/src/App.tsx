@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState, type FormEvent, type ReactNode } from "react";
 import { AttackLab } from "./AttackLab";
+import { ValueDashboard } from "./ValueDashboard";
 
 const API = import.meta.env.VITE_AGENT_API_URL ?? "http://127.0.0.1:8787";
 const footer = "Simulated ledger, demo units, no real money. Permissioned chain operated by the team. Research prototype.";
@@ -44,7 +45,7 @@ export default function App() {
         {route === "/" && <Dashboard state={state} pending={pending} audit={audit} refresh={refresh} />}
         {route === "/policy" && <Policy state={state} contacts={contacts} refresh={refresh} />}
         {route === "/attack-lab" && <AttackLab api={api} />}
-        {route === "/value" && <Placeholder eyebrow="Outcome reporting" title="Value Dashboard" text="Time saved, prevented loss, and savings metrics will be added in the next build." />}
+        {route === "/value" && <ValueDashboard api={api} />}
       </main>
       <footer className="border-t border-slate-200 bg-white/80 px-6 py-5 text-center text-sm font-medium text-slate-500 dark:border-white/10 dark:bg-[#0b1714] dark:text-slate-400">{footer}</footer>
     </div>
@@ -105,4 +106,3 @@ function Card({title,kicker,children}:{title:string;kicker:string;children:React
 function BalanceCard({label,value,savings}:{label:string;value:string;savings:string}){return <div className="card"><p className="eyebrow">{label}</p><p className="mt-3 text-4xl font-bold tracking-tight">{value}</p><p className="mt-3 text-sm text-slate-500">{savings} in savings</p></div>}
 function Metric({label,value,sub}:{label:string;value:string;sub:string}){return <div className="card"><p className="eyebrow">{label}</p><p className="mt-3 text-2xl font-bold">{value}</p><p className="mt-3 text-sm text-slate-500">{sub}</p></div>}
 function Empty({text}:{text:string}){return <div className="grid min-h-36 place-items-center rounded-2xl border border-dashed border-slate-300 text-sm text-slate-400 dark:border-white/15">{text}</div>}
-function Placeholder({eyebrow,title,text}:{eyebrow:string;title:string;text:string}){return <div className="grid min-h-[65vh] place-items-center"><div className="max-w-xl text-center"><p className="eyebrow">{eyebrow}</p><h1 className="page-title mt-3">{title}</h1><p className="mt-4 text-lg text-slate-500">{text}</p><a href="#/" className="primary-button mt-7 inline-block">Back to operations</a></div></div>}

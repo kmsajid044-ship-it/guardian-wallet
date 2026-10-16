@@ -14,13 +14,25 @@ export function parseWithMock(intake: Intake): ActionProposal {
   const missingAmount = text.match(/^pay\s+([a-z][a-z0-9_-]*)$/i);
   const missingCurrency = text.match(new RegExp(`^pay\\s+([a-z][a-z0-9_-]*)\\s+${amount}$`, "i"));
   const missingRecipient = text.match(new RegExp(`^pay\\s+${amount}\\s+(usd|bdt)$`, "i"));
+  const vagueRecipientAmount = text.match(/^(?:send|pay|give|transfer)\s+(?:some\s+money|some|money|something)\s+to\s+([a-z][a-z0-9_-]*)$/i);
+  const amountInWords = text.match(/^pay\s+([a-z][a-z0-9_-]*)\s+([a-z]+(?:[\s-][a-z]+)*)\s+(usd|bdt)$/i);
+  const vagueSavings = text.match(/^save\s+(?:some|more|a\s+little)\s+(usd|bdt|money)$/i);
+  const unsupportedCurrency = text.match(new RegExp(`^pay\\s+([a-z][a-z0-9_-]*)\\s+${amount}\\s+([a-z]+)$`, "i"));
   const question = missingAmount
     ? `How much USD or BDT should I pay contact ${missingAmount[1]!.toLowerCase()}?`
     : missingCurrency
       ? `Which currency, USD or BDT, should I use to pay contact ${missingCurrency[1]!.toLowerCase()}?`
       : missingRecipient
         ? `Which contact ID should receive ${missingRecipient[1]} ${missingRecipient[2]!.toUpperCase()}?`
-        : "Please provide an unambiguous contact ID, amount, currency, and action.";
+        : vagueRecipientAmount
+          ? `How much USD or BDT should I pay contact ${vagueRecipientAmount[1]!.toLowerCase()}?`
+          : amountInWords
+            ? `Please give the amount in digits: how much ${amountInWords[3]!.toUpperCase()} should I pay contact ${amountInWords[1]!.toLowerCase()}?`
+            : vagueSavings
+              ? vagueSavings[1]!.toLowerCase() === "money" ? "How much USD or BDT should I move to savings?" : `How much ${vagueSavings[1]!.toUpperCase()} should I move to savings?`
+              : unsupportedCurrency
+                ? `Which currency, USD or BDT, should I use to pay contact ${unsupportedCurrency[1]!.toLowerCase()}? "${unsupportedCurrency[3]!.toLowerCase()}" is not a supported currency.`
+                : "Please provide an unambiguous contact ID, amount, currency, and action.";
   return ActionProposalSchema.parse({ kind: "answer_only", reason: question, sourceRefs: intake.sourceRefs });
 }
 export function formatIntakeForModel(intake: Intake): string {
