@@ -1,7 +1,7 @@
 {
   "running": {
     "mode": "running",
-    "verifiedAt": "2026-10-16T16:28:22.377Z",
+    "verifiedAt": "2026-10-16T16:57:38.028Z",
     "transactions": 118,
     "endpoints": [
       {
@@ -33,11 +33,11 @@
   },
   "fresh": {
     "mode": "fresh",
-    "verifiedAt": "2026-10-16T16:29:38.853Z",
+    "verifiedAt": "2026-10-16T16:58:53.367Z",
     "original": {
       "transactions": 118,
-      "firstBlock": 3241,
-      "lastBlock": 3358
+      "firstBlock": 131,
+      "lastBlock": 248
     },
     "replay": {
       "transactions": 118,

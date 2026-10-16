@@ -1,11 +1,11 @@
 {
   "node": "node3",
   "file": "evidence/node-snapshot/node3-data.tar.gz",
-  "sha256": "4fdf0ba4595f6f680fb59545a535d2b1261b52a47faf41839ee00d779fecca43",
-  "bytes": 6246132,
-  "blockNumber": 3358,
-  "blockHash": "0x91e124ecc6d3c6148379381ca0a5e3bac553fd3bff2d5b967ffcebffa53fc2de",
-  "takenAt": "2026-10-16T16:28:21Z",
+  "sha256": "80dca9a8b9f4352419429c288c34a0ad1073b426aec9eb0175cc8688072c7584",
+  "bytes": 516092,
+  "blockNumber": 248,
+  "blockHash": "0x1648536373ab96696e5e1a01891062919cfaa6a52d0ce94d7358bcf8b3d86063",
+  "takenAt": "2026-10-16T16:57:23Z",
   "excludes": [
     "conf/ (node and SSL keys)",
     "log/"

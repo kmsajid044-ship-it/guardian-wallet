@@ -17,13 +17,14 @@ It runs on a four-node local FISCO BCOS network, a permissioned chain operated b
 
 | What | Result | Source |
 |---|---|---|
-| Evaluation, 41 scenarios on FISCO BCOS | Task success 100% (41/41), unsafe action rate 0% (0/41), attack block rate 100% (20/20), clarification accuracy 100% (9/9) | [docs/EVAL_REPORT.md](docs/EVAL_REPORT.md) |
+| Evaluation, 41 original scenarios on FISCO BCOS | Task success 100% (41/41), unsafe action rate 0% (0/41), attack block rate 100% (20/20), clarification accuracy 100% (9/9) | [docs/EVAL_REPORT.md](docs/EVAL_REPORT.md) |
+| Held-out scenarios (20 scenarios) | Written from docs only; pending LLM evaluation | [eval/scenarios/heldout/](eval/scenarios/heldout/) |
 | Agent latency | 233 ms average, 625 ms p95 over 33 agent requests, including on-chain confirmation | [docs/EVAL_REPORT.md](docs/EVAL_REPORT.md) |
 | Estimated owner time saved | 41.9 min over 12 owner tasks, 3.49 min per task (an estimate against stated manual baselines) | [docs/EVAL_REPORT.md](docs/EVAL_REPORT.md) |
 | On-chain evidence | 118 FISCO BCOS transactions with receipts; all 118 re-verified on all four nodes; a fresh-network replay reproduced 16/16 scenarios and 118/118 transaction effects | [docs/EXECUTION_EVIDENCE.md](docs/EXECUTION_EVIDENCE.md) |
 | Attack Lab | 11 of 11 attacks blocked; A2, A3, A6, A7, A8, A9, and A10 also refused when sent straight to the contract | [docs/ATTACK_LAB_EVIDENCE.md](docs/ATTACK_LAB_EVIDENCE.md) |
 
-The evaluation uses the deterministic proposal parser, so it measures the code that verifies, enforces, and routes proposals rather than a language model's understanding; see the report's scope section.
+Current evaluation numbers use the deterministic offline parser (mock adapter), measuring the code that verifies, enforces, and routes proposals rather than a language model's natural language understanding; LLM evaluation is pending. See the report's scope section.
 
 ## Setup
 
