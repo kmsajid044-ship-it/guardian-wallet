@@ -16,7 +16,7 @@ async function blockHeight(request: import("@playwright/test").APIRequestContext
 test("approves and rejects real pending items from the Control Center", async ({ page, request }) => {
   await useLiveAgent(page, agent);
   await page.goto("/#/agent");
-  await expect(page.getByTestId("chain-badge")).toHaveText(/^Local Anvil \(dev fallback\) · chain 31337 · block #\d+$/);
+  await expect(page.getByTestId("chain-badge")).toHaveText(/^Local Anvil \(dev fallback\) · 31337 · #\d+$/);
   for (const amount of ["250", "260"]) {
     await page.getByLabel("Message the agent").fill(`Pay Ana ${amount} USD`);
     await page.getByRole("button", { name: "Send", exact: true }).click();

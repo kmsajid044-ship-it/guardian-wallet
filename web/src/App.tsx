@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState, type ComponentType, type FormEvent, type ReactNode } from "react";
-import { ArrowRight, BarChart3, Bot, CheckCircle2, CircleCheck, CircleDot, FileCheck2, Hand, House, ListChecks, Moon, Pause, Play, ShieldAlert, ShieldCheck, SlidersHorizontal, Sparkles, Sun, UserRound, Wallet as WalletIcon } from "lucide-react";
+import { ArrowLeft, ArrowRight, BarChart3, Bot, CheckCircle2, CircleCheck, CircleDot, FileCheck2, Hand, House, ListChecks, Moon, Pause, Play, Send, ShieldAlert, ShieldCheck, SlidersHorizontal, Sparkles, Sun, UserRound, Wallet as WalletIcon } from "lucide-react";
 import { AttackLab } from "./AttackLab";
 import { EvidenceInspector } from "./EvidenceInspector";
 import { PlanView, type Plan } from "./PlanView";
@@ -73,7 +73,7 @@ export default function App() {
 
 function Console() {
   const toast = useToast();
-  const [dark, setDark] = useState(false);
+  const [dark, setDark] = useState(true);
   const [hashRoute, setRoute] = useState(location.hash.slice(1) || "/");
   const route = aliases[hashRoute] ?? hashRoute;
   const page = pages.find((item) => item.href === route) ?? pages[0]!;
@@ -112,19 +112,25 @@ function Console() {
   const resume = () => void setPaused(false);
 
   return <div>
-    <div className="min-h-screen bg-page text-fg lg:grid lg:grid-cols-[248px_minmax(0,1fr)]">
-      <Sidebar route={route} />
+    <div className="min-h-screen bg-page text-fg">
       <div className="flex min-h-screen min-w-0 flex-col">
-        <TopBar page={page} chain={chain} paused={state.paused} switching={switching} dark={dark} setDark={setDark} askPause={askPause} resume={resume} />
+        <TopBar route={route} chain={chain} paused={state.paused} switching={switching} dark={dark} setDark={setDark} askPause={askPause} resume={resume} />
         {state.paused && <div data-testid="paused-banner" role="status" className="border-b border-[color-mix(in_srgb,var(--color-warn)_30%,transparent)] bg-warn-bg">
           <div className="mx-auto flex w-full max-w-[1440px] flex-wrap items-center justify-between gap-3 px-6 py-3 text-body font-medium text-warn lg:px-10">
             <span className="inline-flex items-center gap-2"><Hand aria-hidden className="size-4" />All AI payments are paused. Only the owner can resume.</span>
             <button data-testid="banner-resume" onClick={resume} disabled={switching} className="secondary-button"><Play aria-hidden className="size-4" />Resume</button>
           </div>
         </div>}
-        <main className="mx-auto w-full max-w-[1440px] flex-1 space-y-6 px-6 py-8 lg:px-10">
+        <main className="mx-auto w-full max-w-[1600px] flex-1 space-y-8 px-5 py-8 md:px-8 lg:px-12">
+          <section className="page-heading">
+            <div className="flex items-center gap-3">
+              {route !== "/" && <a href="#/" aria-label="Back to Home" className="icon-button"><ArrowLeft aria-hidden className="size-4" /></a>}
+              <div><p className="eyebrow">Owner console</p><h1 data-testid="page-title" className="font-display text-display font-medium tracking-tight">{page.label}</h1></div>
+            </div>
+            <p className="mt-2 max-w-3xl text-body text-fg2">{page.lead}</p>
+          </section>
           {error && <ErrorState message={`Cannot reach the agent service: ${error}`} retry={() => void refresh()} />}
-          {route === "/" && <Home state={state} pending={pending} loaded={loaded} askPause={askPause} resume={resume} />}
+          {route === "/" && <Home state={state} pending={pending} loaded={loaded} askPause={askPause} />}
           {route === "/agent" && <AgentPage state={state} contacts={contacts} refresh={refresh} />}
           {route === "/wallet" && <Wallet state={state} audit={audit} loaded={loaded} />}
           {route === "/control" && <ControlCenter state={state} pending={pending} contacts={contacts} loaded={loaded} refresh={refresh} askPause={askPause} resume={resume} switching={switching} />}
@@ -141,33 +147,22 @@ function Console() {
   </div>;
 }
 
-function Sidebar({ route }: { route: string }) {
-  return <aside className="bg-ink text-white lg:min-h-screen">
-    <div className="lg:sticky lg:top-0">
-    <div className="flex items-center gap-3 px-6 py-5 lg:py-7">
-      <span aria-hidden className="grid size-9 place-items-center rounded-control bg-cobalt"><ShieldCheck className="size-5 text-white" /></span>
-      <span><b className="block font-display text-heading leading-tight">Guardian Wallet</b><span className="text-small text-[#A9B3C7]">Owner console</span></span>
-    </div>
-    <nav aria-label="Main" className="flex gap-1 overflow-x-auto px-3 pb-3 lg:flex-col lg:overflow-visible lg:pb-0">
-      {pages.map(({ href, label, icon: Icon }) => {
-        const active = route === href;
-        return <a key={href} href={`#${href}`} aria-current={active ? "page" : undefined} className={`flex min-h-10 shrink-0 items-center gap-3 rounded-control px-3 py-2 text-body font-medium transition-colors ${active ? "bg-[#1C2740] text-white" : "text-[#C3CAD8] hover:bg-[#151F33] hover:text-white"}`}>
-          <Icon aria-hidden className={`size-[18px] shrink-0 ${active ? "text-[#8FB0F5]" : ""}`} />{label}
-        </a>;
-      })}
-    </nav>
-    <p className="hidden px-6 pt-8 text-small leading-5 text-[#A9B3C7] lg:block">Research prototype. Demo units on a simulated ledger; no real money.</p>
-    </div>
-  </aside>;
-}
-
-function TopBar({ page, chain, paused, switching, dark, setDark, askPause, resume }: { page: Page; chain: Chain | undefined; paused: boolean; switching: boolean; dark: boolean; setDark(value: boolean): void; askPause(): void; resume(): void }) {
-  return <header className="sticky top-0 z-20 border-b border-line bg-page">
-    <div className="mx-auto flex w-full max-w-[1440px] flex-wrap items-center gap-3 px-6 py-4 lg:px-10">
-      <h1 data-testid="page-title" className="mr-auto font-display text-figure font-semibold">{page.label}</h1>
+function TopBar({ route, chain, paused, switching, dark, setDark, askPause, resume }: { route: string; chain: Chain | undefined; paused: boolean; switching: boolean; dark: boolean; setDark(value: boolean): void; askPause(): void; resume(): void }) {
+  return <header className="sticky top-0 z-20 border-b border-line bg-page/95 backdrop-blur-sm">
+    <div className="mx-auto flex w-full max-w-[1600px] flex-wrap items-center gap-3 px-5 py-4 md:px-8 lg:px-12">
+      <a href="#/" className="mr-auto inline-flex min-h-10 items-center gap-3" aria-label="Guardian Wallet Home">
+        <span aria-hidden className="grid size-10 place-items-center rounded-full bg-cobalt text-ink"><ShieldCheck className="size-5" /></span>
+        <span className="font-display text-heading font-medium">Guardian Wallet</span>
+      </a>
+      <nav aria-label="Main" className="order-3 flex w-full gap-1 overflow-x-auto rounded-full border border-line bg-surface p-1 xl:order-none xl:w-auto">
+        {pages.map(({ href, label, icon: Icon }) => {
+          const active = route === href;
+          return <a key={href} href={`#${href}`} aria-label={label} aria-current={active ? "page" : undefined} className={`nav-pill ${active ? "nav-pill-active" : ""}`}><Icon aria-hidden className="size-4 shrink-0" /><span>{label === "Evidence Inspector" ? "Evidence" : label}</span></a>;
+        })}
+      </nav>
       <span className="status-pill border-line bg-surface text-fg2" title="Read from the node by the agent">
         <span aria-hidden className={`size-2 rounded-full ${chain ? "bg-ok" : "bg-muted"}`} />
-        <span data-testid="chain-badge" className="mono">{chain ? `${backendNames[chain.backend] ?? chain.backend} · chain ${chain.chainId} · block #${chain.blockHeight}` : "Disconnected"}</span>
+        <span data-testid="chain-badge" className="mono">{chain ? `${backendNames[chain.backend] ?? chain.backend} · ${chain.chainId} · #${chain.blockHeight}` : "Disconnected"}</span>
         <InfoTip term="block" text={TERMS.block} />
       </span>
       <span className="status-pill border-line bg-surface text-fg2"><UserRound aria-hidden className="size-3.5" />Owner<InfoTip term="role" text="You are signed in as the wallet owner: you approve requests, change limits, and can pause or resume. A guardian may only pause." /></span>
@@ -198,25 +193,27 @@ function greeting(): string {
 
 // ------------------------------------------------------------------ Home
 
-function Home({ state, pending, loaded, askPause, resume }: { state: State; pending: Pending[]; loaded: boolean; askPause(): void; resume(): void }) {
+function Home({ state, pending, loaded, askPause }: { state: State; pending: Pending[]; loaded: boolean; askPause(): void }) {
   const split = POSITIONING.indexOf(". ") + 1;
   return <div className="space-y-6">
-    <section className="card">
+    <section className="home-hero card">
       <p className="eyebrow">{greeting()}, owner</p>
-      <p data-testid="positioning" className="mt-2"><span className="text-body text-fg2">{POSITIONING.slice(0, split)}</span>{" "}<span className="mt-1 block font-display text-display font-semibold tracking-tight text-fg">{POSITIONING.slice(split + 1)}</span></p>
+      <p data-testid="positioning" className="mt-2"><span className="text-body text-fg2">{POSITIONING.slice(0, split)}</span>{" "}<span className="mt-2 block max-w-4xl font-display text-[clamp(2rem,4vw,3.5rem)] font-light leading-[1.05] tracking-[-.04em] text-fg">{POSITIONING.slice(split + 1)}</span></p>
       <p className="mt-3 text-body text-fg2">This is a research prototype: balances are simulated demo units. No real money and no customer funds are involved.</p>
     </section>
 
-    <section className="grid gap-6 lg:grid-cols-3">
-      <Card title="Balances" tip={TERMS.demoBalance} action={<a href="#/wallet" className="link-button">Wallet<ArrowRight aria-hidden className="size-4" /></a>}>
+    <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+      <Card title="USD balance" tip={TERMS.demoBalance}>
         {!loaded ? <SkeletonRows rows={2} /> : state.balances.length === 0 ? <Empty text="No balances yet. Seed the demo ledger to see them here." /> : <ul className="space-y-3">
-          {state.balances.map((balance) => <li key={balance.code} data-testid="home-balance">
+          {state.balances.filter((balance) => balance.code === "USD").map((balance) => <li key={balance.code} data-testid="home-balance">
             <div className="flex items-center justify-between gap-3"><span className="label">{balance.code} available</span><span className="code-tag">DEMO BALANCE</span></div>
-            <p className="figure whitespace-nowrap text-figure">{balance.available} <span className="text-heading text-fg2">{balance.code}</span></p>
+            <p className="figure hero-number whitespace-nowrap"><span className="currency-mark">$</span>{balance.available}</p>
             <p className="text-small text-muted">{balance.savings} {balance.code} in savings</p>
-            {balance.disclaimer && <p className="mt-1 text-small text-muted">{balance.disclaimer}</p>}
           </li>)}
         </ul>}
+      </Card>
+      <Card title="CNY balance" tip={TERMS.demoBalance}>
+        {!loaded ? <SkeletonRows rows={2} /> : <ul className="space-y-3">{state.balances.filter((balance) => balance.code === "CNY").map((balance) => <li key={balance.code} data-testid="home-balance"><div className="flex items-center justify-between gap-3"><span className="label">{balance.code} available</span><span className="code-tag">DEMO BALANCE</span></div><p className="figure hero-number whitespace-nowrap"><span className="currency-mark">¥</span>{balance.available}</p><p className="text-small text-muted">{balance.savings} {balance.code} in savings</p>{balance.disclaimer && <p className="mt-2 text-small text-muted">{balance.disclaimer}</p>}</li>)}</ul>}
       </Card>
       <Card title="Needs your approval">
         <a href="#/control" data-testid="glance-pending" className="block">
@@ -226,12 +223,11 @@ function Home({ state, pending, loaded, askPause, resume }: { state: State; pend
         <p className="mt-2 text-body text-fg2">{pending.length ? "The AI stopped and is waiting for your decision." : "No approvals waiting. Your AI is working within its limits."}</p>
         <a href="#/control" className="primary-button mt-4 w-full">Review approvals<ArrowRight aria-hidden className="size-4" /></a>
       </Card>
-      <Card title="AI payments" tip={TERMS.killSwitch}>
-        {state.paused ? <Chip tone="warn" icon={Hand} testId="home-switch">Paused</Chip> : <Chip tone="ok" icon={CircleCheck} testId="home-switch">On</Chip>}
-        <p className="mt-3 text-body text-fg2">{state.paused ? "Nothing moves until you resume. The contract enforces this." : `The AI may pay allowlisted contacts below ${state.approvalThreshold} USD on its own; ${state.remainingDaily} USD of today's limit is left.`}</p>
-        {state.paused
-          ? <button onClick={resume} className="primary-button mt-4 w-full"><Play aria-hidden className="size-4" />Resume</button>
-          : <button onClick={askPause} className="danger-button mt-4 w-full"><Pause aria-hidden className="size-4" />Pause everything</button>}
+      <Card title="Attacks blocked" tip="Attack Lab scenarios refused by the AI or contract.">
+        <p className="figure hero-number">11<span className="ml-2 text-heading text-fg2">of 11</span></p>
+        <div className="progress-track mt-4"><span style={{ width: "100%" }} /></div>
+        <p className="mt-3 text-body text-fg2">Every fixed attack scenario has a safe stopping layer.</p>
+        <span className="sr-only" data-testid="home-switch">{state.paused ? "Paused" : "On"}</span>
       </Card>
     </section>
 
@@ -326,6 +322,7 @@ function outcomeSentence(result: ChatResult, state: State, contacts: Contact[]):
 
 function Chat({ state, contacts, refresh }: { state: State; contacts: Contact[]; refresh(): Promise<void> }) {
   const [message, setMessage] = useState(""); const [result, setResult] = useState<ChatResult>(); const [busy, setBusy] = useState(false); const [error, setError] = useState(""); const [last, setLast] = useState("");
+  useEffect(() => { const prefill = sessionStorage.getItem("guardian-agent-prefill"); if (prefill) { setMessage(prefill); sessionStorage.removeItem("guardian-agent-prefill"); } }, []);
   async function send(text: string) {
     if (!text.trim() || busy) return;
     setBusy(true); setError(""); setLast(text);
@@ -337,7 +334,7 @@ function Chat({ state, contacts, refresh }: { state: State; contacts: Contact[];
   const steps = useMemo(() => result && !result.plan ? [{ label: "Intent understood", done: true }, { label: "Firewall passed", done: result.route !== "BLOCKED" || result.why?.decidedBy.layer !== "firewall" }, { label: "Policy & simulation", done: ["EXECUTED", "NEEDS_APPROVAL"].includes(result.route) }, { label: result.route === "NEEDS_APPROVAL" ? "Owner approval required" : "Execution complete", done: result.route === "EXECUTED" }] : [], [result]);
   async function planChanged(plan: Plan) { setResult((current) => current ? { ...current, route: "PLAN", explanation: `Plan ${plan.status.replaceAll("_", " ").toLowerCase()}.`, plan } : current); await refresh(); }
   const code = result ? (result.plan ? result.plan.status : result.route) : "";
-  return <Card title="Ask the AI" kicker="Press Enter to send">
+  return <Card title="Ask the AI" kicker="Press Enter to send" className="agent-workspace">
     <p className="label">Try one of these</p>
     <div className="mt-2 flex flex-wrap gap-2">
       {EXAMPLES.map((example) => <button key={example} type="button" onClick={() => { setMessage(example); void send(example); }} disabled={busy} className="min-h-10 rounded-full border border-line bg-surface px-4 py-2 text-left text-body text-fg hover:border-cobalt hover:text-cobalt">{example}</button>)}
@@ -393,6 +390,11 @@ const auditKinds: Record<string, string> = {
 };
 
 function Wallet({ state, audit, loaded }: { state: State; audit: AuditEntry[]; loaded: boolean }) {
+  const [recipient, setRecipient] = useState("ana");
+  const [amount, setAmount] = useState("");
+  const [currency, setCurrency] = useState("USD");
+  const recipients = ["ana", "bob", "cara"];
+  function askAgent() { if (!amount.trim()) return; sessionStorage.setItem("guardian-agent-prefill", `Pay ${recipient[0]!.toUpperCase()}${recipient.slice(1)} ${amount} ${currency}`); location.hash = "/agent"; }
   return <div className="space-y-6">
     <PageHeader lead={pageLead("/wallet")}>Balances are read from the simulated ledger on chain.</PageHeader>
     <section className="grid gap-6 md:grid-cols-2 2xl:grid-cols-4">
@@ -402,12 +404,18 @@ function Wallet({ state, audit, loaded }: { state: State; audit: AuditEntry[]; l
       <div className="card"><p className="label inline-flex items-center gap-1">Daily spending left<InfoTip term="daily limit" text={TERMS.dailyLimit} /></p><p className="figure mt-2 text-figure">{state.remainingDaily} USD</p><p className="mt-2 text-body text-fg2">{state.spentToday} USD used today of {state.dailyLimit} USD.</p></div>
       <div className="card"><p className="label">FX reference</p><p className="figure mt-2 text-figure">1 USD = 7.10 CNY</p><p className="mt-2 text-small text-muted">Illustrative cached snapshot of 2026-10-16 · not a market rate · read only, never used to compute amounts</p></div>
     </section>
+    <section className="card send-panel">
+      <div className="grid gap-8 lg:grid-cols-[.8fr_1.2fr]">
+        <div><p className="eyebrow">Send with safeguards</p><h2 className="mt-2 font-display text-figure font-medium">Who should the AI pay?</h2><div className="mt-5 flex flex-wrap gap-4">{recipients.map((id) => <button key={id} type="button" onClick={() => setRecipient(id)} aria-pressed={recipient === id} className={`recipient-button ${recipient === id ? "recipient-button-active" : ""}`}><span>{id.slice(0, 1).toUpperCase()}</span>{id[0]!.toUpperCase() + id.slice(1)}</button>)}</div><p className="mt-5 text-small text-muted">Only contacts on the allowlist appear here.</p></div>
+        <div className="send-amount-panel"><p className="label text-center">Amount for {recipient[0]!.toUpperCase() + recipient.slice(1)}</p><label className="send-amount"><span className="sr-only">Payment amount</span><span className="currency-mark">{currency === "USD" ? "$" : "¥"}</span><input value={amount} onChange={(event) => setAmount(event.target.value)} inputMode="decimal" placeholder="0.00" /></label><p className="text-center text-small text-muted">Available {state.balances.find((item) => item.code === currency)?.available ?? "—"} {currency}</p><div className="mx-auto mt-4 flex w-fit rounded-full border border-line bg-inner p-1">{["USD", "CNY"].map((code) => <button key={code} type="button" onClick={() => setCurrency(code)} className={`currency-switch ${currency === code ? "currency-switch-active" : ""}`}>{code}</button>)}</div><button type="button" onClick={askAgent} disabled={!amount.trim()} className="primary-button mt-5 w-full"><Send aria-hidden className="size-4" />Ask AI to pay</button>{currency === "CNY" && <p className="mt-3 text-small text-muted">{CNY_DISCLAIMER}</p>}</div>
+      </div>
+    </section>
     <AuditLog entries={audit} loaded={loaded} />
   </div>;
 }
 
 function BalanceCard({ balance }: { balance: Balance }) {
-  return <div className="card" data-testid="balance-card">
+  return <div className={`card bank-card bank-card-${balance.code.toLowerCase()}`} data-testid="balance-card">
     <div className="flex items-start justify-between gap-2"><p className="label">{balance.code} available</p><span data-testid="demo-balance" className="code-tag">DEMO BALANCE</span></div>
     <p className="figure mt-2 text-display">{balance.available}<span className="ml-2 text-heading text-fg2">{balance.code}</span></p>
     <p className="mt-2 text-body text-fg2">{balance.savings} {balance.code} in savings</p>
@@ -560,10 +568,11 @@ function WhyPanel({ why, testId = "why-panel" }: { why: WhyDecision; testId?: st
   return <section data-testid={testId} className="rounded-control border border-line bg-surface p-4 text-left">
     <div className="flex flex-wrap items-center justify-between gap-2"><b className="font-display text-heading font-semibold">Why this action?</b><StatusChip code={why.decision} /></div>
     <dl className="mt-3 grid gap-3 sm:grid-cols-3">
-      <div><dt className="label"><Term tip={TERMS.riskScore}>Risk score</Term></dt><dd data-testid="why-score" className="figure text-heading">{why.riskScore === null ? "Not scored" : `${why.riskScore}/100`}</dd></div>
+      <div><dt className="label"><Term tip={TERMS.riskScore}>Risk score</Term></dt><dd data-testid="why-score" className="figure text-display">{why.riskScore === null ? "Not scored" : `${why.riskScore}/100`}</dd></div>
       <div><dt className="label">Risk class</dt><dd data-testid="why-class" className="text-body font-medium capitalize">{why.riskClass}</dd></div>
       <div><dt className="label">Your approval</dt><dd data-testid="why-approval" className="text-body font-medium">{why.decidedBy.ownerApprovalRequired ? "Required" : "Not required"}</dd></div>
     </dl>
+    {why.riskScore !== null && <div className="risk-track mt-4" aria-label={`Risk score ${why.riskScore} out of 100`}><span className="risk-fill" style={{ width: `${why.riskScore}%` }} /><i style={{ left: "60%" }}>60</i><i style={{ left: "85%" }}>85</i></div>}
     <p className="label mt-3">Risk factors the engine computed</p>
     {why.factors.length === 0 ? <p data-testid="why-factors" className="mt-1 text-body text-fg2">No risk factors applied to this action.</p> : <ul data-testid="why-factors" className="mt-1 space-y-1 text-body">{why.factors.map((factor) => <li key={factor.code} className="flex flex-wrap items-baseline gap-x-2"><b className="mono font-medium">+{factor.points}</b><span className="text-fg2">{factor.explanation}</span><code className="code-tag ml-auto">{factor.code}</code></li>)}</ul>}
     <div className="mt-3 rounded-control bg-subtle p-3"><p className="label">Decided by</p><p data-testid="why-decided-by" className="text-body font-medium">{why.decidedBy.layer} · {why.decidedBy.rule.replaceAll("_", " ")}</p><p className="mt-1 text-body text-fg2">{why.decidedBy.detail}</p></div>

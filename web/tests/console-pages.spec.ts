@@ -6,6 +6,7 @@ import { expect, test, type Page } from "@playwright/test";
 // flows once, then a 1920×1080 screenshot of every page. Opt-in, because it moves demo units on the
 // demo chain:  E2E_CONSOLE_URL=http://localhost:3000 pnpm --filter web exec playwright test console-pages
 const CONSOLE = process.env.E2E_CONSOLE_URL;
+const CAPTURE_ONLY = process.env.E2E_CAPTURE_ONLY === "1";
 const directory = resolve(process.cwd(), "../docs/screenshots");
 
 test.use({ viewport: { width: 1920, height: 1080 }, ...(CONSOLE ? { baseURL: CONSOLE } : {}) });
@@ -17,7 +18,13 @@ async function shot(page: Page, name: string, { keepToasts = false } = {}) {
   const hidden = keepToasts ? undefined : await page.addStyleTag({ content: "[data-testid=toast] { display: none !important; }" });
   await page.evaluate(() => scrollTo(0, 0));
   await page.waitForTimeout(400);
-  await page.screenshot({ path: resolve(directory, `${name}.png`) });
+  if (!await page.locator("html").evaluate((element) => element.classList.contains("dark"))) await page.getByLabel("Toggle color mode").click();
+  await page.waitForTimeout(200);
+  await page.screenshot({ path: resolve(directory, `${name}-dark.png`) });
+  await page.getByLabel("Toggle color mode").click();
+  await page.waitForTimeout(200);
+  await page.screenshot({ path: resolve(directory, `${name}-light.png`) });
+  await page.getByLabel("Toggle color mode").click();
   await hidden?.evaluate((element) => element.remove());
 }
 
@@ -30,7 +37,16 @@ async function ask(page: Page, example: string) {
 test("runs the main flows on FISCO BCOS and captures every page", async ({ page }) => {
   test.skip(!CONSOLE, "Set E2E_CONSOLE_URL to the running console, e.g. http://localhost:3000");
   await page.goto("/#/agent");
-  await expect(page.getByTestId("chain-badge")).toHaveText(/^FISCO BCOS · chain 1337 · block #\d+$/, { timeout: 30_000 });
+  await expect(page.getByTestId("chain-badge")).toHaveText(/^FISCO BCOS · 1337 · #\d+$/, { timeout: 30_000 });
+
+  if (CAPTURE_ONLY) {
+    for (const [route, name] of [["/", "home"], ["/agent", "ai-agent"], ["/wallet", "wallet"], ["/control", "control-center"], ["/attack-lab", "attack-lab"], ["/evidence", "evidence-inspector"], ["/evaluation", "evaluation"]] as const) {
+      await page.goto(`/#${route}`);
+      await expect(page.getByTestId("page-title")).toBeVisible();
+      await shot(page, name);
+    }
+    return;
+  }
 
   // 1. Pay 50 USD, then verify its receipt.
   await ask(page, "Pay Ana 50 USD");
@@ -80,6 +96,11 @@ test("runs the main flows on FISCO BCOS and captures every page", async ({ page 
   await page.goto("/#/wallet");
   await expect(page.getByTestId("balance-card").first()).toBeVisible();
   await shot(page, "wallet");
+  await page.getByLabel("Payment amount").fill("5");
+  await page.getByRole("button", { name: "Ask AI to pay" }).click();
+  await expect(page.getByLabel("Message the agent")).toHaveValue("Pay Ana 5 USD");
+  await page.getByRole("button", { name: "Send", exact: true }).click();
+  await expect(page.getByTestId("chat-summary")).toBeVisible({ timeout: 60_000 });
 
   // 6. One attack, run on a fresh deployment.
   await page.goto("/#/attack-lab");

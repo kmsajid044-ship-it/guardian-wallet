@@ -139,8 +139,8 @@ test("shows plan step states exactly as the agent returned them, with no transac
 });
 
 test("navigation follows the product order and older links still open their page", async ({ page }) => {
-  await expect(page.getByRole("navigation", { name: "Main" }).getByRole("link")).toHaveText(["Home", "AI Agent", "Wallet", "Control Center", "Attack Lab", "Evidence Inspector", "Evaluation"]);
-  await expect(page.getByTestId("chain-badge")).toHaveText("FISCO BCOS · chain 1337 · block #2325");
+  await expect(page.getByRole("navigation", { name: "Main" }).getByRole("link")).toHaveText(["Home", "AI Agent", "Wallet", "Control Center", "Attack Lab", "Evidence", "Evaluation"]);
+  await expect(page.getByTestId("chain-badge")).toHaveText("FISCO BCOS · 1337 · #2325");
   await expect(page.getByTestId("page-title")).toHaveText("Home");
   for (const [href, title, lead] of [["/#/agent", "AI Agent", "Ask the AI to pay, save, or plan in plain words. It acts only within your rules."], ["/#/control", "Control Center", "Set what your AI may do on its own, and approve what it may not."], ["/#/evidence", "Evidence Inspector", "Every money movement is recorded on our FISCO BCOS chain. Press Verify to check it yourself."]]) {
     await page.goto(href);
@@ -305,13 +305,13 @@ test("owner actions fail closed without an owner session", async ({ page }) => {
   expect(state.paused).toBe(false);
 });
 
-test("captures light and dark owner-console screenshots", async ({ page }) => {
+test("captures dark and light owner-console screenshots", async ({ page }) => {
   const directory = resolve(process.cwd(), "../docs/screenshots");
   mkdirSync(directory, { recursive: true });
-  await page.screenshot({ path: resolve(directory, "owner-console-light.png"), fullPage: true });
+  await page.screenshot({ path: resolve(directory, "owner-console-dark.png"), fullPage: true });
   await page.getByLabel("Toggle color mode").click();
   await page.waitForTimeout(250);
-  await page.screenshot({ path: resolve(directory, "owner-console-dark.png"), fullPage: true });
+  await page.screenshot({ path: resolve(directory, "owner-console-light.png"), fullPage: true });
 });
 
 test("runs every Attack Lab scenario and shows evidence", async ({ page }) => {

@@ -55,9 +55,9 @@ Guardian Wallet is released under the MIT License (`LICENSE`). This file lists e
 | risk-intel | tsx | 4.23.15 | MIT | development |
 | risk-intel | typescript | 6.0.3 | Apache-2.0 | development |
 | risk-intel | vitest | 5.0.4 | MIT | development |
-| web | @fontsource/ibm-plex-mono | 5.3.0 | OFL-1.1 | runtime |
-| web | @fontsource/ibm-plex-sans | 5.3.0 | OFL-1.1 | runtime |
-| web | @fontsource/space-grotesk | 5.3.0 | OFL-1.1 | runtime |
+| web | @fontsource/inter | 5.2.8 | OFL-1.1 | runtime |
+| web | @fontsource/jetbrains-mono | 5.2.8 | OFL-1.1 | runtime |
+| web | @fontsource/urbanist | 5.2.8 | OFL-1.1 | runtime |
 | web | lucide-react | 1.59.0 | ISC | runtime |
 | web | react | 19.3.0 | MIT | runtime |
 | web | react-dom | 19.3.0 | MIT | runtime |
@@ -108,9 +108,9 @@ Guardian Wallet is released under the MIT License (`LICENSE`). This file lists e
 | @fastify/forwarded | 3.1.1 | MIT | yes |
 | @fastify/merge-json-schemas | 0.2.2 | MIT | yes |
 | @fastify/proxy-addr | 5.1.2 | MIT | yes |
-| @fontsource/ibm-plex-mono | 5.3.0 | OFL-1.1 | yes |
-| @fontsource/ibm-plex-sans | 5.3.0 | OFL-1.1 | yes |
-| @fontsource/space-grotesk | 5.3.0 | OFL-1.1 | yes |
+| @fontsource/inter | 5.2.8 | OFL-1.1 | yes |
+| @fontsource/jetbrains-mono | 5.2.8 | OFL-1.1 | yes |
+| @fontsource/urbanist | 5.2.8 | OFL-1.1 | yes |
 | @humanfs/core | 0.19.2 | Apache-2.0 | — |
 | @humanfs/node | 0.16.8 | Apache-2.0 | — |
 | @humanfs/types | 0.15.0 | Apache-2.0 | — |
@@ -310,4 +310,3 @@ Guardian Wallet is released under the MIT License (`LICENSE`). This file lists e
 | yaml | 2.9.1 | ISC | yes |
 | yocto-queue | 0.1.0 | MIT | — |
 | zod | 4.6.7 | MIT | yes |
-

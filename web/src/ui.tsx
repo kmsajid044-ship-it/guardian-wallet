@@ -105,8 +105,8 @@ export function Hash({ value, testId, full = false }: { value: string; testId?: 
 export function PageHeader({ lead, children, action }: { lead: string; children?: ReactNode; action?: ReactNode }) {
   return <section className="flex flex-col justify-between gap-4 md:flex-row md:items-end">
     <div className="max-w-3xl">
-      <p data-testid="page-lead" className="font-display text-heading font-medium text-fg">{lead}</p>
-      {children && <p className="mt-1 text-body text-fg2">{children}</p>}
+      <p data-testid="page-lead" className="sr-only">{lead}</p>
+      {children && <p className="text-body text-fg2">{children}</p>}
     </div>
     {action && <div className="shrink-0">{action}</div>}
   </section>;
