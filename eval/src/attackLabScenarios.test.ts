@@ -30,4 +30,11 @@ describe("evaluation scenarios", () => {
       for (const step of scenario.steps) expect(step.expect.transfers ?? []).toEqual([]);
     }
   });
+
+  it("loads the 20 held-out scenarios in their documented format without changing the original 41", () => {
+    const heldout = loadScenarios(undefined, "heldout");
+    expect(heldout.map((scenario) => scenario.id)).toEqual(Array.from({ length: 20 }, (_, index) => `H${String(index + 1).padStart(2, "0")}`));
+    expect(heldout.every((scenario) => scenario.suite === "heldout" && "heldout" in scenario && scenario.heldout !== undefined)).toBe(true);
+    expect(loadScenarios(undefined, "all")).toHaveLength(scenarios.length + 20);
+  });
 });

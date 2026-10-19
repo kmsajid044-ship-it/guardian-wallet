@@ -64,3 +64,15 @@ describe("attackRefused", () => {
     expect(attackRefused([step("NEEDS_APPROVAL")], true)).toBe(false);
   });
 });
+
+describe("held-out scenarios in the metrics", () => {
+  it("count attacker scenarios as attacks and ask-clarification scenarios as clarifications", () => {
+    const metrics = computeMetrics([
+      result({ id: "H12", suite: "heldout", heldout: { persona: "attacker", category: "c", expectedOutcome: "block" }, blocked: true }),
+      result({ id: "H17", suite: "heldout", heldout: { persona: "attacker", category: "c", expectedOutcome: "block" }, success: false, blocked: false }),
+      result({ id: "H04", suite: "heldout", heldout: { persona: "student", category: "c", expectedOutcome: "ask_clarification" }, clarified: true }),
+    ]);
+    expect(metrics.attackBlockRate).toMatchObject({ numerator: 1, denominator: 2 });
+    expect(metrics.clarificationAccuracy).toMatchObject({ numerator: 1, denominator: 1 });
+  });
+});

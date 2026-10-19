@@ -3,6 +3,30 @@ import { clarificationReplyMinutes, manualMinutesByTask, ownerReviewMinutes } fr
 import type { ScenarioResult } from "./harness.js";
 import type { EvalMetrics, Metric } from "./metrics.js";
 
+/** One labelled run kept permanently in eval/history.json and shown in docs/EVAL_REPORT.md. */
+export type EvalHistoryRow = {
+  label: string;
+  generatedAt: string;
+  commit: string;
+  suite: string;
+  llm: string;
+  scenarioCount: number;
+  taskSuccess: Metric;
+  unsafeActionRate: Metric;
+  attackBlockRate: Metric;
+  clarificationAccuracy: Metric;
+  failures: Array<{ id: string; title: string; unsafe: boolean; reasons: string[] }>;
+};
+
+export function historyRow(run: EvalRun, label: string, suite: string): EvalHistoryRow {
+  const m = run.metrics;
+  return {
+    label, generatedAt: run.generatedAt, commit: run.commit, suite, llm: run.llm.effective, scenarioCount: run.scenarioCount,
+    taskSuccess: m.taskSuccess, unsafeActionRate: m.unsafeActionRate, attackBlockRate: m.attackBlockRate, clarificationAccuracy: m.clarificationAccuracy,
+    failures: run.results.filter((result) => !result.success || result.unsafe).map((result) => ({ id: result.id, title: result.title, unsafe: result.unsafe, reasons: result.failures })),
+  };
+}
+
 export type EvalRun = {
   generatedAt: string;
   backend: string;
@@ -21,7 +45,7 @@ const fraction = (metric: Metric) => metric.numerator === undefined ? "" : ` (${
 const verdict = (metric: Metric) => metric.pass === undefined ? "—" : metric.pass ? "met" : "**missed**";
 const cell = (value: string) => value.replaceAll("|", "\\|");
 
-export function evalMarkdown(run: EvalRun): string {
+export function evalMarkdown(run: EvalRun, history: readonly EvalHistoryRow[] = []): string {
   const m = run.metrics;
   const lines = [
     "# Evaluation report",
@@ -47,14 +71,14 @@ export function evalMarkdown(run: EvalRun): string {
     "",
     `All targets ${run.targetsMet ? "met" : "**not met**"}.`,
     "",
+    ...historySection(history),
     "## Suites",
     "",
     "| Suite | Scenarios | Succeeded |",
     "|---|---|---|",
     ...Object.entries(run.bySuite).map(([suite, value]) => `| ${suite} | ${value.total} | ${value.succeeded} |`),
-    "| held-out (separate suite) | 20 | pending LLM eval |",
     "",
-    "> **Honest note on held-out scenarios**: Held-out scenarios (20 scenarios in `eval/scenarios/heldout/`) were written by a separate session that never read the code; later a code-aware session changed only their currency wording (BDT -> CNY) and persona, with expected outcomes unchanged. Current numbers use the deterministic offline parser and LLM evaluation is pending.",
+    "Held-out scenarios (`eval/scenarios/heldout/`) were written from SPEC.md, README.md, and docs/TECHNICAL.md without opening the agent, contract, web, or scenario sources. They were written by the same assistant session that had built the code earlier, so they are not independent of its knowledge of the parser; a later edit changed only currency wording (BDT to CNY) and persona. The scenario files are not edited after the first held-out run; fixes go into the code only.",
     "",
     "## Metric definitions",
     "",
@@ -86,4 +110,25 @@ export function evalMarkdown(run: EvalRun): string {
     "Full per-step records, including every transaction hash, are in `eval/results.json`.",
   ];
   return `${lines.join("\n")}\n`;
+}
+
+function historySection(history: readonly EvalHistoryRow[]): string[] {
+  if (history.length === 0) return [];
+  const cellPct = (metric: Metric) => `${percent(metric)}${fraction(metric)}`;
+  return [
+    "## Run history",
+    "",
+    "Labelled runs kept in `eval/history.json`; new runs add rows and never replace earlier ones.",
+    "",
+    "| Run | When (UTC) | Commit | Suite | Scenarios | Task success | Unsafe action rate | Attack block rate | Clarification accuracy |",
+    "|---|---|---|---|---|---|---|---|---|",
+    ...history.map((row) => `| ${cell(row.label)} | ${row.generatedAt.slice(0, 16).replace("T", " ")} | \`${row.commit}\` | ${row.suite} (${row.llm}) | ${row.scenarioCount} | ${cellPct(row.taskSuccess)} | ${cellPct(row.unsafeActionRate)} | ${cellPct(row.attackBlockRate)} | ${cellPct(row.clarificationAccuracy)} |`),
+    "",
+    ...history.flatMap((row) => [
+      `**Failed scenarios: ${cell(row.label)}** (${row.failures.length})`,
+      "",
+      ...(row.failures.length ? row.failures.map((failure) => `- ${failure.id} ${cell(failure.title)}${failure.unsafe ? " **UNSAFE**" : ""}: ${cell(failure.reasons.join("; "))}`) : ["- none"]),
+      "",
+    ]),
+  ];
 }
