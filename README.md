@@ -17,10 +17,10 @@ It runs on a four-node local FISCO BCOS network, a permissioned chain operated b
 
 | What | Result | Source |
 |---|---|---|
-| Evaluation, 61 scenarios on FISCO BCOS (41 original + 20 held-out) | Task success 100% (61/61), unsafe action rate 0% (0/61), attack block rate 100% (29/29), clarification accuracy 100% (15/15) | [docs/EVAL_REPORT.md](docs/EVAL_REPORT.md) |
-| Held-out scenarios (20, written from the docs only) | Before fixes: task success 80% (16/20), unsafe 0% (0/20), attacks blocked 77.8% (7/9), clarification 100% (6/6); failures H01, H10, H14, H15. After general fixes: all 20 pass within the 61-scenario run | [docs/EVAL_REPORT.md](docs/EVAL_REPORT.md) (Run history) |
-| Agent latency | 198 ms average, 622 ms p95 over 58 agent requests, including on-chain confirmation | [docs/EVAL_REPORT.md](docs/EVAL_REPORT.md) |
-| Estimated owner time saved | 41.9 min over 12 owner tasks, 3.49 min per task (an estimate against stated manual baselines) | [docs/EVAL_REPORT.md](docs/EVAL_REPORT.md) |
+| Evaluation, 62 scenarios on FISCO BCOS (42 original + 20 held-out) | Task success 100% (62/62), unsafe action rate 0% (0/62), attack block rate 100% (29/29), clarification accuracy 100% (15/15) | [docs/EVAL_REPORT.md](docs/EVAL_REPORT.md) |
+| Held-out scenarios (20, written from the docs only) | Before fixes: task success 80% (16/20), unsafe 0% (0/20), attacks blocked 77.8% (7/9), clarification 100% (6/6); failures H01, H10, H14, H15. After general fixes: all 20 pass within the 62-scenario run | [docs/EVAL_REPORT.md](docs/EVAL_REPORT.md) (Run history) |
+| Agent latency | 219 ms average, 624 ms p95 over 60 agent requests, including on-chain confirmation | [docs/EVAL_REPORT.md](docs/EVAL_REPORT.md) |
+| Estimated owner time saved | 47.9 min over 13 owner tasks, 3.68 min per task (an estimate against stated manual baselines) | [docs/EVAL_REPORT.md](docs/EVAL_REPORT.md) |
 | On-chain evidence | 118 FISCO BCOS transactions with receipts; all 118 re-verified on all four nodes; a fresh-network replay reproduced 16/16 scenarios and 118/118 transaction effects | [docs/EXECUTION_EVIDENCE.md](docs/EXECUTION_EVIDENCE.md) |
 | Attack Lab | 11 of 11 attacks blocked; A2, A3, A6, A7, A8, A9, and A10 also refused when sent straight to the contract | [docs/ATTACK_LAB_EVIDENCE.md](docs/ATTACK_LAB_EVIDENCE.md) |
 
@@ -78,7 +78,7 @@ pnpm typecheck
 pnpm --filter web test:e2e          # Playwright owner-console tests
 cd contracts && forge test -vv      # unit, fuzz, and invariant tests I1–I8
 pnpm --filter agent test:parity     # agent pre-check vs contract on both backends (needs FISCO running)
-pnpm eval                           # all 61 scenarios (41 original + 20 held-out); writes eval/results.json and docs/EVAL_REPORT.md
+pnpm eval                           # all 62 scenarios (42 original + 20 held-out); writes eval/results.json and docs/EVAL_REPORT.md
 pnpm eval --suite=heldout "--record=label"  # one suite, recorded as a labelled row in eval/history.json
 pnpm eval N01 X03                   # selected scenarios; --llm=configured uses the configured LLM provider
 pnpm attacks                        # 11 Attack Lab scenarios; `pnpm attacks A2 A9` or `--api` for the running agent

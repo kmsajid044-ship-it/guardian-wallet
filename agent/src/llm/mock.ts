@@ -1,7 +1,11 @@
 import { currencyCodes, currencyList } from "../currency/registry.js";
 import { ActionProposalSchema, type ActionProposal } from "./actionProposal.js";
 export type IntakeContext = { memo?: string | undefined; payeeName?: string | undefined; fetchedContent?: string | undefined; expectedRecipientContactId?: string | undefined };
-export type Intake = { message: string; source: "trusted" | "untrusted"; sourceRefs: string[]; context?: IntakeContext | undefined };
+/** Owner constraint from a plan request: steps above this nominal amount need the owner first. */
+export type ApprovalCap = { currency: string; amount: string };
+/** Set only by the planner: the full request each step came from, and the owner's approval cap. */
+export type PlanIntake = { request: string; approvalCap?: ApprovalCap | undefined };
+export type Intake = { message: string; source: "trusted" | "untrusted"; sourceRefs: string[]; context?: IntakeContext | undefined; plan?: PlanIntake | undefined };
 const amount = "([0-9]+(?:\\.[0-9]{1,6})?)";
 
 /**
@@ -33,7 +37,8 @@ export function parseWithMock(intake: Intake): ActionProposal {
   if (recurring) return ActionProposalSchema.parse({ kind: "schedule_recurring", currency: recurring[3]!.toUpperCase(), recipientContactId: recurring[1]!.toLowerCase(), amount: recurring[2], reason: `Schedule ${recurring[4]!.toLowerCase()} payment`, sourceRefs: intake.sourceRefs });
   const pay = text.match(new RegExp(`^pay\\s+([a-z][a-z0-9_-]*)\\s+${amount}\\s+${cur}$`, "i"));
   if (pay) return ActionProposalSchema.parse({ kind: "pay", currency: pay[3]!.toUpperCase(), recipientContactId: pay[1]!.toLowerCase(), amount: pay[2], reason: `Pay contact ${pay[1]!.toLowerCase()}`, sourceRefs: intake.sourceRefs });
-  const save = text.match(new RegExp(`^save\\s+${amount}\\s+${cur}$`, "i"));
+  const save = text.match(new RegExp(`^save\\s+${amount}\\s+${cur}$`, "i"))
+    ?? text.match(new RegExp(`^(?:move|put)\\s+${amount}\\s+${cur}\\s+(?:in)?to\\s+(?:my\\s+)?savings$`, "i"));
   if (save) return ActionProposalSchema.parse({ kind: "save", currency: save[2]!.toUpperCase(), amount: save[1], reason: "Move demo units to savings", sourceRefs: intake.sourceRefs });
   const missingAmount = text.match(/^pay\s+([a-z][a-z0-9_-]*)$/i);
   const missingCurrency = text.match(new RegExp(`^pay\\s+([a-z][a-z0-9_-]*)\\s+${amount}$`, "i"));

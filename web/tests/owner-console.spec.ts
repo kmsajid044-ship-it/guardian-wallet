@@ -70,6 +70,29 @@ test("chat executes a T1 payment and shows the plan", async ({ page }) => {
   await expect(page.getByText("Execution complete")).toBeVisible();
 });
 
+test("shows plan step states exactly as the agent returned them, with no transaction before a receipt", async ({ page }) => {
+  const step = (id: string, index: number, state: string, status: string, proposal: Record<string, string>, operation: string, extra: Record<string, unknown> = {}) => ({ id, index, state, status, operation, proposal: { reason: "synthetic", sourceRefs: [], ...proposal }, ...extra });
+  const plan = { id: "plan-1", status: "WAITING_APPROVAL", request: "synthetic", approvalCap: { currency: "USD", amount: "300" }, steps: [
+    step("S1", 0, "EXECUTED", "EXECUTED", { kind: "pay", recipientContactId: "ana", amount: "50", currency: "USD" }, "pay", { result: { route: "EXECUTED", tier: "T1", transactionHash, blockNumber: "42", risk: { score: 10 } } }),
+    step("S2", 1, "PENDING_APPROVAL", "STOPPED", { kind: "save", amount: "350", currency: "USD" }, "saveToSavings", { result: { route: "NEEDS_APPROVAL", tier: "T2", flags: ["OWNER_PLAN_APPROVAL_CAP"], risk: { score: 0 } } }),
+    step("S3", 2, "VALIDATED", "NOT_RUN", { kind: "save", amount: "5", currency: "USD" }, "saveToSavings", { validation: { route: "EXECUTED", tier: "T1", dryRun: true, risk: { score: 0 } } }),
+  ] };
+  await page.route("http://127.0.0.1:8787/chat", route => route.fulfill({ json: { route: "PLAN", tier: "T2", explanation: "Plan of 3 steps.", plan } }));
+  await page.getByLabel("Message the agent").fill("Pay Ana 50 USD then save 350 USD then save 5 USD");
+  await page.getByRole("button", { name: "Send" }).click();
+  await expect(page.getByTestId("plan-step-S1").getByTestId("step-state")).toHaveText("EXECUTED");
+  await expect(page.getByTestId("plan-step-S1").getByTestId("step-block")).toHaveText("42");
+  await expect(page.getByTestId("plan-step-S2").getByTestId("step-state")).toHaveText("PENDING APPROVAL");
+  await expect(page.getByTestId("plan-step-S2").getByTestId("step-tier")).toHaveText("T2");
+  await expect(page.getByTestId("plan-step-S2").getByTestId("step-tx")).toHaveCount(0);
+  await expect(page.getByTestId("plan-step-S3").getByTestId("step-state")).toHaveText("VALIDATED");
+  await expect(page.getByTestId("plan-step-S3").getByTestId("step-run")).toHaveText("Not run");
+  await expect(page.getByTestId("plan-step-S3").getByTestId("step-tx")).toHaveCount(0);
+  await expect(page.getByTestId("plan-run")).toHaveCount(0);
+  await page.getByTestId("plan-step-S1").getByTestId("step-verify").click();
+  await expect(page.getByTestId("plan-step-S1").getByTestId("step-receipt")).toHaveText("Receipt success · block 42");
+});
+
 test("owner approves a T2 inbox item", async ({ page }) => {
   await expect(page.getByTestId("approval-inbox")).toContainText("200 USD");
   await page.getByTestId("approve-1").click();

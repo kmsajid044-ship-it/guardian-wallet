@@ -82,3 +82,16 @@ scenarios:
         expect: { route: EXECUTED, tier: T1, savings: [{ currency: USD, amount: "300" }] }
       - intake: { message: "Pay cara 80 CNY" }
         expect: { route: EXECUTED, tier: T1, transfers: [{ contact: cara, currency: CNY, amount: "80" }] }
+  - id: N13
+    title: Multi-step plan with a pay step, a CNY savings step, and an owner approval cap
+    manualMinutes: 6
+    plan:
+      message: "Pay Ana 50 USD, then move 200 CNY to savings, and ask me before anything above 300 USD."
+      expect:
+        status: COMPLETED
+        approvalCap: { currency: USD, amount: "300" }
+        validated: [VALIDATED, VALIDATED]
+        steps:
+          - { operation: pay, state: EXECUTED, tier: T1, onChain: true }
+          - { operation: saveToSavings, state: EXECUTED, tier: T1, onChain: true }
+    expect: { transfers: [{ contact: ana, currency: USD, amount: "50" }], savings: [{ currency: CNY, amount: "200" }] }

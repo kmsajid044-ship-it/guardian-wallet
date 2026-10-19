@@ -8,7 +8,7 @@ import { AgentExecutor } from "../exec/executor.js";
 import { inspectProposal } from "../firewall/firewall.js";
 import type { LlmAdapter, LlmProvider } from "../llm/adapter.js";
 import type { ActionProposal } from "../llm/actionProposal.js";
-import type { Intake } from "../llm/mock.js";
+import type { ApprovalCap, Intake } from "../llm/mock.js";
 import { createLlmAdapter, MockAdapter } from "../llm/provider.js";
 import { precheckAction } from "../policy/precheck.js";
 import type { PolicyReader } from "../policy/precheck.js";
@@ -35,7 +35,14 @@ export type PipelineResult = {
   blockNumber?: string;
   /** Explained decision for the owner console: real risk factors plus the layer that decided. */
   why?: WhyDecision;
+  /** Wallet contract function the action maps to (pay, requestApproval, saveToSavings). */
+  operation?: "pay" | "requestApproval" | "saveToSavings";
+  /** Validation only: every check ran, nothing was signed or submitted, and `route` is the prediction. */
+  dryRun?: true;
 };
+
+export const PLAN_APPROVAL_CAP_FLAG = "OWNER_PLAN_APPROVAL_CAP";
+type RunContext = { adapter: LlmAdapter; fallback: boolean; dryRun: boolean };
 
 export const UNTRUSTED_APPROVAL_FLAG = "UNTRUSTED_SOURCE_REQUIRES_APPROVAL";
 
@@ -66,8 +73,16 @@ export class AgentPipeline {
       : undefined);
   }
 
-  async run(intake: Intake): Promise<PipelineResult> {
-    const llm = { adapter: this.adapter, fallback: this.adapter.provider !== this.config.LLM_PROVIDER };
+  async run(intake: Intake): Promise<PipelineResult> { return this.evaluate(intake, false); }
+
+  /**
+   * Runs firewall, policy pre-check, simulation, risk scoring, and the tier gate without signing or
+   * submitting anything. Paid payee checks are left to the real run, so its result is authoritative.
+   */
+  async validate(intake: Intake): Promise<PipelineResult> { return this.evaluate(intake, true); }
+
+  private async evaluate(intake: Intake, dryRun: boolean): Promise<PipelineResult> {
+    const llm: RunContext = { adapter: this.adapter, fallback: this.adapter.provider !== this.config.LLM_PROVIDER, dryRun };
     let proposal: ActionProposal;
     try {
       proposal = await llm.adapter.propose(intake, Object.keys(this.contacts).sort());
@@ -82,7 +97,9 @@ export class AgentPipeline {
       ? this.contacts[proposal.recipientContactId]
       : undefined;
     const proposalHistory = historyAddress ? this.paymentHistory(getAddress(historyAddress)) : [];
-    const firewall = inspectProposal(intake.message, intake.source, proposal, this.contacts, proposalHistory, intake.context);
+    // A plan step is screened together with the full request it came from.
+    const screened = intake.plan ? `${intake.message}\n${intake.plan.request}` : intake.message;
+    const firewall = inspectProposal(screened, intake.source, proposal, this.contacts, proposalHistory, intake.context);
     if (firewall.blocked) {
       return this.finish({
         proposal, route: "BLOCKED", tier: firewall.flags.includes("POLICY_CHANGE_ATTEMPT") ? "T3" : "T0", flags: firewall.flags,
@@ -116,11 +133,12 @@ export class AgentPipeline {
 
     const chainPolicy = await this.reader.getPolicy();
     const action = this.toAction(proposal, chainPolicy.approvalThreshold);
+    const operation = operationOf(action);
     if (action.kind === "pay" || action.kind === "request_approval") {
       const recipient = await this.reader.getRecipient(action.to);
       if (!recipient.allowed) {
         return this.finish({
-          proposal, route: "BLOCKED", tier: "T1", flags: ["UNKNOWN_CONTACT"],
+          proposal, operation, route: "BLOCKED", tier: "T1", flags: ["UNKNOWN_CONTACT"],
           why: buildWhy({ decision: "BLOCKED", layer: "contract", rule: "RECIPIENT_NOT_ALLOWED", detail: "The contact is not on the owner's allowlist, so the wallet contract would refuse this recipient." }),
         }, llm);
       }
@@ -129,27 +147,30 @@ export class AgentPipeline {
     const simulation = simulationResult(await this.chainAdapter.simulateAgentTx(action, getAddress(this.deployment.agent)));
     if (policy.route === "BLOCKED") {
       if (simulation.outcome !== "BLOCKED") throw new Error("policy and contract simulation disagree");
+      const why = buildWhy({ decision: "BLOCKED", layer: "contract", rule: policy.reason, detail: `Contract policy refused the action with ${policy.reason}; the refusal is recorded on chain.` });
+      // Validation predicts the refusal; only the real run records it on chain.
+      if (dryRun) return this.finish({ ...commonWithoutRisk(proposal, policy, simulation), operation, route: "BLOCKED", tier: "T1", flags: [policy.reason], why }, llm);
       const evidence = await this.executor.submit(action, { policy, simulation });
       return this.finish({
-        ...commonWithoutRisk(proposal, policy, simulation), route: "BLOCKED", tier: "T1", flags: [policy.reason], transactionHash: evidence.transactionHash, blockNumber: evidence.blockNumber.toString(),
-        why: buildWhy({ decision: "BLOCKED", layer: "contract", rule: policy.reason, detail: `Contract policy refused the action with ${policy.reason}; the refusal is recorded on chain.` }),
+        ...commonWithoutRisk(proposal, policy, simulation), operation, route: "BLOCKED", tier: "T1", flags: [policy.reason], transactionHash: evidence.transactionHash, blockNumber: evidence.blockNumber.toString(),
+        why,
       }, llm, { action, amount: action.amount.toString() });
     }
     const amount = action.amount;
     const spent = await this.reader.getSpentToday();
     const history = action.kind === "pay" || action.kind === "request_approval" ? proposalHistory : [];
     let riskIntelResult: PayeeRiskResult | undefined;
-    if ((action.kind === "pay" || action.kind === "request_approval") && this.riskIntel && (history.length === 0 || action.amount >= chainPolicy.approvalThreshold)) {
+    if (!dryRun && (action.kind === "pay" || action.kind === "request_approval") && this.riskIntel && (history.length === 0 || action.amount >= chainPolicy.approvalThreshold)) {
       try {
         riskIntelResult = await this.riskIntel.checkPayee(action.to);
         const fetchedFirewall = inspectProposal(intake.message, intake.source, proposal, this.contacts, history, { ...intake.context, fetchedContent: JSON.stringify(riskIntelResult) });
         if (fetchedFirewall.blocked) return this.finish({
-          ...commonWithoutRisk(proposal, policy, simulation), route: "BLOCKED", tier: "T0", flags: fetchedFirewall.flags,
+          ...commonWithoutRisk(proposal, policy, simulation), operation, route: "BLOCKED", tier: "T0", flags: fetchedFirewall.flags,
           why: buildWhy({ decision: "BLOCKED", layer: "firewall", rule: fetchedFirewall.flags.join(", "), detail: "The firewall refused content fetched for this action before risk scoring ran." }),
         }, llm);
       } catch {
         return this.finish({
-          ...commonWithoutRisk(proposal, policy, simulation), route: "BLOCKED", flags: ["RISK_INTEL_UNAVAILABLE"],
+          ...commonWithoutRisk(proposal, policy, simulation), operation, route: "BLOCKED", flags: ["RISK_INTEL_UNAVAILABLE"],
           why: buildWhy({ decision: "BLOCKED", layer: "risk engine", rule: "RISK_INTEL_UNAVAILABLE", detail: "The payee risk check could not complete, so the action failed closed." }),
         }, llm);
       }
@@ -167,6 +188,7 @@ export class AgentPipeline {
 
     const common = {
       proposal,
+      operation,
       policy,
       risk,
       simulation: { outcome: simulation.outcome, auxiliary: simulation.auxiliary.toString() },
@@ -192,8 +214,19 @@ export class AgentPipeline {
       }, llm);
     }
 
-    const execution = await this.executor.submit(action, { policy, simulation });
-    const pendingId = policy.route === "NEEDS_APPROVAL" ? simulation.auxiliary.toString() : undefined;
+    // The owner's plan cap can only add an approval: an action the contract would execute directly
+    // is held off-chain when its nominal amount is above the cap. Nothing is signed.
+    if (policy.route === "EXECUTE" && action.kind !== "service_fee" && intake.plan?.approvalCap && aboveCap(action.currency, action.amount, intake.plan.approvalCap)) {
+      const cap = intake.plan.approvalCap;
+      return this.finish({
+        ...common, route: "NEEDS_APPROVAL", tier: "T2", flags: [PLAN_APPROVAL_CAP_FLAG],
+        why: buildWhy({
+          decision: "NEEDS_APPROVAL", risk, layer: "tier gate", rule: PLAN_APPROVAL_CAP_FLAG,
+          detail: `The owner asked to approve anything above ${cap.amount} ${cap.currency}; amounts are compared in demo units without FX, so the cap can only add approvals.`,
+        }),
+      }, llm);
+    }
+
     const decision = policy.route === "NEEDS_APPROVAL" ? "NEEDS_APPROVAL" : "EXECUTED";
     const why = policy.route === "NEEDS_APPROVAL"
       ? buildWhy({
@@ -203,6 +236,9 @@ export class AgentPipeline {
             : "The amount is at or above the owner's approval threshold, so the contract created a pending item only the owner can approve.",
         })
       : buildWhy({ decision, risk, layer: "tier gate", rule: "WITHIN_POLICY_AND_RISK_LIMITS", detail: "Policy, simulation, risk, and tier checks all passed." });
+    if (dryRun) return this.finish({ ...common, route: decision, tier: tier.tier, why }, llm);
+    const execution = await this.executor.submit(action, { policy, simulation });
+    const pendingId = policy.route === "NEEDS_APPROVAL" ? simulation.auxiliary.toString() : undefined;
     return this.finish({
       ...common,
       route: decision,
@@ -249,11 +285,21 @@ export class AgentPipeline {
 
   private async finish(
     structured: Omit<PipelineResult, "explanation" | "llm">,
-    llm: { adapter: LlmAdapter; fallback: boolean },
+    llm: RunContext,
     executionData: Record<string, JsonValue> = {},
   ): Promise<PipelineResult> {
     const structuredResult = JSON.parse(JSON.stringify(structured)) as JsonValue;
     let explanation: string;
+    if (llm.dryRun) {
+      // Deterministic text; the prediction is never logged as a decision the agent took.
+      const result: PipelineResult = {
+        ...structured, dryRun: true,
+        explanation: `Validation only, nothing was signed: the checks predict ${structured.route.replaceAll("_", " ").toLowerCase()}.`,
+        llm: { requested: this.config.LLM_PROVIDER, effective: llm.adapter.provider, fallback: llm.fallback },
+      };
+      this.audit.append({ timestamp: new Date().toISOString(), kind: "plan_step_validated", data: JSON.parse(JSON.stringify(result)) as JsonValue });
+      return result;
+    }
     try {
       explanation = await llm.adapter.explain({ route: structured.route, structuredResult });
     } catch {
@@ -285,6 +331,18 @@ export class AgentPipeline {
     });
     return result;
   }
+}
+
+function operationOf(action: AgentAction): NonNullable<PipelineResult["operation"]> {
+  if (action.kind === "pay") return "pay";
+  if (action.kind === "request_approval") return "requestApproval";
+  if (action.kind === "save") return "saveToSavings";
+  throw new Error(`action ${action.kind} is not available to the agent pipeline`);
+}
+
+/** Nominal comparison in the action's own demo units, as the wallet contract compares its limits. */
+export function aboveCap(currency: string, amount: bigint, cap: ApprovalCap): boolean {
+  return amount > toMinorUnits(currency, cap.amount);
 }
 
 function commonWithoutRisk(proposal: ActionProposal, policy: PolicyVerdict, simulation: { outcome: string; auxiliary: bigint }) {

@@ -11,7 +11,7 @@ import { AgentPipeline } from "../pipeline/pipeline.js";
 import { pendingExplanations } from "../pipeline/why.js";
 import { OwnerExecutor } from "../exec/ownerExecutor.js";
 import type { LlmAdapter } from "../llm/adapter.js";
-import { PlanManager, PlanStepsSchema } from "../planner/planner.js";
+import { looksLikePlan, PlanManager, PlanStepsSchema, type Plan } from "../planner/planner.js";
 import { RecurringScheduler } from "../scheduler/scheduler.js";
 import type { RiskIntelGateway } from "../riskIntel/client.js";
 import { AttackLab } from "../attack/attackLab.js";
@@ -87,6 +87,17 @@ export function buildServer(config: Config, options: ServerOptions = {}): Fastif
   app.post("/chat", async (request, reply) => {
     const parsed = ChatRequestSchema.safeParse(request.body);
     if (!parsed.success) return reply.code(400).send({ error: "INVALID_REQUEST", details: z.treeifyError(parsed.error) });
+    // A multi-step request becomes a visible draft plan; one that does not parse as a plan falls
+    // through to the pipeline, which screens it and asks or refuses as for any other message.
+    if (looksLikePlan(parsed.data.message) && !parsed.data.context) {
+      let plan;
+      try { plan = plans.create(parsed.data.message, parsed.data.source, parsed.data.sourceRefs); }
+      catch { plan = undefined; }
+      if (plan) {
+        const validatedPlan = await plans.validate(plan.id);
+        return { route: "PLAN", tier: maxTier(validatedPlan.steps.map((step) => step.validation?.tier)), explanation: planExplanation(validatedPlan), plan: validatedPlan };
+      }
+    }
     const result = await pipeline.run(parsed.data);
     if (result.route === "SCHEDULE_READY" && result.proposal.kind === "schedule_recurring") {
       const intervalSeconds = /week/i.test(result.proposal.reason) ? 604_800 : 86_400;
@@ -162,8 +173,10 @@ export function buildServer(config: Config, options: ServerOptions = {}): Fastif
   app.post("/plans", async (request, reply) => {
     const parsed = PlanCreateSchema.safeParse(request.body);
     if (!parsed.success) return reply.code(400).send({ error: "INVALID_REQUEST", details: z.treeifyError(parsed.error) });
-    try { return plans.create(parsed.data.message, parsed.data.source, parsed.data.sourceRefs); }
+    let plan;
+    try { plan = plans.create(parsed.data.message, parsed.data.source, parsed.data.sourceRefs); }
     catch (error) { return reply.code(400).send({ error: "INVALID_PLAN", message: errorMessage(error) }); }
+    return plans.validate(plan.id);
   });
   app.get("/plans", async () => plans.list());
   app.get<{ Params: { id: string } }>("/plans/:id", async (request, reply) => {
@@ -173,8 +186,9 @@ export function buildServer(config: Config, options: ServerOptions = {}): Fastif
   app.patch<{ Params: { id: string } }>("/plans/:id", async (request, reply) => {
     const parsed = PlanEditSchema.safeParse(request.body);
     if (!parsed.success) return reply.code(400).send({ error: "INVALID_REQUEST", details: z.treeifyError(parsed.error) });
-    try { return plans.edit(request.params.id, parsed.data.steps); }
+    try { plans.edit(request.params.id, parsed.data.steps); }
     catch (error) { return reply.code(400).send({ error: "PLAN_EDIT_FAILED", message: errorMessage(error) }); }
+    return plans.validate(request.params.id);
   });
   app.post<{ Params: { id: string } }>("/plans/:id/execute", async (request, reply) => {
     try { return await plans.execute(request.params.id); }
@@ -220,6 +234,17 @@ export function buildServer(config: Config, options: ServerOptions = {}): Fastif
 
 function serializeReceipt(receipt: Awaited<ReturnType<ReturnType<typeof createChainAdapter>["getReceipt"]>>) {
   return { ...receipt, blockNumber: receipt.blockNumber.toString(), gasUsed: receipt.gasUsed.toString() };
+}
+
+function maxTier(tiers: Array<string | undefined>): string {
+  return tiers.reduce<string>((highest, tier) => tier && tier > highest ? tier : highest, "T0");
+}
+
+/** Deterministic summary; every number comes from the plan the backend just validated. */
+function planExplanation(plan: Plan): string {
+  const validated = plan.steps.filter((step) => step.state === "VALIDATED").length;
+  const cap = plan.approvalCap ? ` You asked to approve anything above ${plan.approvalCap.amount} ${plan.approvalCap.currency}.` : "";
+  return `Plan of ${plan.steps.length} steps; ${validated} passed every check without signing. Review it, then run it.${cap}`;
 }
 
 function errorMessage(error: unknown): string { return error instanceof Error ? error.message : "unknown error"; }

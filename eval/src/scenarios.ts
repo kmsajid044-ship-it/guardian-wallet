@@ -37,13 +37,34 @@ const StepSchema = z.object({
   owner: z.enum(["approve", "reject"]).optional(),
 }).strict();
 
+const PlanStepState = z.enum(["PLANNED", "VALIDATED", "PENDING_APPROVAL", "EXECUTED", "BLOCKED", "FAILED"]);
+/** A multi-step request run as a visible plan: created, validated without signing, then executed. */
+const PlanSchema = z.object({
+  message: z.string().min(1),
+  source: z.enum(["trusted", "untrusted"]).default("trusted"),
+  expect: z.object({
+    status: z.enum(["COMPLETED", "STOPPED", "WAITING_APPROVAL"]),
+    approvalCap: Saving.optional(),
+    /** Step states after validation and before execution. */
+    validated: z.array(PlanStepState).min(1),
+    steps: z.array(z.object({
+      operation: z.enum(["pay", "requestApproval", "saveToSavings"]),
+      state: PlanStepState,
+      tier: z.enum(["T0", "T1", "T2", "T3"]).optional(),
+      /** The step carries a transaction hash and block from a real receipt. */
+      onChain: z.boolean(),
+    }).strict()).min(1),
+  }).strict().refine((expect) => expect.validated.length === expect.steps.length, "validated and steps must list every plan step"),
+}).strict();
+
 const ChatScenarioSchema = z.object({
   id: z.string().regex(/^[NCX][0-9]{2}$/),
   title: z.string().min(1),
   manualMinutes: z.number().positive().optional(),
-  steps: z.array(StepSchema).min(1),
+  steps: z.array(StepSchema).default([]),
+  plan: PlanSchema.optional(),
   expect: z.object({ transfers: z.array(Transfer).optional(), savings: z.array(Saving).optional() }).strict().optional(),
-}).strict();
+}).strict().refine((scenario) => (scenario.steps.length > 0) !== (scenario.plan !== undefined), "set exactly one of steps or plan");
 
 const ChatSuiteSchema = z.object({ suite: z.enum(["normal", "clarification", "attack"]), scenarios: z.array(ChatScenarioSchema).min(1) }).strict();
 
@@ -80,6 +101,7 @@ const AttackLabSuiteSchema = z.object({
 export type Suite = "normal" | "clarification" | "attack" | "attack-lab" | "heldout";
 export type HeldoutMeta = Pick<z.infer<typeof HeldoutScenarioSchema>, "persona" | "category" | "expectedOutcome" | "why">;
 export type ChatStep = z.infer<typeof StepSchema>;
+export type PlanExpectation = z.infer<typeof PlanSchema>;
 export type TransferExpectation = z.infer<typeof Transfer>;
 export type SavingExpectation = z.infer<typeof Saving>;
 export type ChatScenario = Omit<z.infer<typeof ChatScenarioSchema>, "id"> & { id: string; suite: Exclude<Suite, "attack-lab">; heldout?: HeldoutMeta };
@@ -90,7 +112,7 @@ export const scenarioDirectory = fileURLToPath(new URL("../scenarios/", import.m
 
 export type SuiteSelection = "original" | "heldout" | "all";
 
-/** "original": the 41 top-level scenarios; "heldout": eval/scenarios/heldout; "all": both. */
+/** "original": the 42 top-level scenarios; "heldout": eval/scenarios/heldout; "all": both. */
 export function loadScenarios(directory = scenarioDirectory, selection: SuiteSelection = "original"): Scenario[] {
   const order: Suite[] = ["normal", "clarification", "attack", "attack-lab", "heldout"];
   const scenarios = readdirSync(directory).filter((name) => name.endsWith(".yaml")).sort().flatMap((name): Scenario[] => {

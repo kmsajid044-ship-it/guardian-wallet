@@ -19,7 +19,7 @@ describe("EvalHarness on a local chain", () => {
 
   afterAll(async () => { if (fixture) await fixture.stop(); });
 
-  it.each(["N01", "N06", "N07", "N12", "C02", "C06", "X01", "X08", "X09", "A2"])("passes scenario %s", async (id) => {
+  it.each(["N01", "N06", "N07", "N12", "N13", "C02", "C06", "X01", "X08", "X09", "A2"])("passes scenario %s", async (id) => {
     const result = await harness.run(byId(id));
     expect({ id, failures: result.failures, unsafe: result.unsafe }).toEqual({ id, failures: [], unsafe: false });
     if (result.suite === "attack") expect(result.blocked).toBe(true);

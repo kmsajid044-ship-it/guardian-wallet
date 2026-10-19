@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState, type FormEvent, type ReactNode } from "react";
 import { AttackLab } from "./AttackLab";
+import { PlanView, type Plan } from "./PlanView";
 import { ValueDashboard } from "./ValueDashboard";
 
 const API = import.meta.env.VITE_AGENT_API_URL ?? "http://127.0.0.1:8787";
@@ -13,7 +14,7 @@ type Contact = { id: string; address: string; label: string; allowed: boolean; a
 type AuditEntry = { id: number; timestamp: string; kind: string; hash: string; data: Record<string, unknown> };
 /** Explained decision from the agent pipeline; factors are exactly what the risk engine computed. */
 type WhyDecision = { decision: string; riskScore: number | null; riskClass: string; factors: Array<{ code: string; points: number; explanation: string }>; decidedBy: { layer: string; rule: string; detail: string; ownerApprovalRequired: boolean } };
-type ChatResult = { route: string; tier?: string; explanation: string; transactionHash?: string; blockNumber?: string; pendingId?: string; proposal?: { kind: string; amount?: string; currency?: string; recipientContactId?: string }; clarification?: { questions: string[] }; risk?: { score: number; factors: Array<{ code: string; explanation: string }> }; why?: WhyDecision };
+type ChatResult = { route: string; tier?: string; explanation: string; transactionHash?: string; blockNumber?: string; pendingId?: string; proposal?: { kind: string; amount?: string; currency?: string; recipientContactId?: string }; clarification?: { questions: string[] }; risk?: { score: number; factors: Array<{ code: string; explanation: string }> }; why?: WhyDecision; plan?: Plan };
 
 const initialState: State = { paused: false, balances: [], spentToday: "—", remainingDaily: "—", perTxLimit: "500", dailyLimit: "1000", approvalThreshold: "200", recipientCooldown: "600", pendingExpiry: "86400", opsPerCallLimit: "0.1", opsDailyLimit: "5" };
 const policyFields = [["Per-transfer limit", "perTxLimit"], ["Daily limit", "dailyLimit"], ["Approval threshold", "approvalThreshold"], ["Recipient cooldown (sec)", "recipientCooldown"]] as const;
@@ -94,13 +95,15 @@ function Dashboard({ state, pending, audit, refresh }: { state: State; pending: 
 function Chat({ refresh }: { refresh(): Promise<void> }) {
   const [message,setMessage]=useState(""); const [result,setResult]=useState<ChatResult>(); const [busy,setBusy]=useState(false);
   async function submit(event: FormEvent){event.preventDefault();if(!message.trim())return;setBusy(true);try{const next=await api<ChatResult>("/chat",{method:"POST",body:JSON.stringify({message,source:"trusted",sourceRefs:["web:chat"]})});setResult(next);setMessage("");await refresh();}finally{setBusy(false)}}
-  const steps=useMemo(()=>result?[{label:"Intent understood",done:true},{label:"Firewall passed",done:result.route!=="BLOCKED"},{label:"Policy & simulation",done:["EXECUTED","NEEDS_APPROVAL"].includes(result.route)},{label:result.route==="NEEDS_APPROVAL"?"Owner approval required":"Execution complete",done:result.route==="EXECUTED"}]:[],[result]);
+  const steps=useMemo(()=>result&&!result.plan?[{label:"Intent understood",done:true},{label:"Firewall passed",done:result.route!=="BLOCKED"},{label:"Policy & simulation",done:["EXECUTED","NEEDS_APPROVAL"].includes(result.route)},{label:result.route==="NEEDS_APPROVAL"?"Owner approval required":"Execution complete",done:result.route==="EXECUTED"}]:[],[result]);
+  async function planChanged(plan: Plan){setResult(current=>current?{...current,route:"PLAN",explanation:`Plan ${plan.status.replaceAll("_"," ").toLowerCase()}; each step shows the state the agent and the chain returned.`,plan}:current);await refresh();}
   return <Card title="Agent workspace" kicker="Ask in plain language">
-    <div className="mb-5 rounded-2xl bg-slate-50 p-5 dark:bg-white/[.04]"><p className="text-sm leading-6 text-slate-600 dark:text-slate-300">Try “Pay Ana 100 USD”, “Save 50 USD”, or ask for a recurring payment.</p></div>
+    <div className="mb-5 rounded-2xl bg-slate-50 p-5 dark:bg-white/[.04]"><p className="text-sm leading-6 text-slate-600 dark:text-slate-300">Try “Pay Ana 100 USD”, “Save 50 USD”, a recurring payment, or several steps joined by “then”.</p></div>
     {result && <div data-testid="chat-result" className="mb-5 space-y-4 rounded-2xl border border-emerald-200 bg-emerald-50/60 p-5 dark:border-emerald-900 dark:bg-emerald-950/20">
       <div className="flex items-center justify-between"><b>{result.route.replaceAll("_"," ")}</b><span className="status-pill bg-white text-slate-700 dark:bg-white/10 dark:text-slate-200">{result.tier ?? "T0"}</span></div><p className="text-sm text-slate-600 dark:text-slate-300">{result.explanation}</p>
       {result.clarification && <div className="rounded-xl bg-amber-100 p-3 text-sm font-semibold text-amber-900 dark:bg-amber-950 dark:text-amber-200">{result.clarification.questions.join(" ")}</div>}
       <ol className="grid gap-2 md:grid-cols-2">{steps.map((step,index)=><li key={step.label} className="flex items-center gap-2 text-sm"><span className={`grid size-6 place-items-center rounded-full text-xs font-bold ${step.done?"bg-emerald-600 text-white":"bg-slate-200 text-slate-500 dark:bg-white/10"}`}>{index+1}</span>{step.label}</li>)}</ol>
+      {result.plan && <PlanView plan={result.plan} api={api} onChange={planChanged}/>}
       {result.why && <WhyPanel why={result.why}/>}
     </div>}
     <form onSubmit={submit} className="flex gap-3"><input aria-label="Message the agent" value={message} onChange={event=>setMessage(event.target.value)} className="field flex-1" placeholder="What would you like the agent to do?"/><button disabled={busy} className="primary-button">{busy?"Checking…":"Send"}</button></form>

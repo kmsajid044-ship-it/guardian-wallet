@@ -58,6 +58,9 @@ describe("mock LLM adapter", () => {
   it("keeps recurring and savings requests exact after removing a purpose", () => {
     expect(parseWithMock({ message: "pay ana 20 usd every week for rent", source: "trusted", sourceRefs: [] })).toMatchObject({ kind: "schedule_recurring", amount: "20", currency: "USD" });
     expect(parseWithMock({ message: "please save 40 cny for the trip", source: "trusted", sourceRefs: [] })).toMatchObject({ kind: "save", amount: "40", currency: "CNY" });
+    expect(parseWithMock({ message: "move 200 CNY to savings", source: "trusted", sourceRefs: [] })).toMatchObject({ kind: "save", amount: "200", currency: "CNY" });
+    expect(parseWithMock({ message: "Put 15 USD into my savings", source: "trusted", sourceRefs: [] })).toMatchObject({ kind: "save", amount: "15", currency: "USD" });
+    expect(parseWithMock({ message: "move 200 CNY to bob", source: "trusted", sourceRefs: [] }).kind).toBe("answer_only");
   });
 
   it.each([
