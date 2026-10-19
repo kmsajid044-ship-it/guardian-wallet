@@ -37,6 +37,8 @@ generated inventory of every installed package and its license is in `docs/LICEN
 | react, react-dom | 19.3.0 | MIT |
 | viem | 2.57.6 | MIT |
 | tailwindcss, @tailwindcss/vite | 4.3.3 | MIT |
+| lucide-react (icons) | 1.59.0 | ISC |
+| @fontsource/space-grotesk, @fontsource/ibm-plex-sans, @fontsource/ibm-plex-mono (self-hosted fonts) | 5.3.0 | OFL-1.1 (fonts), MIT (packaging) |
 | vite | 8.3.4 | MIT |
 | @vitejs/plugin-react | 6.1.2 | MIT |
 

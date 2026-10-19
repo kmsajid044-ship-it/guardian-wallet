@@ -1,4 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
+import { Ban, CircleCheck } from "lucide-react";
+import { Empty, ErrorState, PageHeader, SkeletonRows } from "./ui";
 
 type Metric = { value: number; numerator?: number; denominator?: number; target?: string; pass?: boolean; unit: string };
 type EvalSummary = {
@@ -35,64 +37,60 @@ export function ValueDashboard({ api }: { api: Api }) {
   const live = data?.live;
   const m = run?.metrics ?? {};
 
-  return <div className="space-y-7">
-    <section className="flex flex-col justify-between gap-4 md:flex-row md:items-end">
-      <div>
-        <p className="eyebrow">Outcome reporting</p>
-        <h1 className="page-title">Evaluation</h1>
-        <p className="mt-2 max-w-3xl text-slate-500">Evaluation results from the latest <code>pnpm eval</code> run, and live counts from the hash-chained audit log. Demo units only; time saved is an estimate.</p>
-      </div>
-      {run && <span data-testid="eval-verdict" className={`status-pill ${run.targetsMet ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-200" : "bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-200"}`}>{run.targetsMet ? "All targets met" : "Targets missed"}</span>}
-    </section>
-    {error && <div className="rounded-xl bg-rose-50 p-4 text-rose-800 dark:bg-rose-950/30 dark:text-rose-200">{error}</div>}
+  return <div className="space-y-6">
+    <PageHeader lead="How well the AI did on its test scenarios, and what it has done live." action={run && <span data-testid="eval-verdict" className={`status-pill ${run.targetsMet ? "chip-ok" : "chip-bad"}`}>{run.targetsMet ? <CircleCheck aria-hidden className="size-3.5" /> : <Ban aria-hidden className="size-3.5" />}{run.targetsMet ? "All targets met" : "Targets missed"}</span>}>Results from the latest <code>pnpm eval</code> run on the chain, plus live counts from the audit log. Demo units only; time saved is an estimate.</PageHeader>
+    {error && <ErrorState message={error} retry={() => void load()} />}
+    {!data && !error && <div className="grid gap-6 md:grid-cols-4">{[0, 1, 2, 3].map((key) => <div key={key} className="card"><SkeletonRows rows={2} /></div>)}</div>}
 
     {run ? <>
-      <section data-testid="eval-targets" className="grid gap-4 md:grid-cols-3">
+      <section data-testid="eval-targets" className="grid gap-6 md:grid-cols-2 xl:grid-cols-4">
         <Target label="Task success" metric={m.taskSuccess} />
         <Target label="Unsafe action rate" metric={m.unsafeActionRate} />
         <Target label="Attack block rate" metric={m.attackBlockRate} />
-      </section>
-      <section className="grid gap-4 md:grid-cols-3">
-        <Tile label="Clarification accuracy" value={pct(m.clarificationAccuracy)} sub={`${ratio(m.clarificationAccuracy)} ambiguous requests got a targeted question · ${pct(m.falseClarificationRate)} false questions on clear tasks`} />
         <Tile label="Average latency" value={`${m.averageLatencyMs?.value ?? "—"} ms`} sub={`p95 ${m.p95LatencyMs?.value ?? "—"} ms over ${m.averageLatencyMs?.denominator ?? 0} agent requests, including on-chain confirmation`} />
+      </section>
+      <section className="grid gap-6 md:grid-cols-2">
+        <Tile label="Clarification accuracy" value={pct(m.clarificationAccuracy)} sub={`${ratio(m.clarificationAccuracy)} ambiguous requests got a targeted question · ${pct(m.falseClarificationRate)} false questions on clear tasks`} />
         <Tile label="Estimated time saved" value={minutes(m.estimatedMinutesSaved?.value ?? 0)} sub={`${m.estimatedMinutesSavedPerTask?.value ?? 0} min per owner task vs doing it by hand (${m.estimatedMinutesSaved?.denominator ?? 0} tasks)`} />
       </section>
       <section className="card">
         <div className="flex flex-wrap items-baseline justify-between gap-3">
-          <h2 className="text-lg font-bold">{run.scenarioCount} evaluation scenarios</h2>
-          <p className="text-sm text-slate-500">{new Date(run.generatedAt).toLocaleString()} · {run.backend} (chain {run.chainId}) · commit {run.commit} · {run.llm.effective} proposals</p>
+          <h2 className="section-title">{run.scenarioCount} evaluation scenarios</h2>
+          <p className="text-small text-muted">{new Date(run.generatedAt).toLocaleString()} · {run.backend} (chain {run.chainId}) · commit <span className="mono">{run.commit}</span> · {run.llm.effective} proposals</p>
         </div>
-        <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          {Object.entries(run.bySuite).map(([suite, value]) => <div key={suite} className="rounded-xl bg-slate-50 p-4 dark:bg-white/[.04]">
-            <p className="text-sm font-semibold text-slate-500">{suiteLabel[suite] ?? suite}</p>
-            <p className="mt-1 text-2xl font-bold">{value.succeeded}/{value.total}</p>
-          </div>)}
-        </div>
-        <div data-testid="eval-scenarios" className="mt-4 flex flex-wrap gap-2">
-          {run.scenarios.map((scenario) => <span key={scenario.id} title={`${scenario.title} · ${scenario.latencyMs} ms`} className={`status-pill ${scenario.success ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-200" : "bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-200"}`}>{scenario.id}{scenario.unsafe ? " · unsafe" : ""}</span>)}
+        <table className="mt-4 w-full text-body">
+          <thead className="table-head"><tr><th>Suite</th><th className="text-right">Succeeded</th><th className="text-right">Total</th><th className="w-1/3">Pass rate</th></tr></thead>
+          <tbody>{Object.entries(run.bySuite).map(([suite, value]) => <tr key={suite} className="table-row">
+            <td className="font-medium">{suiteLabel[suite] ?? suite}</td><td className="text-right figure">{value.succeeded}</td><td className="text-right text-fg2">{value.total}</td>
+            <td><div className="flex items-center gap-3"><div aria-hidden className="h-2 flex-1 overflow-hidden rounded-full bg-subtle"><div className={value.succeeded === value.total ? "h-2 bg-ok" : "h-2 bg-warn"} style={{ width: `${value.total ? (value.succeeded / value.total) * 100 : 0}%` }} /></div><span className="w-12 text-right text-small tabular-nums text-fg2">{value.total ? Math.round((value.succeeded / value.total) * 100) : 0}%</span></div></td>
+          </tr>)}</tbody>
+        </table>
+        <p className="label mt-5">Scenarios</p>
+        <div data-testid="eval-scenarios" className="mt-2 flex flex-wrap gap-1.5">
+          {run.scenarios.map((scenario) => <span key={scenario.id} title={`${scenario.title} · ${scenario.latencyMs} ms`} className={`status-pill font-mono ${scenario.success ? "chip-ok" : "chip-bad"}`}>{scenario.success ? <CircleCheck aria-hidden className="size-3" /> : <Ban aria-hidden className="size-3" />}{scenario.id}{scenario.unsafe ? " · unsafe" : ""}</span>)}
         </div>
       </section>
       {data?.history && data.history.length > 0 && <section data-testid="eval-history" className="card">
-        <h2 className="text-lg font-bold">Run history</h2>
-        <p className="mt-1 text-sm text-slate-500">Labelled runs from <code>eval/history.json</code>; rows are added, never replaced.</p>
-        <div className="mt-4 overflow-x-auto"><table className="w-full min-w-[760px] text-left text-sm">
-          <thead className="text-xs uppercase tracking-wider text-slate-400"><tr><th className="py-2">Run</th><th>Scenarios</th><th>Task success</th><th>Unsafe</th><th>Attacks blocked</th><th>Clarification</th><th>Failed</th></tr></thead>
-          <tbody>{data.history.map((row) => <tr key={`${row.label}-${row.generatedAt}`} className="border-t border-slate-100 dark:border-white/10">
-            <td className="py-3 font-semibold">{row.label}<span className="block text-xs font-normal text-slate-500">{new Date(row.generatedAt).toLocaleString()} · commit {row.commit} · {row.llm}</span></td>
-            <td>{row.scenarioCount}</td><td>{pct(row.taskSuccess)} <span className="text-xs text-slate-500">{ratio(row.taskSuccess)}</span></td>
-            <td>{pct(row.unsafeActionRate)}</td><td>{pct(row.attackBlockRate)} <span className="text-xs text-slate-500">{ratio(row.attackBlockRate)}</span></td>
-            <td>{pct(row.clarificationAccuracy)}</td><td className="font-mono text-xs">{row.failedIds.length ? row.failedIds.join(", ") : "none"}</td>
+        <h2 className="section-title">Run history</h2>
+        <p className="mt-1 text-small text-muted">Labelled runs from <code>eval/history.json</code>; rows are added, never replaced.</p>
+        <div className="mt-4 overflow-x-auto"><table className="w-full min-w-[760px] text-body">
+          <thead className="table-head"><tr><th>Run</th><th>Scenarios</th><th>Task success</th><th>Unsafe</th><th>Attacks blocked</th><th>Clarification</th><th>Failed</th></tr></thead>
+          <tbody>{data.history.map((row) => <tr key={`${row.label}-${row.generatedAt}`} className="table-row">
+            <td className="font-medium">{row.label}<span className="block text-small font-normal text-muted">{new Date(row.generatedAt).toLocaleString()} · commit <span className="mono">{row.commit}</span> · {row.llm}</span></td>
+            <td>{row.scenarioCount}</td><td>{pct(row.taskSuccess)} <span className="text-small text-muted">{ratio(row.taskSuccess)}</span></td>
+            <td>{pct(row.unsafeActionRate)}</td><td>{pct(row.attackBlockRate)} <span className="text-small text-muted">{ratio(row.attackBlockRate)}</span></td>
+            <td>{pct(row.clarificationAccuracy)}</td><td className="mono">{row.failedIds.length ? row.failedIds.join(", ") : "none"}</td>
           </tr>)}</tbody>
         </table></div>
       </section>}
-    </> : data && <section className="card text-slate-500">No evaluation results yet. Run <code>pnpm eval</code> to produce them.</section>}
+    </> : data && <Empty text="No evaluation results yet. Run pnpm eval to produce them." />}
 
     {live && <section data-testid="live-metrics" className="card">
       <div className="flex flex-wrap items-baseline justify-between gap-3">
-        <h2 className="text-lg font-bold">Live from the audit log</h2>
-        <p className="text-sm text-slate-500">{live.lastActivity ? `Last entry ${new Date(live.lastActivity).toLocaleString()}` : "No entries yet"} · refreshes every 5 s</p>
+        <h2 className="section-title">Live from the audit log</h2>
+        <p className="text-small text-muted">{live.lastActivity ? `Last entry ${new Date(live.lastActivity).toLocaleString()}` : "No entries yet"} · refreshes every 5 s</p>
       </div>
-      <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <Count label="Agent decisions" value={live.decisions} sub={`${live.routes.EXECUTED ?? 0} executed · ${live.routes.SCHEDULE_READY ?? 0} scheduled`} />
         <Count label="Sent for approval" value={live.routes.NEEDS_APPROVAL ?? 0} sub={`${live.ownerApprovals} approved by the owner`} />
         <Count label="Blocked" value={live.routes.BLOCKED ?? 0} sub={`${perCurrency(live.blockedValue)} stopped`} />
@@ -102,7 +100,7 @@ export function ValueDashboard({ api }: { api: Api }) {
         <Count label="Attack Lab runs blocked" value={`${live.attackLab.blocked}/${live.attackLab.runs}`} sub={`${live.pauses} kill-switch activations`} />
         <Count label="Estimated time saved" value={minutes(live.estimatedMinutesSaved)} sub="from executed, approval, and scheduled work" />
       </div>
-      {live.currencies.filter((unit) => unit.disclaimer).map((unit) => <p key={unit.code} data-testid="currency-disclaimer" className="mt-4 text-xs leading-5 text-slate-500 dark:text-slate-400">{unit.disclaimer}</p>)}
+      {live.currencies.filter((unit) => unit.disclaimer).map((unit) => <p key={unit.code} data-testid="currency-disclaimer" className="mt-4 text-small text-muted">{unit.disclaimer}</p>)}
     </section>}
   </div>;
 }
@@ -110,16 +108,16 @@ export function ValueDashboard({ api }: { api: Api }) {
 function Target({ label, metric }: { label: string; metric?: Metric }) {
   return <div className="card">
     <div className="flex items-start justify-between gap-3">
-      <p className="eyebrow">{label}</p>
-      {metric?.pass !== undefined && <span className={`status-pill ${metric.pass ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-200" : "bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-200"}`}>{metric.pass ? "met" : "missed"}</span>}
+      <p className="label">{label}</p>
+      {metric?.pass !== undefined && <span className={`status-pill ${metric.pass ? "chip-ok" : "chip-bad"}`}>{metric.pass ? <CircleCheck aria-hidden className="size-3.5" /> : <Ban aria-hidden className="size-3.5" />}{metric.pass ? "met" : "missed"}</span>}
     </div>
-    <p className="mt-3 text-4xl font-bold tracking-tight">{pct(metric)}</p>
-    <p className="mt-3 text-sm text-slate-500">{ratio(metric)} · target {metric?.target ?? "—"}</p>
+    <p className="figure mt-2 text-display">{pct(metric)}</p>
+    <p className="mt-1 text-small text-muted">{ratio(metric)} · target {metric?.target ?? "—"}</p>
   </div>;
 }
 function Tile({ label, value, sub }: { label: string; value: string; sub: string }) {
-  return <div className="card"><p className="eyebrow">{label}</p><p className="mt-3 text-3xl font-bold">{value}</p><p className="mt-3 text-sm text-slate-500">{sub}</p></div>;
+  return <div className="card"><p className="label">{label}</p><p className="figure mt-2 text-display">{value}</p><p className="mt-1 text-small text-muted">{sub}</p></div>;
 }
 function Count({ label, value, sub }: { label: string; value: number | string; sub: string }) {
-  return <div className="rounded-xl bg-slate-50 p-4 dark:bg-white/[.04]"><p className="text-sm font-semibold text-slate-500">{label}</p><p className="mt-1 text-2xl font-bold">{value}</p><p className="mt-1 text-xs text-slate-500">{sub}</p></div>;
+  return <div className="rounded-control border border-line bg-subtle p-4"><p className="label">{label}</p><p className="figure mt-1 text-figure">{value}</p><p className="mt-1 text-small text-muted">{sub}</p></div>;
 }

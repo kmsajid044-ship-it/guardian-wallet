@@ -1,4 +1,6 @@
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
+import { Play, ShieldCheck, X } from "lucide-react";
+import { ErrorState, Hash, InfoTip, StatusChip, TERMS, Term, TierBadge } from "./ui";
 
 /** Mirrors agent/src/planner/planner.ts. Every state and number here is what the agent returned. */
 export type PlanStepState = "PLANNED" | "VALIDATED" | "PENDING_APPROVAL" | "EXECUTED" | "BLOCKED" | "FAILED";
@@ -8,19 +10,9 @@ export type PlanStep = {
   proposal: { kind: string; amount?: string; currency?: string; recipientContactId?: string };
   validation?: StepResult; result?: StepResult; error?: string; disclaimer?: string;
 };
-export type Plan = { id: string; status: string; request: string; approvalCap?: { currency: string; amount: string }; steps: PlanStep[] };
+export type Plan = { id: string; status: string; request: string; approvalCap?: { currency: string; amount: string }; steps: PlanStep[]; stoppedAt?: number };
 type Api = <T>(path: string, init?: RequestInit) => Promise<T>;
 type Receipt = { status: string; blockNumber: string };
-
-const stateStyle: Record<PlanStepState, string> = {
-  PLANNED: "bg-slate-100 text-slate-600 dark:bg-white/10 dark:text-slate-300",
-  VALIDATED: "bg-sky-100 text-sky-800 dark:bg-sky-950 dark:text-sky-200",
-  PENDING_APPROVAL: "bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-200",
-  EXECUTED: "bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-200",
-  BLOCKED: "bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-200",
-  FAILED: "bg-rose-200 text-rose-900 dark:bg-rose-900 dark:text-rose-100",
-};
-const short = (hash: string) => `${hash.slice(0, 10)}…${hash.slice(-8)}`;
 
 /** The plan as an ordered list of steps; the owner runs it only after reviewing the checks. */
 export function PlanView({ plan, api, onChange }: { plan: Plan; api: Api; onChange(plan: Plan): Promise<void> | void }) {
@@ -33,19 +25,19 @@ export function PlanView({ plan, api, onChange }: { plan: Plan; api: Api; onChan
     finally { setBusy(""); }
   }
   const disclaimers = [...new Set(plan.steps.flatMap((step) => step.disclaimer ? [step.disclaimer] : []))];
-  return <section data-testid="plan-view" className="space-y-4">
+  return <section data-testid="plan-view" className="space-y-3">
     <div className="flex flex-wrap items-center justify-between gap-2">
-      <div><p className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">Plan · {plan.steps.length} steps</p>
-        {plan.approvalCap && <p data-testid="plan-cap" className="text-sm text-slate-600 dark:text-slate-300">Ask the owner before anything above {plan.approvalCap.amount} {plan.approvalCap.currency}</p>}</div>
-      <span data-testid="plan-status" className="status-pill bg-white text-slate-700 dark:bg-white/10 dark:text-slate-200">{plan.status.replaceAll("_", " ")}</span>
+      <div><p className="label">Plan · {plan.steps.length} steps</p>
+        {plan.approvalCap && <p data-testid="plan-cap" className="text-body text-fg">Ask the owner before anything above {plan.approvalCap.amount} {plan.approvalCap.currency}</p>}</div>
+      <StatusChip code={plan.status} testId="plan-status" codeTestId="plan-status-code" />
     </div>
     <ol className="space-y-3">{plan.steps.map((step) => <StepRow key={step.id} step={step} api={api} />)}</ol>
-    {disclaimers.map((text) => <p key={text} data-testid="currency-disclaimer" className="text-xs leading-5 text-slate-500 dark:text-slate-400">{text}</p>)}
-    <p className="text-xs text-slate-500 dark:text-slate-400">States come from the agent's checks and the chain. A transaction and block appear only once the node has returned a receipt.</p>
-    {error && <p className="rounded-xl bg-rose-50 p-3 text-sm text-rose-800 dark:bg-rose-950/40 dark:text-rose-200">{error}</p>}
-    {plan.status === "DRAFT" && <div className="flex gap-3">
-      <button data-testid="plan-run" onClick={() => void act("run")} disabled={busy !== ""} className="primary-button">{busy === "run" ? "Running…" : "Run plan"}</button>
-      <button data-testid="plan-cancel" onClick={() => void act("cancel")} disabled={busy !== ""} className="secondary-button">Cancel plan</button>
+    {disclaimers.map((text) => <p key={text} data-testid="currency-disclaimer" className="text-small text-muted">{text}</p>)}
+    <p className="text-small text-muted">States come from the agent's checks and the chain. A transaction and block appear only once the node has returned a receipt.</p>
+    {error && <ErrorState message={error} retry={() => void act("run")} />}
+    {plan.status === "DRAFT" && <div className="flex flex-wrap gap-3">
+      <button data-testid="plan-run" onClick={() => void act("run")} disabled={busy !== ""} className="primary-button"><Play aria-hidden className="size-4" />{busy === "run" ? "Running…" : "Run plan"}</button>
+      <button data-testid="plan-cancel" onClick={() => void act("cancel")} disabled={busy !== ""} className="secondary-button"><X aria-hidden className="size-4" />Cancel plan</button>
     </div>}
   </section>;
 }
@@ -63,29 +55,29 @@ function StepRow({ step, api }: { step: PlanStep; api: Api }) {
     try { const fetched = await api<Receipt>(`/receipt/${hash}`); setReceipt(`Receipt ${fetched.status} · block ${fetched.blockNumber}`); }
     catch { setReceipt("Receipt not found on the node"); }
   }
-  const field = (label: string, value: string, testId: string, mono = false) => <div><dt className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">{label}</dt><dd data-testid={testId} className={`text-sm font-semibold ${mono ? "font-mono" : ""}`}>{value}</dd></div>;
-  return <li data-testid={`plan-step-${step.id}`} className="rounded-2xl border border-slate-200 bg-white p-4 dark:border-white/10 dark:bg-white/[.03]">
-    <div className="flex items-center justify-between gap-3">
-      <b data-testid="step-id" className="font-mono text-sm">{step.id}</b>
-      <span data-testid="step-state" className={`status-pill ${stateStyle[step.state]}`}>{step.state.replaceAll("_", " ")}</span>
+  const field = (label: ReactNode, value: ReactNode, testId: string, mono = false) => <div className="min-w-0"><dt className="label">{label}</dt><dd data-testid={testId} className={`break-words text-body font-medium ${mono ? "mono" : ""}`}>{value}</dd></div>;
+  return <li data-testid={`plan-step-${step.id}`} className="rounded-control border border-line bg-surface p-4">
+    <div className="flex flex-wrap items-center justify-between gap-3">
+      <span className="inline-flex items-center gap-2"><b data-testid="step-id" className="mono text-fg">{step.id}</b><span className="text-body text-fg">{step.proposal.kind === "save" ? `Move ${step.proposal.amount ?? "?"} ${step.proposal.currency ?? ""} to savings` : `Pay ${step.proposal.recipientContactId ?? "?"} ${step.proposal.amount ?? "?"} ${step.proposal.currency ?? ""}`}</span></span>
+      <StatusChip code={step.state} testId="step-state" codeTestId="step-state-code" />
     </div>
-    <dl className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-4 [&>div]:min-w-0 [&_dd]:break-words">
+    <dl className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-4">
       {field("Operation", step.operation, "step-operation", true)}
       {field("Recipient", step.proposal.kind === "save" ? "Own savings" : step.proposal.recipientContactId ?? "—", "step-recipient")}
       {field("Amount", step.proposal.amount ?? "—", "step-amount")}
       {field("Currency", step.proposal.currency ?? "—", "step-currency")}
-      {field("Tier", latest?.tier ?? "—", "step-tier")}
-      {field("Risk score", riskScore === undefined || riskScore === null ? "Not scored" : `${riskScore}/100`, "step-risk")}
+      {field(<Term tip={TERMS.tier}>Permission</Term>, <TierBadge tier={latest?.tier} testId="step-tier" codeTestId="step-tier-code" />, "step-permission")}
+      {field(<Term tip={TERMS.riskScore}>Risk score</Term>, riskScore === undefined || riskScore === null ? "Not scored" : `${riskScore}/100`, "step-risk")}
       {field("Run", step.status === "NOT_RUN" ? "Not run" : step.result ? "Ran" : "Checked only", "step-run")}
     </dl>
-    {step.result?.flags?.length ? <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">Flags: {step.result.flags.join(", ")}</p> : null}
-    {!step.result && step.validation && step.state === "PLANNED" && <p data-testid="step-precheck" className="mt-2 text-xs text-amber-800 dark:text-amber-200">Pre-check predicts {step.validation.route.replaceAll("_", " ").toLowerCase()}{step.validation.flags?.length ? ` (${step.validation.flags.join(", ")})` : ""}.</p>}
-    {step.error && <p data-testid="step-error" className="mt-2 text-xs text-rose-700 dark:text-rose-300">{step.error}</p>}
-    {hash && block && <div className="mt-3 flex flex-wrap items-center gap-3 rounded-xl bg-slate-50 p-3 text-xs dark:bg-white/[.04]">
-      <span>Transaction <b data-testid="step-tx" className="font-mono" title={hash}>{short(hash)}</b></span>
-      <span>Block <b data-testid="step-block">{block}</b></span>
-      <button data-testid="step-verify" onClick={() => void verify()} className="secondary-button">Verify</button>
-      {receipt && <span data-testid="step-receipt" className="font-semibold">{receipt}</span>}
+    {step.result?.flags?.length ? <p className="mt-2 text-small text-muted">Rules: {step.result.flags.map((flag) => <code key={flag} className="code-tag mr-1">{flag}</code>)}</p> : null}
+    {!step.result && step.validation && step.state === "PLANNED" && <p data-testid="step-precheck" className="mt-2 text-small text-warn">Pre-check predicts {step.validation.route.replaceAll("_", " ").toLowerCase()}{step.validation.flags?.length ? ` (${step.validation.flags.join(", ")})` : ""}.</p>}
+    {step.error && <p data-testid="step-error" className="mt-2 text-small text-bad">{step.error}</p>}
+    {hash && block && <div className="mt-3 flex flex-wrap items-center gap-x-5 gap-y-2 rounded-control bg-subtle p-3 text-body">
+      <span className="inline-flex items-center gap-2"><Term tip={TERMS.txHash}>Transaction</Term><Hash value={hash} testId="step-tx" /></span>
+      <span className="inline-flex items-center gap-1"><Term tip={TERMS.block}>Block</Term><span className="mono">#<span data-testid="step-block">{block}</span></span></span>
+      <span className="inline-flex items-center gap-1"><button data-testid="step-verify" onClick={() => void verify()} className="secondary-button"><ShieldCheck aria-hidden className="size-4" />Verify</button><InfoTip term="verify" text={TERMS.verify} /></span>
+      {receipt && <span data-testid="step-receipt" className="font-medium">{receipt}</span>}
     </div>}
   </li>;
 }

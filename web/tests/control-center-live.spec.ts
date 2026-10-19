@@ -15,16 +15,18 @@ async function blockHeight(request: import("@playwright/test").APIRequestContext
 
 test("approves and rejects real pending items from the Control Center", async ({ page, request }) => {
   await useLiveAgent(page, agent);
-  await page.goto("/");
-  await expect(page.getByTestId("chain-badge")).toHaveText(/^Local Anvil \(dev fallback\) · chain 31337 · block \d+$/);
+  await page.goto("/#/agent");
+  await expect(page.getByTestId("chain-badge")).toHaveText(/^Local Anvil \(dev fallback\) · chain 31337 · block #\d+$/);
   for (const amount of ["250", "260"]) {
     await page.getByLabel("Message the agent").fill(`Pay Ana ${amount} USD`);
-    await page.getByRole("button", { name: "Send" }).click();
-    await expect(page.getByTestId("chat-result")).toContainText("NEEDS APPROVAL", { timeout: 30_000 });
+    await page.getByRole("button", { name: "Send", exact: true }).click();
+    await expect(page.getByTestId("chat-result")).toContainText("Needs your approval", { timeout: 30_000 });
   }
 
   await page.getByRole("navigation", { name: "Main" }).getByRole("link", { name: "Control Center" }).click();
   const first = page.getByTestId("pending-1");
+  await expect(first.getByTestId("pending-why")).toHaveText("It is above your 200 USD approval limit.");
+  await first.getByText("Details", { exact: true }).click();
   await expect(first.getByTestId("pending-amount")).toHaveText("250");
   await expect(first.getByTestId("pending-operation")).toHaveText("requestApproval");
   await expect(first.getByTestId("pending-recipient")).toHaveText("ana");
@@ -41,5 +43,5 @@ test("approves and rejects real pending items from the Control Center", async ({
 
   await page.getByTestId("approve-2").click();
   await expect(page.getByTestId("confirmed-2")).toHaveText(/^Pending #2 approved and paid · confirmed on chain in block \d+ · 0x/, { timeout: 30_000 });
-  await expect(page.getByTestId("approval-inbox")).toContainText("No items need your approval", { timeout: 15_000 });
+  await expect(page.getByTestId("approval-inbox")).toContainText("No approvals waiting", { timeout: 15_000 });
 });

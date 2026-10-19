@@ -35,17 +35,20 @@ test("inspects the exported FISCO BCOS evidence and verifies receipts against th
   expect(offChain).toBeGreaterThan(0);
 
   // Off-chain blocks carry an audit record and never a transaction hash.
+  await page.getByRole("tab", { name: /Blocked before the chain/ }).click();
   const offChainGroup = page.getByTestId("group-offchain");
   expect(await offChainGroup.innerText()).not.toMatch(TX_HASH);
   await expect(offChainGroup.getByTestId("audit-chain").first()).toHaveText("Verifies");
 
   // Every on-chain refusal shows its hash; the first one and the first executed one match the node.
+  await page.getByRole("tab", { name: /Refused on-chain/ }).click();
   const refusalGroup = page.getByTestId("group-refusals");
   await expect(refusalGroup.locator("[data-testid^='tx-0x']")).toHaveCount(refusals.length);
   const refusal = refusals[0]!;
   const refusalCard = refusalGroup.getByTestId(`tx-${refusal.hash}`);
   await refusalCard.getByTestId("tx-verify").click();
   await expect(refusalCard.getByTestId("tx-verify-result")).toHaveText(`Match · receipt in block ${refusal.blockNumber} on chain ${evidence.network.chainId}, equal to the export`, { timeout: 30_000 });
+  await page.getByRole("tab", { name: /^Done/ }).click();
   const paid = page.getByTestId("group-executed").getByTestId("scenario-E02");
   await paid.locator("summary").click();
   const executedCard = paid.locator("[data-testid^='tx-0x']").first();

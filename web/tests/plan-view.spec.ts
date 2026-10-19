@@ -17,23 +17,26 @@ test.afterAll(async () => { await agent?.stop(); });
 
 test("runs the pay, save, and approval-cap request as a plan with real receipts", async ({ page, request }) => {
   await useLiveAgent(page, agent);
-  await page.goto("/");
+  await page.goto("/#/agent");
   await page.getByLabel("Message the agent").fill(TARGET);
-  await page.getByRole("button", { name: "Send" }).click();
+  await page.getByRole("button", { name: "Send", exact: true }).click();
 
   const plan = page.getByTestId("plan-view");
   await expect(plan).toBeVisible({ timeout: 30_000 });
-  await expect(plan.getByTestId("plan-status")).toHaveText("DRAFT");
+  await expect(plan.getByTestId("plan-status")).toHaveText("Ready to run");
+  await expect(plan.getByTestId("plan-status-code")).toHaveText("DRAFT");
   await expect(plan.getByTestId("plan-cap")).toHaveText("Ask the owner before anything above 300 USD");
   const first = page.getByTestId("plan-step-S1");
   const second = page.getByTestId("plan-step-S2");
   for (const [step, operation, recipient, amount, currency] of [[first, "pay", "ana", "50", "USD"], [second, "saveToSavings", "Own savings", "200", "CNY"]] as const) {
-    await expect(step.getByTestId("step-state")).toHaveText("VALIDATED");
+    await expect(step.getByTestId("step-state")).toHaveText("Checked");
+    await expect(step.getByTestId("step-state-code")).toHaveText("VALIDATED");
     await expect(step.getByTestId("step-operation")).toHaveText(operation);
     await expect(step.getByTestId("step-recipient")).toHaveText(recipient);
     await expect(step.getByTestId("step-amount")).toHaveText(amount);
     await expect(step.getByTestId("step-currency")).toHaveText(currency);
-    await expect(step.getByTestId("step-tier")).toHaveText("T1");
+    await expect(step.getByTestId("step-tier")).toHaveText("AI can do alone");
+    await expect(step.getByTestId("step-tier-code")).toHaveText("T1");
     await expect(step.getByTestId("step-risk")).toHaveText(/^\d+\/100$/);
     // Validation signs nothing, so no transaction is shown yet.
     await expect(step.getByTestId("step-tx")).toHaveCount(0);
@@ -41,9 +44,12 @@ test("runs the pay, save, and approval-cap request as a plan with real receipts"
   await expect(plan.getByTestId("currency-disclaimer")).toHaveText(CNY_DISCLAIMER);
 
   await page.getByTestId("plan-run").click();
-  await expect(plan.getByTestId("plan-status")).toHaveText("COMPLETED", { timeout: 60_000 });
+  await expect(plan.getByTestId("plan-status")).toHaveText("Done", { timeout: 60_000 });
+  await expect(plan.getByTestId("plan-status-code")).toHaveText("COMPLETED");
+  await expect(page.getByTestId("chat-summary")).toHaveText("Done. All 2 steps ran.");
   for (const step of [first, second]) {
-    await expect(step.getByTestId("step-state")).toHaveText("EXECUTED");
+    await expect(step.getByTestId("step-state")).toHaveText("Done");
+    await expect(step.getByTestId("step-state-code")).toHaveText("EXECUTED");
     await expect(step.getByTestId("step-block")).toHaveText(/^\d+$/);
     // The hash on screen is a real transaction: the node returns its receipt in the same block.
     const hash = await step.getByTestId("step-tx").getAttribute("title");

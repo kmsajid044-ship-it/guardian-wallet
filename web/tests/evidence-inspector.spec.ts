@@ -60,8 +60,12 @@ test("shows the info box, network, and the three groups", async ({ page }) => {
   await expect(page.getByTestId("total-offchain")).toHaveText("1");
   await expect(page.getByTestId("total-verification")).toHaveText("(a) passed · (b) passed");
   await expect(page.getByTestId("group-executed").getByTestId(`tx-${hash("1")}`)).toHaveCount(1);
+  await expect(page.getByRole("tab")).toHaveText(["Done1", "Refused on-chain2", "Blocked before the chain1"]);
+  await page.getByRole("tab", { name: /Refused on-chain/ }).click();
   await expect(page.getByTestId("group-refusals").getByTestId(`tx-${hash("2")}`)).toBeVisible();
   await expect(page.getByTestId("group-refusals").getByTestId(`tx-${hash("3")}`)).toHaveCount(1);
+  await expect(page.getByTestId("group-executed")).toBeHidden();
+  await page.getByRole("tab", { name: /Blocked before the chain/ }).click();
   await expect(page.getByTestId("group-offchain").getByTestId("offchain-E-A8-2")).toBeVisible();
 });
 
@@ -87,6 +91,7 @@ test("shows every field of a transaction, including decoded events and the polic
 });
 
 test("never shows a transaction hash for an off-chain block, only its audit record", async ({ page }) => {
+  await page.getByRole("tab", { name: /Blocked before the chain/ }).click();
   const group = page.getByTestId("group-offchain");
   expect(await group.innerText()).not.toMatch(TX_HASH);
   await expect(group.getByTestId("tx-hash")).toHaveCount(0);
@@ -101,10 +106,11 @@ test("never shows a transaction hash for an off-chain block, only its audit reco
 
 test("Verify reports match, mismatch, and an unreachable node", async ({ page }) => {
   await page.getByTestId("group-executed").getByTestId("scenario-E02").locator("summary").click();
-  await page.getByTestId("group-refusals").getByTestId("scenario-E-A8").locator("summary").click();
   const executedCard = page.getByTestId(`tx-${hash("1")}`);
   await executedCard.getByTestId("tx-verify").click();
   await expect(executedCard.getByTestId("tx-verify-result")).toHaveText("Match · receipt in block 140 on chain 1337, equal to the export");
+  await page.getByRole("tab", { name: /Refused on-chain/ }).click();
+  await page.getByTestId("group-refusals").getByTestId("scenario-E-A8").locator("summary").click();
   const refusedCard = page.getByTestId(`tx-${hash("2")}`);
   await refusedCard.getByTestId("tx-verify").click();
   await expect(refusedCard.getByTestId("tx-verify-result")).toHaveText("Mismatch · receipt differs from export");
