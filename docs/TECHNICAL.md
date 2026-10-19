@@ -1,5 +1,7 @@
 # Technical design
 
+Guardian Wallet: a trust and control layer for autonomous AI finance. Let AI handle your financial tasks, without giving up control of your money. All balances are simulated demo units; no real money or customer funds are involved.
+
 Guardian Wallet is a research prototype with USD and CNY demo balances on a simulated ledger, running on a permissioned chain operated by the team (local FISCO BCOS v3.16.4, four nodes, PBFT, chain ID 1337). There is no real money. The full specification is [SPEC.md](../SPEC.md); this document explains the architecture, the core algorithms, and the security design.
 
 > Simulated demo units denominated in CNY for illustration. No value, not issued, not redeemable, not a digital currency, not linked to e-CNY.

@@ -39,7 +39,7 @@ export function ValueDashboard({ api }: { api: Api }) {
     <section className="flex flex-col justify-between gap-4 md:flex-row md:items-end">
       <div>
         <p className="eyebrow">Outcome reporting</p>
-        <h1 className="page-title">Value Dashboard</h1>
+        <h1 className="page-title">Evaluation</h1>
         <p className="mt-2 max-w-3xl text-slate-500">Evaluation results from the latest <code>pnpm eval</code> run, and live counts from the hash-chained audit log. Demo units only; time saved is an estimate.</p>
       </div>
       {run && <span data-testid="eval-verdict" className={`status-pill ${run.targetsMet ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-200" : "bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-200"}`}>{run.targetsMet ? "All targets met" : "Targets missed"}</span>}

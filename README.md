@@ -1,5 +1,9 @@
 # Guardian Wallet
 
+**Guardian Wallet: a trust and control layer for autonomous AI finance. Let AI handle your financial tasks, without giving up control of your money.**
+
+All balances are simulated demo units on a permissioned chain operated by the team; no real money or customer funds are involved.
+
 A research prototype for the 2026 Shenzhen FinTechathon, International Track, Topic F: an AI agent that pays, saves, and plans on its owner's behalf, inside limits the agent cannot change.
 
 **The LLM proposes. Code verifies. The contract enforces. The human decides above the line.**
@@ -45,11 +49,14 @@ Use `pnpm run setup`, not `pnpm setup`: `setup` is a built-in pnpm command (it a
 Open http://127.0.0.1:5173.
 
 1. **Chat** `Pay ana 50 USD`: firewall, policy pre-check, simulation, risk score, tier T1, executed. The transaction hash and block appear in the pipeline view and the audit log.
-2. **Chat** `Pay ana 250 USD`: 250 is at or above the 200 approval line, so it becomes a T2 pending approval. Approve it in the inbox; the owner's `approve()` executes it.
+2. **Chat** `Pay ana 250 USD`: 250 is at or above the 200 approval line, so it becomes a T2 pending approval. In the **Control Center** its card shows the operation, amount, recipient, agent reasoning, risk score, triggered rules, and expiry; Approve runs the owner's `approve()` and Reject its `reject()`, and success appears only after the chain confirms.
 3. **Chat** `Pay ana`: the agent asks "How much USD or CNY should I pay contact ana?" instead of guessing.
 4. **Attack Lab**, Run all 11: prompt injection, over-limit, split payments, unknown recipient, cooldown swap, approval replay, expired approval, agent resume, raw contract bypass, policy change, and owner impersonation, each with the layer that stopped it and its transaction hash or revert.
-5. **Kill switch**: pause, watch a payment be refused with `PAUSED`, resume (owner only).
-6. **Value Dashboard**: the evaluation targets and live counts from the audit log.
+5. **Kill switch** (Control Center): pause, watch a payment be refused with `PAUSED`, resume (owner only).
+6. **Evidence Inspector**: executed transactions, on-chain refusals, and off-chain blocks from the FISCO BCOS evidence, each transaction verifiable against the node.
+7. **Evaluation**: the evaluation targets and live counts from the audit log.
+
+The console navigation is AI Agent, Wallet (demo balances and the audit log), Control Center (limits, allowlist, cooldown, pending approvals, kill switch), Attack Lab, Evidence Inspector, and Evaluation; the header shows the chain backend, chain ID, and block height read from the node. Screenshots of every page are in [docs/screenshots/](docs/screenshots/).
 
 ## Currencies
 
@@ -95,7 +102,7 @@ contracts/   Solidity: GuardianWallet (policy controller) and DemoLedger (simula
 agent/       TypeScript service: LLM adapters, firewall, policy pre-check, simulation, risk score,
              tier gate, restricted signers (src/exec/), planner, scheduler, audit chain, Attack Lab, HTTP API
 risk-intel/  Synthetic payee checks and a cached USD/CNY FX snapshot, released after a verified fee receipt
-web/         Owner console: chat, approvals, policy, kill switch, Attack Lab, Value Dashboard
+web/         Owner console: AI Agent, Wallet, Control Center, Attack Lab, Evidence Inspector, Evaluation
 eval/        Evaluation scenarios (eval/scenarios/*.yaml) and harness
 evidence/    Exported FISCO BCOS receipts, evidence.json, and a node data snapshot
 scripts/     Setup, demo, chain, deployment, evidence, and repository checks

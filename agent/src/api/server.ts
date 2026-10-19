@@ -8,7 +8,7 @@ import { ChainStateReader } from "../chain/state.js";
 import { createChainAdapter } from "../chain/ChainAdapter.js";
 import { loadDeployment, resolveRepoPath, type Config, type Deployment } from "../config.js";
 import { AgentPipeline } from "../pipeline/pipeline.js";
-import { pendingExplanations } from "../pipeline/why.js";
+import { pendingExplanations, pendingReasoning } from "../pipeline/why.js";
 import { OwnerExecutor } from "../exec/ownerExecutor.js";
 import type { LlmAdapter } from "../llm/adapter.js";
 import { looksLikePlan, PlanManager, PlanStepsSchema, type Plan } from "../planner/planner.js";
@@ -120,8 +120,20 @@ export function buildServer(config: Config, options: ServerOptions = {}): Fastif
   // Each pending item carries the explanation of the pipeline decision that created it.
   app.get("/pending", async () => {
     const items = await state.pending();
-    const explanations = pendingExplanations(audit.list());
-    return items.map((item) => ({ ...item, why: explanations.get(item.id ?? "") ?? null }));
+    const entries = audit.list();
+    const explanations = pendingExplanations(entries);
+    const reasoning = pendingReasoning(entries);
+    return items.map((item) => ({
+      ...item, operation: "requestApproval", why: explanations.get(item.id ?? "") ?? null,
+      agentReasoning: reasoning.get(item.id ?? "")?.reason ?? null, flags: reasoning.get(item.id ?? "")?.flags ?? [],
+    }));
+  });
+  // Shown in the console header: what the agent is connected to right now, read from the node.
+  app.get("/chain", async (_request, reply) => {
+    try {
+      const [chainId, blockHeight] = await Promise.all([clients.publicClient.getChainId(), clients.publicClient.getBlockNumber({ cacheTime: 0 })]);
+      return { backend: config.CHAIN_BACKEND, chainId, blockHeight: blockHeight.toString() };
+    } catch (error) { return reply.code(503).send({ error: "NODE_UNAVAILABLE", message: errorMessage(error) }); }
   });
   app.get("/audit", async () => audit.list());
   app.get("/audit/verify", async () => audit.verify());
@@ -166,9 +178,14 @@ export function buildServer(config: Config, options: ServerOptions = {}): Fastif
       return { hash: found.tx.hash, rpcUrl: endpoint.rpcUrl, chainId, expected: { blockNumber: found.tx.blockNumber, blockHash: found.tx.blockHash, status: found.tx.status }, receipt, match: problems.length === 0, problems };
     } catch (error) { return reply.code(502).send({ error: "NODE_UNAVAILABLE", message: `Could not reach ${endpoint.rpcUrl}: ${errorMessage(error)}` }); }
   });
+  // Success is reported only once the receipt is in and the contract shows the new pending status.
   app.post<{ Params: { id: string } }>("/owner/pending/:id/approve", async (request, reply) => {
-    try { return await runOwnerAction({ kind: "approve", pendingId: BigInt(request.params.id) }, "pending_approved"); }
+    try { return await decidePending(request.params.id, "approve"); }
     catch (error) { return reply.code(400).send({ error: "APPROVAL_FAILED", message: errorMessage(error) }); }
+  });
+  app.post<{ Params: { id: string } }>("/owner/pending/:id/reject", async (request, reply) => {
+    try { return await decidePending(request.params.id, "reject"); }
+    catch (error) { return reply.code(400).send({ error: "REJECTION_FAILED", message: errorMessage(error) }); }
   });
   app.post("/owner/pause", async (_request, reply) => {
     try { return await runOwnerAction({ kind: "pause" }, "wallet_paused"); }
@@ -248,6 +265,17 @@ export function buildServer(config: Config, options: ServerOptions = {}): Fastif
     return parsed.data.now === undefined ? scheduler.runDue() : scheduler.runDue(parsed.data.now);
   });
   app.addHook("onClose", async () => { scheduler.stop(); audit.close(); });
+
+  async function decidePending(id: string, kind: "approve" | "reject") {
+    if (!/^[1-9][0-9]{0,18}$/.test(id)) throw new Error("invalid pending ID");
+    const pendingId = BigInt(id);
+    const receipt = await runOwnerAction({ kind, pendingId }, kind === "approve" ? "pending_approved" : "pending_rejected");
+    if (receipt.status !== "success") throw new Error(`transaction ${receipt.transactionHash} reverted`);
+    const pendingStatus = await state.pendingStatus(pendingId);
+    const expected = kind === "approve" ? "EXECUTED" : "REJECTED";
+    if (pendingStatus !== expected) throw new Error(`pending #${id} is ${pendingStatus} on chain, expected ${expected}`);
+    return { ...receipt, pendingId: id, pendingStatus };
+  }
 
   async function runOwnerAction(action: Parameters<OwnerExecutor["submit"]>[0], kind: string) {
     const receipt = await OwnerExecutor.create(config, deployment, environment).submit(action);

@@ -6,11 +6,20 @@ import { ValueDashboard } from "./ValueDashboard";
 
 const API = import.meta.env.VITE_AGENT_API_URL ?? "http://127.0.0.1:8787";
 const footer = "Simulated ledger, demo units, no real money. Permissioned chain operated by the team. Research prototype.";
+export const POSITIONING = "Guardian Wallet: a trust and control layer for autonomous AI finance. Let AI handle your financial tasks, without giving up control of your money.";
+const backendNames: Record<string, string> = { fisco: "FISCO BCOS", "evm-local": "Local Anvil (dev fallback)" };
+/** Hash routes in navigation order; older routes still open the page they were merged into. */
+const pages = [["/", "AI Agent"], ["/wallet", "Wallet"], ["/control", "Control Center"], ["/attack-lab", "Attack Lab"], ["/evidence", "Evidence Inspector"], ["/evaluation", "Evaluation"]] as const;
+const aliases: Record<string, string> = { "/policy": "/control", "/value": "/evaluation" };
 
 /** One configured demo unit (config/currencies.json); CNY entries carry the required disclaimer. */
 type Balance = { code: string; name: string; available: string; savings: string; disclaimer?: string };
 type State = { paused: boolean; balances: Balance[]; spentToday: string; remainingDaily: string; perTxLimit: string; dailyLimit: string; approvalThreshold: string; recipientCooldown: string; pendingExpiry: string; opsPerCallLimit: string; opsDailyLimit: string };
-type Pending = { id: string; recipientContactId: string; amount: string; currency: string; status: string; expiresAt: string; disclaimer?: string; why?: WhyDecision | null };
+type Pending = { id: string; recipientContactId: string; amount: string; currency: string; status: string; expiresAt: string; disclaimer?: string; why?: WhyDecision | null; operation?: string; agentReasoning?: string | null; flags?: string[] };
+/** Read from the node by the agent: what the console is connected to. */
+type Chain = { backend: string; chainId: number; blockHeight: string };
+/** Owner decision on a pending item, returned only after the receipt and the contract's new status. */
+type PendingDecision = { transactionHash: string; blockNumber: string; status: string; pendingId: string; pendingStatus: string };
 type Contact = { id: string; address: string; label: string; allowed: boolean; activeAfter: string };
 type AuditEntry = { id: number; timestamp: string; kind: string; hash: string; data: Record<string, unknown> };
 /** Explained decision from the agent pipeline; factors are exactly what the risk engine computed. */
@@ -39,30 +48,34 @@ async function ownerApi<T>(path: string, init: RequestInit): Promise<T> {
 
 export default function App() {
   const [dark, setDark] = useState(() => matchMedia("(prefers-color-scheme: dark)").matches);
-  const [route, setRoute] = useState(location.hash.slice(1) || "/");
+  const [hashRoute, setRoute] = useState(location.hash.slice(1) || "/");
+  const route = aliases[hashRoute] ?? hashRoute;
   const [state, setState] = useState<State>(initialState);
   const [pending, setPending] = useState<Pending[]>([]);
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [audit, setAudit] = useState<AuditEntry[]>([]);
+  const [chain, setChain] = useState<Chain>();
   const [error, setError] = useState("");
   const refresh = useCallback(async () => {
     try {
       const [nextState, nextPending, nextContacts, nextAudit] = await Promise.all([api<State>("/state"), api<Pending[]>("/pending"), api<Contact[]>("/contacts"), api<AuditEntry[]>("/audit")]);
       setState(nextState); setPending(nextPending.filter((item) => item.status === "PENDING")); setContacts(nextContacts); setAudit(nextAudit.slice().reverse()); setError("");
     } catch (cause) { setError(cause instanceof Error ? cause.message : "Agent service unavailable"); }
+    try { setChain(await api<Chain>("/chain")); } catch { setChain(undefined); }
   }, []);
   useEffect(() => { void refresh(); const timer = setInterval(() => void refresh(), 5_000); return () => clearInterval(timer); }, [refresh]);
   useEffect(() => { const change = () => setRoute(location.hash.slice(1) || "/"); addEventListener("hashchange", change); return () => removeEventListener("hashchange", change); }, []);
 
   return <div className={dark ? "dark" : ""}>
     <div className="app-shell min-h-screen bg-[#f4f7f9] text-slate-950 transition-colors dark:bg-[#07110f] dark:text-slate-100">
-      <Header dark={dark} setDark={setDark} paused={state.paused} />
+      <Header dark={dark} setDark={setDark} paused={state.paused} chain={chain} route={route} />
       <main className="mx-auto min-h-[calc(100vh-148px)] max-w-[1600px] px-5 py-7 lg:px-10">
         {error && <div className="mb-5 rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-200">Connection notice: {error}</div>}
-        {route === "/" && <Dashboard state={state} pending={pending} audit={audit} refresh={refresh} />}
-        {route === "/policy" && <Policy state={state} contacts={contacts} refresh={refresh} />}
+        {route === "/" && <AgentPage state={state} pending={pending} refresh={refresh} />}
+        {route === "/wallet" && <Wallet state={state} audit={audit} />}
+        {route === "/control" && <ControlCenter state={state} pending={pending} contacts={contacts} refresh={refresh} />}
         {route === "/attack-lab" && <AttackLab api={api} />}
-        {route === "/value" && <ValueDashboard api={api} />}
+        {route === "/evaluation" && <ValueDashboard api={api} />}
         {route === "/evidence" && <EvidenceInspector api={api} />}
       </main>
       <footer className="border-t border-slate-200 bg-white/80 px-6 py-5 text-center text-sm font-medium text-slate-500 dark:border-white/10 dark:bg-[#0b1714] dark:text-slate-400">{footer}</footer>
@@ -70,27 +83,58 @@ export default function App() {
   </div>;
 }
 
-function Header({ dark, setDark, paused }: { dark: boolean; setDark(value: boolean): void; paused: boolean }) {
-  const links = [["/", "Operations"], ["/policy", "Policy"], ["/attack-lab", "Attack Lab"], ["/value", "Value Dashboard"], ["/evidence", "Evidence"]];
+function Header({ dark, setDark, paused, chain, route }: { dark: boolean; setDark(value: boolean): void; paused: boolean; chain: Chain | undefined; route: string }) {
   return <header className="sticky top-0 z-20 border-b border-slate-200 bg-white/90 backdrop-blur-xl dark:border-white/10 dark:bg-[#0b1714]/90">
-    <div className="mx-auto flex max-w-[1600px] items-center gap-7 px-5 py-4 lg:px-10">
-      <a href="#/" className="mr-auto flex items-center gap-3"><span className="grid size-10 place-items-center rounded-xl bg-emerald-600 text-lg font-black text-white">G</span><span><b className="block text-base leading-none">Guardian</b><small className="text-xs text-slate-500">Owner Console</small></span></a>
-      <nav className="hidden items-center gap-1 lg:flex">{links.map(([href,label])=><a key={href} href={`#${href}`} className="rounded-lg px-3 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-white/10">{label}</a>)}</nav>
+    <div className="mx-auto flex max-w-[1600px] items-center gap-4 px-5 py-4 lg:px-10">
+      <a href="#/" className="mr-auto flex items-center gap-3"><span className="grid size-10 place-items-center rounded-xl bg-emerald-600 text-lg font-black text-white">G</span><span><b className="block text-base leading-none">Guardian Wallet</b><small className="text-xs text-slate-500">Owner Console</small></span></a>
+      <nav aria-label="Main" className="hidden items-center gap-0.5 lg:flex">{pages.map(([href,label])=><a key={href} href={`#${href}`} aria-current={route===href?"page":undefined} className={`rounded-lg px-2.5 py-2 text-sm font-semibold hover:bg-slate-100 dark:hover:bg-white/10 ${route===href?"bg-slate-100 text-slate-950 dark:bg-white/10 dark:text-white":"text-slate-600 dark:text-slate-300"}`}>{label}</a>)}</nav>
+      <span data-testid="chain-badge" title="Read from the node by the agent" className="status-pill whitespace-nowrap bg-slate-100 font-mono text-slate-700 dark:bg-white/10 dark:text-slate-200">{chain ? `${backendNames[chain.backend] ?? chain.backend} · chain ${chain.chainId} · block ${chain.blockHeight}` : "Chain unavailable"}</span>
       <span className={`status-pill ${paused ? "bg-rose-100 text-rose-700 dark:bg-rose-950 dark:text-rose-300" : "bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300"}`}><span className={`size-2 rounded-full ${paused ? "bg-rose-500" : "bg-emerald-500"}`}/>{paused ? "Paused" : "Active"}</span>
       <button aria-label="Toggle color mode" className="icon-button" onClick={() => setDark(!dark)}>{dark ? "☀" : "☾"}</button>
     </div>
   </header>;
 }
 
-function Dashboard({ state, pending, audit, refresh }: { state: State; pending: Pending[]; audit: AuditEntry[]; refresh(): Promise<void> }) {
+/** Landing page: the positioning, the agent chat, and what is waiting for the owner. */
+function AgentPage({ state, pending, refresh }: { state: State; pending: Pending[]; refresh(): Promise<void> }) {
   return <div className="space-y-7">
-    <section className="flex flex-col justify-between gap-3 md:flex-row md:items-end"><div><p className="eyebrow">Permissioned operations</p><h1 className="page-title">Good afternoon, owner.</h1><p className="mt-2 text-slate-500 dark:text-slate-400">Review decisions, approve exceptions, and stay in control.</p></div><KillSwitch paused={state.paused} refresh={refresh}/></section>
+    <section className="rounded-3xl border border-emerald-200 bg-gradient-to-br from-emerald-50 to-white p-7 dark:border-emerald-900 dark:from-emerald-950/40 dark:to-transparent lg:p-9">
+      <p className="eyebrow">AI Agent</p>
+      <p data-testid="positioning" className="mt-3 max-w-4xl text-2xl font-bold leading-snug tracking-[-.02em] md:text-3xl"><span className="text-emerald-700 dark:text-emerald-400">{POSITIONING.slice(0, POSITIONING.indexOf(":") + 1)}</span>{POSITIONING.slice(POSITIONING.indexOf(":") + 1)}</p>
+      <p className="mt-3 text-sm text-slate-500 dark:text-slate-400">Research prototype: the agent works on a simulated ledger with USD and CNY demo balances. No real money and no customer funds are involved.</p>
+    </section>
+    <section className="grid gap-6 xl:grid-cols-[1.35fr_.65fr]"><Chat refresh={refresh}/><AtAGlance state={state} pending={pending}/></section>
+  </div>;
+}
+
+function AtAGlance({ state, pending }: { state: State; pending: Pending[] }) {
+  return <Card title="You stay in control" kicker="Owner view">
+    <div className="space-y-3 text-sm">
+      <a href="#/control" data-testid="glance-pending" className="flex items-center justify-between rounded-xl border border-slate-200 p-4 hover:bg-slate-50 dark:border-white/10 dark:hover:bg-white/5"><span>Pending approvals</span><b>{pending.length}</b></a>
+      <a href="#/control" className="flex items-center justify-between rounded-xl border border-slate-200 p-4 hover:bg-slate-50 dark:border-white/10 dark:hover:bg-white/5"><span>Agent</span><b>{state.paused ? "Paused by kill switch" : "Active"}</b></a>
+      <a href="#/wallet" className="flex items-center justify-between rounded-xl border border-slate-200 p-4 hover:bg-slate-50 dark:border-white/10 dark:hover:bg-white/5"><span>Daily capacity left</span><b>{state.remainingDaily} USD</b></a>
+      <p className="text-xs leading-5 text-slate-500 dark:text-slate-400">The agent can only pay allowlisted contacts within the limits you set. Anything at or above {state.approvalThreshold} USD waits for you in the Control Center.</p>
+    </div>
+  </Card>;
+}
+
+function Wallet({ state, audit }: { state: State; audit: AuditEntry[] }) {
+  return <div className="space-y-7">
+    <section><p className="eyebrow">Wallet</p><h1 className="page-title">Demo balances</h1><p className="mt-2 text-slate-500 dark:text-slate-400">Read from the simulated ledger on chain. Demo units only; no real money.</p></section>
     <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
       {state.balances.map((balance)=><BalanceCard key={balance.code} label={`${balance.code} available`} value={balance.available} savings={`${balance.savings} ${balance.code}`} disclaimer={balance.disclaimer}/>)}
       <Metric label="Daily capacity" value={`${state.remainingDaily} USD`} sub={`${state.spentToday} used today`}/><Metric label="FX reference" value="1 USD = 7.10 CNY" sub="Illustrative cached snapshot of 2026-10-16 · not a market rate · read only, never used to compute amounts"/>
     </section>
-    <section className="grid gap-6 xl:grid-cols-[1.35fr_.65fr]"><Chat refresh={refresh}/><ApprovalInbox items={pending} refresh={refresh}/></section>
     <AuditLog entries={audit}/>
+  </div>;
+}
+
+/** Everything the owner controls: kill switch, pending approvals, limits and cooldown, allowlist. */
+function ControlCenter({ state, pending, contacts, refresh }: { state: State; pending: Pending[]; contacts: Contact[]; refresh(): Promise<void> }) {
+  return <div className="space-y-7">
+    <section className="flex flex-col justify-between gap-3 md:flex-row md:items-end"><div><p className="eyebrow">T2 and T3 · Owner only</p><h1 className="page-title">Control Center</h1><p className="mt-2 text-slate-500 dark:text-slate-400">Approve exceptions, set the limits the contract enforces, and stop the agent at any time.</p></div><KillSwitch paused={state.paused} refresh={refresh}/></section>
+    <ApprovalInbox items={pending} refresh={refresh}/>
+    <Policy state={state} contacts={contacts} refresh={refresh}/>
   </div>;
 }
 
@@ -112,9 +156,57 @@ function Chat({ refresh }: { refresh(): Promise<void> }) {
   </Card>;
 }
 
-function ApprovalInbox({items,refresh}:{items:Pending[];refresh():Promise<void>}){const [busy,setBusy]=useState("");async function approve(id:string){setBusy(id);try{await ownerApi(`/owner/pending/${id}/approve`,{method:"POST",body:"{}"});await refresh();}finally{setBusy("")}}return <Card title="Approval inbox" kicker={`${items.length} waiting`}>
-  <div data-testid="approval-inbox" className="space-y-3">{items.length===0?<Empty text="No items need your approval."/>:items.map(item=><article key={item.id} className="rounded-2xl border border-slate-200 p-4 dark:border-white/10"><div className="flex items-start justify-between"><div><b className="text-lg">{item.amount} {item.currency}</b><p className="text-sm text-slate-500">Contact {item.recipientContactId}</p>{item.disclaimer&&<p data-testid="currency-disclaimer" className="mt-1 text-xs text-slate-500">{item.disclaimer}</p>}</div><span className="status-pill bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-200">T2</span></div>{item.why&&<div className="mt-4"><WhyPanel why={item.why} testId={`why-panel-${item.id}`}/></div>}<button data-testid={`approve-${item.id}`} onClick={()=>void approve(item.id)} disabled={busy===item.id} className="primary-button mt-4 w-full">{busy===item.id?"Approving…":"Review & approve"}</button></article>)}</div>
-  </Card>}
+/**
+ * Pending items the contract holds for the owner. A decision is reported as done only when the agent
+ * returns the receipt and the contract's new status for the item; anything else is shown as an error.
+ */
+function ApprovalInbox({items,refresh}:{items:Pending[];refresh():Promise<void>}){
+  const [busy,setBusy]=useState("");
+  const [errors,setErrors]=useState<Record<string,string>>({});
+  const [done,setDone]=useState<PendingDecision[]>([]);
+  async function decide(id:string,kind:"approve"|"reject"){
+    setBusy(`${kind}-${id}`);setErrors(current=>({...current,[id]:""}));
+    try{
+      const result=await ownerApi<PendingDecision>(`/owner/pending/${id}/${kind}`,{method:"POST",body:"{}"});
+      const expected=kind==="approve"?"EXECUTED":"REJECTED";
+      if(result.status!=="success"||result.pendingStatus!==expected)throw new Error(`Chain did not confirm: pending #${id} is ${result.pendingStatus}`);
+      setDone(current=>[result,...current]);await refresh();
+    }catch(cause){setErrors(current=>({...current,[id]:cause instanceof Error?cause.message:"Decision failed"}))}
+    finally{setBusy("")}
+  }
+  return <Card title="Pending approvals" kicker={`${items.length} waiting`}>
+    {done.length>0&&<ul data-testid="pending-confirmations" className="mb-4 space-y-2">{done.map(item=><li key={item.transactionHash} data-testid={`confirmed-${item.pendingId}`} className="rounded-xl bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-100">Pending #{item.pendingId} {item.pendingStatus==="EXECUTED"?"approved and paid":"rejected"} · confirmed on chain in block {item.blockNumber} · <span className="font-mono text-xs">{item.transactionHash.slice(0,10)}…{item.transactionHash.slice(-8)}</span></li>)}</ul>}
+    <div data-testid="approval-inbox" className="grid gap-4 xl:grid-cols-2">{items.length===0?<Empty text="No items need your approval."/>:items.map(item=><PendingCard key={item.id} item={item} busy={busy} error={errors[item.id]??""} decide={decide}/>)}</div>
+  </Card>;
+}
+
+function PendingCard({item,busy,error,decide}:{item:Pending;busy:string;error:string;decide(id:string,kind:"approve"|"reject"):Promise<void>}){
+  const rules=[...new Set([...(item.why?[item.why.decidedBy.rule]:[]),...(item.flags??[]),...(item.why?.factors.map(factor=>factor.code)??[])])];
+  const expires=new Date(Number(item.expiresAt)*1000);
+  const field=(label:string,value:ReactNode,testId:string)=><div><dt className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">{label}</dt><dd data-testid={testId} className="text-sm font-semibold">{value}</dd></div>;
+  return <article data-testid={`pending-${item.id}`} className="rounded-2xl border border-slate-200 p-5 dark:border-white/10">
+    <div className="flex items-start justify-between gap-3"><div><p className="text-xs font-semibold uppercase tracking-wider text-slate-400">Pending #{item.id}</p><b className="text-2xl">{item.amount} {item.currency}</b><p className="text-sm text-slate-500">to contact {item.recipientContactId}</p></div><span className="status-pill bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-200">T2 · owner decides</span></div>
+    <dl className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3">
+      {field("Operation",<span className="font-mono text-xs">{item.operation??"requestApproval"}</span>,"pending-operation")}
+      {field("Amount",item.amount,"pending-amount")}
+      {field("Currency",item.currency,"pending-currency")}
+      {field("Recipient",item.recipientContactId,"pending-recipient")}
+      {field("Risk score",item.why?.riskScore===null||item.why?.riskScore===undefined?"Not scored":`${item.why.riskScore}/100`,"pending-risk")}
+      {field("Expires",Number.isFinite(expires.getTime())?expires.toLocaleString():"—","pending-expiry")}
+    </dl>
+    <p className="mt-4 text-[11px] font-semibold uppercase tracking-wider text-slate-400">Agent reasoning</p>
+    <p data-testid="pending-reasoning" className="text-sm text-slate-700 dark:text-slate-200">{item.agentReasoning||"Not recorded for this item."}</p>
+    <p className="mt-3 text-[11px] font-semibold uppercase tracking-wider text-slate-400">Triggered rules</p>
+    <ul data-testid="pending-rules" className="mt-1 flex flex-wrap gap-1.5">{rules.length?rules.map(rule=><li key={rule} className="rounded-md bg-slate-100 px-2 py-1 font-mono text-[11px] text-slate-700 dark:bg-white/10 dark:text-slate-200">{rule}</li>):<li className="text-sm text-slate-500">No rule recorded.</li>}</ul>
+    {item.disclaimer&&<p data-testid="currency-disclaimer" className="mt-3 text-xs text-slate-500">{item.disclaimer}</p>}
+    {item.why&&<details className="mt-4"><summary className="cursor-pointer text-sm font-semibold">Full explanation</summary><div className="mt-3"><WhyPanel why={item.why} testId={`why-panel-${item.id}`}/></div></details>}
+    {error&&<p data-testid={`pending-error-${item.id}`} className="mt-3 rounded-xl bg-rose-50 p-3 text-sm text-rose-800 dark:bg-rose-950/40 dark:text-rose-200">{error}</p>}
+    <div className="mt-4 grid grid-cols-2 gap-3">
+      <button data-testid={`approve-${item.id}`} onClick={()=>void decide(item.id,"approve")} disabled={busy!==""} className="primary-button">{busy===`approve-${item.id}`?"Waiting for chain…":"Approve"}</button>
+      <button data-testid={`reject-${item.id}`} onClick={()=>void decide(item.id,"reject")} disabled={busy!==""} className="rounded-xl border border-rose-300 px-5 py-3 text-sm font-bold text-rose-700 hover:bg-rose-50 dark:border-rose-800 dark:text-rose-300 dark:hover:bg-rose-950/40">{busy===`reject-${item.id}`?"Waiting for chain…":"Reject"}</button>
+    </div>
+  </article>;
+}
 
 /** Explains one decision with the risk score, its real factors, and the rule that decided the outcome. */
 function WhyPanel({why,testId="why-panel"}:{why:WhyDecision;testId?:string}){return <section data-testid={testId} className="rounded-2xl border border-slate-200 bg-slate-50/80 p-4 text-left dark:border-white/10 dark:bg-white/[.03]">
@@ -129,9 +221,9 @@ function KillSwitch({paused,refresh}:{paused:boolean;refresh():Promise<void>}){c
 
 function AuditLog({entries}:{entries:AuditEntry[]}){const [verified,setVerified]=useState<Record<number,string>>({});const [open,setOpen]=useState<Record<number,boolean>>({});async function verify(entry:AuditEntry){const decision=(entry.data.decision??{}) as Record<string,unknown>;const hash=(decision.transactionHash??entry.data.transactionHash) as string|undefined;if(!hash){setVerified(v=>({...v,[entry.id]:"No transaction"}));return}try{const receipt=await api<{blockNumber:string}>(`/receipt/${hash}`);setVerified(v=>({...v,[entry.id]:`Verified · block ${receipt.blockNumber}`}));}catch{setVerified(v=>({...v,[entry.id]:"Not found"}))}}return <Card title="Live audit log" kicker="Hash-chained decisions"><div className="overflow-x-auto"><table className="w-full min-w-[850px] text-left text-sm"><thead className="text-xs uppercase tracking-wider text-slate-400"><tr><th>Event</th><th>Decision</th><th>Transaction</th><th>Block</th><th>Time</th><th/></tr></thead><tbody>{entries.slice(0,8).flatMap(entry=>{const decision=(entry.data.decision??{}) as Record<string,unknown>;const hash=(decision.transactionHash??entry.data.transactionHash) as string|undefined;const block=(decision.blockNumber??entry.data.blockNumber) as string|undefined;const why=entry.data.why as WhyDecision|undefined;const row=<tr key={entry.id} className="border-t border-slate-100 dark:border-white/10"><td className="py-4 font-semibold">{entry.kind.replaceAll("_"," ")}</td><td>{String(decision.outcome??"recorded")}</td><td className="font-mono text-xs">{hash?`${hash.slice(0,8)}…${hash.slice(-6)}`:"—"}</td><td>{block??"—"}</td><td>{new Date(entry.timestamp).toLocaleTimeString()}</td><td className="whitespace-nowrap">{why&&<button data-testid={`why-toggle-${entry.id}`} onClick={()=>setOpen(v=>({...v,[entry.id]:!v[entry.id]}))} className="secondary-button mr-2">{open[entry.id]?"Hide":"Why"}</button>}<button onClick={()=>void verify(entry)} className="secondary-button">{verified[entry.id]??"Verify"}</button></td></tr>;const detail=why&&open[entry.id]?<tr key={`${entry.id}-why`} className="border-t border-slate-100 dark:border-white/10"><td colSpan={6} className="px-2 pb-4"><WhyPanel why={why} testId={`why-panel-audit-${entry.id}`}/></td></tr>:null;return detail?[row,detail]:[row]})}</tbody></table></div></Card>}
 
-function Policy({state,contacts,refresh}:{state:State;contacts:Contact[];refresh():Promise<void>}){const [form,setForm]=useState(state);const [saved,setSaved]=useState(false);useEffect(()=>setForm(state),[state]);async function save(event:FormEvent){event.preventDefault();await ownerApi("/owner/policy",{method:"PUT",body:JSON.stringify({perTxLimit:form.perTxLimit,dailyLimit:form.dailyLimit,approvalThreshold:form.approvalThreshold,recipientCooldown:Number(form.recipientCooldown),pendingExpiry:Number(form.pendingExpiry),opsPerCallLimit:form.opsPerCallLimit,opsDailyLimit:form.opsDailyLimit})});setSaved(true);await refresh()}return <div className="space-y-7"><div><p className="eyebrow">T3 · Owner only</p><h1 className="page-title">Policy settings</h1><p className="mt-2 text-slate-500">Changes are enforced by the wallet contract.</p></div><div className="grid gap-6 xl:grid-cols-2"><Card title="Spending limits" kicker="USD demo units"><form onSubmit={save} className="grid gap-4 sm:grid-cols-2">{policyFields.map(([label,key])=><label key={key} className="text-sm font-semibold">{label}<input className="field mt-2 w-full" value={form[key]} onChange={e=>setForm({...form,[key]:e.target.value})}/></label>)}<button className="primary-button sm:col-span-2">{saved?"Saved on ledger":"Save policy"}</button></form></Card><Card title="Recipient allowlist" kicker="Contact IDs only"><div className="space-y-3">{contacts.map(contact=><div key={contact.id} className="flex items-center justify-between rounded-xl border border-slate-200 p-4 dark:border-white/10"><div><b>{contact.label||contact.id}</b><p className="font-mono text-xs text-slate-400">{contact.id} · {contact.address.slice(0,10)}…</p></div><span className={`status-pill ${contact.allowed?"bg-emerald-100 text-emerald-700":"bg-slate-100 text-slate-500"}`}>{contact.allowed?"Allowed":"Disabled"}</span></div>)}</div></Card></div></div>}
+function Policy({state,contacts,refresh}:{state:State;contacts:Contact[];refresh():Promise<void>}){const [form,setForm]=useState(state);const [saved,setSaved]=useState(false);useEffect(()=>setForm(state),[state]);async function save(event:FormEvent){event.preventDefault();await ownerApi("/owner/policy",{method:"PUT",body:JSON.stringify({perTxLimit:form.perTxLimit,dailyLimit:form.dailyLimit,approvalThreshold:form.approvalThreshold,recipientCooldown:Number(form.recipientCooldown),pendingExpiry:Number(form.pendingExpiry),opsPerCallLimit:form.opsPerCallLimit,opsDailyLimit:form.opsDailyLimit})});setSaved(true);await refresh()}return <div className="grid gap-6 xl:grid-cols-2"><Card title="Limits and cooldown" kicker="T3 · enforced by the contract"><form onSubmit={save} className="grid gap-4 sm:grid-cols-2">{policyFields.map(([label,key])=><label key={key} className="text-sm font-semibold">{label}<input className="field mt-2 w-full" value={form[key]} onChange={e=>setForm({...form,[key]:e.target.value})}/></label>)}<button className="primary-button sm:col-span-2">{saved?"Saved on ledger":"Save policy"}</button></form></Card><Card title="Recipient allowlist" kicker="Contact IDs only"><div className="space-y-3">{contacts.map(contact=><div key={contact.id} className="flex items-center justify-between rounded-xl border border-slate-200 p-4 dark:border-white/10"><div><b>{contact.label||contact.id}</b><p className="font-mono text-xs text-slate-400">{contact.id} · {contact.address.slice(0,10)}…</p></div><div className="text-right"><span className={`status-pill ${contact.allowed?"bg-emerald-100 text-emerald-700":"bg-slate-100 text-slate-500"}`}>{contact.allowed?"Allowed":"Disabled"}</span>{Number(contact.activeAfter)*1000>Date.now()&&<p className="mt-1 text-xs text-amber-700 dark:text-amber-300">Cooldown until {new Date(Number(contact.activeAfter)*1000).toLocaleString()}</p>}</div></div>)}</div></Card></div>}
 
 function Card({title,kicker,children}:{title:string;kicker:string;children:ReactNode}){return <section className="card"><div className="mb-5 flex items-center justify-between"><h2 className="text-xl font-bold">{title}</h2><span className="text-xs font-semibold uppercase tracking-[.16em] text-slate-400">{kicker}</span></div>{children}</section>}
-function BalanceCard({label,value,savings,disclaimer}:{label:string;value:string;savings:string;disclaimer?:string|undefined}){return <div className="card"><p className="eyebrow">{label}</p><p className="mt-3 text-4xl font-bold tracking-tight">{value}</p><p className="mt-3 text-sm text-slate-500">{savings} in savings</p>{disclaimer&&<p data-testid="currency-disclaimer" className="mt-3 text-xs leading-5 text-slate-500 dark:text-slate-400">{disclaimer}</p>}</div>}
+function BalanceCard({label,value,savings,disclaimer}:{label:string;value:string;savings:string;disclaimer?:string|undefined}){return <div className="card" data-testid="balance-card"><div className="flex items-start justify-between gap-2"><p className="eyebrow">{label}</p><span data-testid="demo-balance" className="rounded-md bg-amber-100 px-2 py-0.5 text-[10px] font-black tracking-[.14em] text-amber-900 dark:bg-amber-950 dark:text-amber-200">DEMO BALANCE</span></div><p className="mt-3 text-4xl font-bold tracking-tight">{value}</p><p className="mt-3 text-sm text-slate-500">{savings} in savings</p>{disclaimer&&<p data-testid="currency-disclaimer" className="mt-3 text-xs leading-5 text-slate-500 dark:text-slate-400">{disclaimer}</p>}</div>}
 function Metric({label,value,sub}:{label:string;value:string;sub:string}){return <div className="card"><p className="eyebrow">{label}</p><p className="mt-3 text-2xl font-bold">{value}</p><p className="mt-3 text-sm text-slate-500">{sub}</p></div>}
 function Empty({text}:{text:string}){return <div className="grid min-h-36 place-items-center rounded-2xl border border-dashed border-slate-300 text-sm text-slate-400 dark:border-white/15">{text}</div>}

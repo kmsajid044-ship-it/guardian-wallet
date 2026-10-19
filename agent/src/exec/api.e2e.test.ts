@@ -103,7 +103,7 @@ describe("agent API pipeline", () => {
 
   it("refuses every owner route without the owner session token", async () => {
     const routes = [
-      { method: "POST", url: "/owner/pending/1/approve" }, { method: "POST", url: "/owner/pause" }, { method: "POST", url: "/owner/unpause" },
+      { method: "POST", url: "/owner/pending/1/approve" }, { method: "POST", url: "/owner/pending/1/reject" }, { method: "POST", url: "/owner/pause" }, { method: "POST", url: "/owner/unpause" },
       { method: "PUT", url: "/owner/policy" }, { method: "PUT", url: "/owner/recipients/ana" },
     ] as const;
     for (const route of routes) {
@@ -140,7 +140,7 @@ describe("agent API pipeline", () => {
   it("lets the owner approve T2 work and operate the kill switch", async () => {
     const approval = await app.inject({ method: "POST", url: "/owner/pending/1/approve", headers: owner, payload: {} });
     expect(approval.statusCode).toBe(200);
-    expect(approval.json()).toMatchObject({ status: "success", blockNumber: expect.any(String) });
+    expect(approval.json()).toMatchObject({ status: "success", blockNumber: expect.any(String), pendingId: "1", pendingStatus: "EXECUTED" });
     const pause = await app.inject({ method: "POST", url: "/owner/pause", headers: owner, payload: {} });
     expect(pause.statusCode).toBe(200);
     expect((await app.inject({ method: "GET", url: "/state" })).json()).toMatchObject({ paused: true });
@@ -148,6 +148,24 @@ describe("agent API pipeline", () => {
     expect(resume.statusCode).toBe(200);
     expect((await app.inject({ method: "GET", url: "/state" })).json()).toMatchObject({ paused: false });
   }, 15_000);
+
+  it("shows pending reasoning and rules, and rejects only once the chain confirms", async () => {
+    const created = (await app.inject({ method: "POST", url: "/chat", payload: { message: "Pay Ana 250 USD", source: "trusted" } })).json<{ pendingId: string }>();
+    const item = (await app.inject({ method: "GET", url: "/pending" })).json<Array<Record<string, unknown>>>().find((entry) => entry.id === created.pendingId);
+    expect(item).toMatchObject({ status: "PENDING", operation: "requestApproval", amount: "250", currency: "USD", recipientContactId: "ana", agentReasoning: "Pay contact ana", flags: [], why: { decidedBy: { rule: "APPROVAL_THRESHOLD" } } });
+    expect(Number(item!.expiresAt)).toBeGreaterThan(0);
+    const rejected = await app.inject({ method: "POST", url: `/owner/pending/${created.pendingId}/reject`, headers: owner, payload: {} });
+    expect(rejected.json()).toMatchObject({ status: "success", pendingId: created.pendingId, pendingStatus: "REJECTED", transactionHash: expect.stringMatching(/^0x[0-9a-f]{64}$/) });
+    const again = await app.inject({ method: "POST", url: `/owner/pending/${created.pendingId}/reject`, headers: owner, payload: {} });
+    expect(again.statusCode).toBe(400);
+    expect((await app.inject({ method: "POST", url: "/owner/pending/abc/reject", headers: owner, payload: {} })).statusCode).toBe(400);
+  }, 20_000);
+
+  it("reports the chain backend, chain ID, and block height from the node", async () => {
+    const chain = (await app.inject({ method: "GET", url: "/chain" })).json<{ backend: string; chainId: number; blockHeight: string }>();
+    expect(chain).toMatchObject({ backend: "evm-local", chainId: 31337 });
+    expect(BigInt(chain.blockHeight)).toBe(await fixture.publicClient.getBlockNumber({ cacheTime: 0 }));
+  });
 
   it("records a contract policy violation with a transaction hash", async () => {
     const response = await app.inject({ method: "POST", url: "/chat", payload: { message: "Pay Ana 600 USD", source: "trusted" } });

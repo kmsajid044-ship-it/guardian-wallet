@@ -1,4 +1,4 @@
-import { mkdirSync, readFileSync } from "node:fs";
+import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { expect, test } from "@playwright/test";
 import { startLiveAgent, useLiveAgent, type LiveAgent } from "./live-agent";
@@ -52,8 +52,4 @@ test("inspects the exported FISCO BCOS evidence and verifies receipts against th
   await executedCard.getByTestId("tx-verify").click();
   await expect(executedCard.getByTestId("tx-verify-result")).toHaveText(/^Match · receipt in block \d+ on chain \d+, equal to the export$/, { timeout: 30_000 });
 
-  const directory = resolve(process.cwd(), "../docs/screenshots");
-  mkdirSync(directory, { recursive: true });
-  await page.addStyleTag({ content: "header { position: static !important; }" });
-  await page.screenshot({ path: resolve(directory, "evidence-inspector.png"), fullPage: true });
 });

@@ -8,7 +8,10 @@ const firstPaymentFactor = { code: "FIRST_PAYMENT", points: 10, explanation: "Th
 const executedWhy = { decision: "EXECUTED", riskScore: 10, riskClass: "low", factors: [firstPaymentFactor], decidedBy: { layer: "tier gate", rule: "WITHIN_POLICY_AND_RISK_LIMITS", detail: "Policy, simulation, risk, and tier checks all passed.", ownerApprovalRequired: false } };
 const pendingWhy = { decision: "NEEDS_APPROVAL", riskScore: 10, riskClass: "low", factors: [firstPaymentFactor], decidedBy: { layer: "contract", rule: "APPROVAL_THRESHOLD", detail: "The amount is at or above the owner's approval threshold, so the contract created a pending item only the owner can approve.", ownerApprovalRequired: true } };
 const state = { paused: false, balances: [{ code: "USD", name: "US dollar (demo units)", available: "5000", savings: "300" }, { code: "CNY", name: "Chinese yuan (demo units)", available: "35000", savings: "0", disclaimer: CNY_DISCLAIMER }], spentToday: "100", remainingDaily: "900", perTxLimit: "500", dailyLimit: "1000", approvalThreshold: "200", recipientCooldown: "600", pendingExpiry: "86400", opsPerCallLimit: "0.1", opsDailyLimit: "5" };
-const pending = [{ id: "1", recipientContactId: "ana", amount: "200", currency: "USD", status: "PENDING", expiresAt: "1792200000", why: pendingWhy }];
+const pendingItem = () => ({ id: "1", recipientContactId: "ana", amount: "200", currency: "USD", status: "PENDING", expiresAt: "1792200000", why: pendingWhy, operation: "requestApproval", agentReasoning: "Pay contact ana", flags: [] as string[] });
+const pending = [pendingItem()];
+const POSITIONING = "Guardian Wallet: a trust and control layer for autonomous AI finance. Let AI handle your financial tasks, without giving up control of your money.";
+let approveFails = false;
 const metric = (value: number, numerator: number, denominator: number, target?: string, pass?: boolean) => ({ value, numerator, denominator, unit: "ratio", ...(target ? { target, pass } : {}) });
 const valueResponse = {
   eval: {
@@ -44,6 +47,7 @@ async function mockApi(page: Page) {
       ownerHeaderSeen.push(url.pathname);
     }
     if (url.pathname === "/state") return route.fulfill({ json: state });
+    if (url.pathname === "/chain") return route.fulfill({ json: { backend: "fisco", chainId: 1337, blockHeight: "2325" } });
     if (url.pathname === "/pending") return route.fulfill({ json: pending });
     if (url.pathname === "/contacts") return route.fulfill({ json: [{ id: "ana", address: "0x1000000000000000000000000000000000000001", label: "Ana · synthetic contact", allowed: true, activeAfter: "0" }] });
     if (url.pathname === "/audit") return route.fulfill({ json: [{ id: 1, timestamp: "2026-10-16T08:00:00.000Z", kind: "pipeline_result", hash: "f".repeat(64), data: { decision: { outcome: "EXECUTED", transactionHash, blockNumber: "42" }, why: executedWhy } }] });
@@ -52,7 +56,11 @@ async function mockApi(page: Page) {
     if (url.pathname === "/attack-lab/run-all") return route.fulfill({ json: attacks.map(item => ({ ...item, status: "BLOCKED", backend: "fisco", blockedBy: "on-chain contract", reason: "Safety rule enforced", transactionHash, blockNumber: "46", onChain: true, directProof: { transactionHash: proofHash, blockNumber: "47", status: "reverted", detail: "Agent key call refused" }, steps: [{ layer: "on-chain contract", outcome: "REVERTED", detail: "Refused", transactionHash: proofHash, blockNumber: "47" }] })) });
     if (/^\/attack-lab\/run\/A\d+$/.test(url.pathname)) return route.fulfill({ json: { ...attacks.find(item => url.pathname.split("/").pop() === item.id), status: "BLOCKED", backend: "fisco", blockedBy: "firewall", reason: "Unsafe instruction refused", onChain: false, steps: [{ layer: "firewall", outcome: "BLOCKED", detail: "INSTRUCTION_INJECTION" }] } });
     if (url.pathname === "/chat") return route.fulfill({ json: { route: "EXECUTED", tier: "T1", explanation: "Executed payment after policy, simulation, and risk checks.", transactionHash, blockNumber: "42", proposal: { kind: "pay", amount: "100", currency: "USD", recipientContactId: "ana" }, risk: { score: 10, factors: [firstPaymentFactor] }, why: executedWhy } });
-    if (url.pathname === "/owner/pending/1/approve") { pending.splice(0); return route.fulfill({ json: { transactionHash, blockNumber: "43", status: "success" } }); }
+    if (url.pathname === "/owner/pending/1/approve") {
+      if (approveFails) return route.fulfill({ status: 400, json: { error: "APPROVAL_FAILED", message: "PendingHasExpired(1)" } });
+      pending.splice(0); return route.fulfill({ json: { transactionHash, blockNumber: "43", status: "success", pendingId: "1", pendingStatus: "EXECUTED" } });
+    }
+    if (url.pathname === "/owner/pending/1/reject") { pending.splice(0); return route.fulfill({ json: { transactionHash: proofHash, blockNumber: "44", status: "success", pendingId: "1", pendingStatus: "REJECTED" } }); }
     if (url.pathname === "/owner/pause") { state.paused = true; return route.fulfill({ json: { transactionHash, blockNumber: "44", status: "success" } }); }
     if (url.pathname === "/owner/unpause") { state.paused = false; return route.fulfill({ json: { transactionHash, blockNumber: "45", status: "success" } }); }
     if (url.pathname.startsWith("/receipt/")) return route.fulfill({ json: { transactionHash, blockNumber: "42", status: "success" } });
@@ -60,7 +68,7 @@ async function mockApi(page: Page) {
   });
 }
 
-test.beforeEach(async ({ page }) => { ownerHeaderSeen.splice(0); state.paused = false; pending.splice(0, pending.length, { id: "1", recipientContactId: "ana", amount: "200", currency: "USD", status: "PENDING", expiresAt: "1792200000", why: pendingWhy }); await mockApi(page); await page.goto("/"); });
+test.beforeEach(async ({ page }) => { ownerHeaderSeen.splice(0); state.paused = false; approveFails = false; pending.splice(0, pending.length, pendingItem()); await mockApi(page); await page.goto("/"); });
 
 test("chat executes a T1 payment and shows the plan", async ({ page }) => {
   await page.getByLabel("Message the agent").fill("Pay Ana 100 USD");
@@ -93,11 +101,66 @@ test("shows plan step states exactly as the agent returned them, with no transac
   await expect(page.getByTestId("plan-step-S1").getByTestId("step-receipt")).toHaveText("Receipt success · block 42");
 });
 
-test("owner approves a T2 inbox item", async ({ page }) => {
+test("navigation follows the product order and older links still open their page", async ({ page }) => {
+  await expect(page.getByRole("navigation", { name: "Main" }).getByRole("link")).toHaveText(["AI Agent", "Wallet", "Control Center", "Attack Lab", "Evidence Inspector", "Evaluation"]);
+  await expect(page.getByTestId("chain-badge")).toHaveText("FISCO BCOS · chain 1337 · block 2325");
+  await page.goto("/#/policy");
+  await expect(page.getByRole("heading", { name: "Control Center" })).toBeVisible();
+  await page.goto("/#/value");
+  await expect(page.getByRole("heading", { name: "Evaluation" })).toBeVisible();
+});
+
+test("the AI Agent landing page carries the positioning and no real-money claim", async ({ page }) => {
+  await expect(page.getByTestId("positioning")).toHaveText(POSITIONING);
+  await expect(page.getByText("No real money and no customer funds are involved.")).toBeVisible();
+  await expect(page.getByTestId("glance-pending")).toContainText("1");
+});
+
+test("labels every balance DEMO BALANCE", async ({ page }) => {
+  await page.goto("/#/wallet");
+  await expect(page.getByTestId("balance-card")).toHaveCount(2);
+  for (const card of await page.getByTestId("balance-card").all()) await expect(card.getByTestId("demo-balance")).toHaveText("DEMO BALANCE");
+});
+
+test("pending approval cards show what the owner is deciding", async ({ page }) => {
+  await page.goto("/#/control");
+  const card = page.getByTestId("pending-1");
+  await expect(card.getByTestId("pending-operation")).toHaveText("requestApproval");
+  await expect(card.getByTestId("pending-amount")).toHaveText("200");
+  await expect(card.getByTestId("pending-currency")).toHaveText("USD");
+  await expect(card.getByTestId("pending-recipient")).toHaveText("ana");
+  await expect(card.getByTestId("pending-reasoning")).toHaveText("Pay contact ana");
+  await expect(card.getByTestId("pending-risk")).toHaveText("10/100");
+  await expect(card.getByTestId("pending-rules")).toContainText("APPROVAL_THRESHOLD");
+  await expect(card.getByTestId("pending-rules")).toContainText("FIRST_PAYMENT");
+  await expect(card.getByTestId("pending-expiry")).toHaveText(new Date(1792200000 * 1000).toLocaleString("en-US"));
+  await expect(card.getByTestId("approve-1")).toHaveText("Approve");
+  await expect(card.getByTestId("reject-1")).toHaveText("Reject");
+});
+
+test("owner approves a T2 item and sees success only after chain confirmation", async ({ page }) => {
+  await page.goto("/#/control");
   await expect(page.getByTestId("approval-inbox")).toContainText("200 USD");
   await page.getByTestId("approve-1").click();
+  await expect(page.getByTestId("confirmed-1")).toHaveText(`Pending #1 approved and paid · confirmed on chain in block 43 · ${transactionHash.slice(0, 10)}…${transactionHash.slice(-8)}`);
   await expect(page.getByTestId("approval-inbox")).toContainText("No items need your approval");
   expect(ownerHeaderSeen).toEqual(["/owner/pending/1/approve"]);
+});
+
+test("owner rejects a T2 item on chain", async ({ page }) => {
+  await page.goto("/#/control");
+  await page.getByTestId("reject-1").click();
+  await expect(page.getByTestId("confirmed-1")).toContainText("Pending #1 rejected · confirmed on chain in block 44");
+  expect(ownerHeaderSeen).toEqual(["/owner/pending/1/reject"]);
+});
+
+test("a failed approval is shown as an error, never as success", async ({ page }) => {
+  approveFails = true;
+  await page.goto("/#/control");
+  await page.getByTestId("approve-1").click();
+  await expect(page.getByTestId("pending-error-1")).toHaveText("PendingHasExpired(1)");
+  await expect(page.getByTestId("pending-confirmations")).toHaveCount(0);
+  await expect(page.getByTestId("pending-1")).toBeVisible();
 });
 
 test("shows why an executed action was allowed", async ({ page }) => {
@@ -126,6 +189,8 @@ test("shows the risk engine as the deciding layer for a blocked action", async (
 });
 
 test("explains every pending approval with the rule that decided it", async ({ page }) => {
+  await page.goto("/#/control");
+  await page.getByTestId("pending-1").getByText("Full explanation").click();
   const panel = page.getByTestId("why-panel-1");
   await expect(panel).toContainText("Why this action?");
   await expect(panel.getByTestId("why-class")).toHaveText("low");
@@ -135,6 +200,7 @@ test("explains every pending approval with the rule that decided it", async ({ p
 });
 
 test("expands the explanation for an audit decision", async ({ page }) => {
+  await page.goto("/#/wallet");
   await page.getByTestId("why-toggle-1").click();
   const panel = page.getByTestId("why-panel-audit-1");
   await expect(panel.getByTestId("why-score")).toHaveText("10/100");
@@ -144,6 +210,7 @@ test("expands the explanation for an audit decision", async ({ page }) => {
 });
 
 test("kill switch pauses and resumes the agent", async ({ page }) => {
+  await page.goto("/#/control");
   await page.getByTestId("kill-switch").click();
   await expect(page.getByText("Paused", { exact: true })).toBeVisible();
   await expect(page.getByTestId("kill-switch")).toContainText("Resume agent");
@@ -154,6 +221,7 @@ test("kill switch pauses and resumes the agent", async ({ page }) => {
 
 test("owner actions fail closed without an owner session", async ({ page }) => {
   await page.route("**/__owner-session", route => route.fulfill({ status: 503, json: { error: "OWNER_SESSION_UNAVAILABLE" } }));
+  await page.goto("/#/control");
   await page.getByTestId("kill-switch").click();
   await expect(page.getByTestId("kill-switch")).toContainText("Pause agent");
   expect(ownerHeaderSeen).toEqual([]);
@@ -182,8 +250,8 @@ test("runs every Attack Lab scenario and shows evidence", async ({ page }) => {
   await expect(page.getByTestId("attack-A9")).toContainText("Sent straight to contract");
 });
 
-test("shows evaluation targets and live audit counts on the Value Dashboard", async ({ page }) => {
-  await page.goto("/#/value");
+test("shows evaluation targets and live audit counts on the Evaluation page", async ({ page }) => {
+  await page.goto("/#/evaluation");
   await expect(page.getByTestId("eval-verdict")).toHaveText("All targets met");
   await expect(page.getByTestId("eval-targets")).toContainText("Task success");
   await expect(page.getByTestId("eval-targets")).toContainText("40 of 40");
@@ -197,9 +265,9 @@ test("shows evaluation targets and live audit counts on the Value Dashboard", as
 });
 
 test("shows the CNY disclaimer wherever CNY demo balances appear", async ({ page }) => {
-  await page.goto("/#/");
+  await page.goto("/#/wallet");
   await expect(page.getByText("CNY available")).toBeVisible();
   await expect(page.getByTestId("currency-disclaimer").first()).toHaveText(CNY_DISCLAIMER);
-  await page.goto("/#/value");
+  await page.goto("/#/evaluation");
   await expect(page.getByTestId("live-metrics").getByTestId("currency-disclaimer")).toHaveText(CNY_DISCLAIMER);
 });

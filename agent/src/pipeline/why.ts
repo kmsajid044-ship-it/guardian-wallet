@@ -58,6 +58,25 @@ export function pendingExplanations(entries: readonly AuditEntry[]): Map<string,
   return found;
 }
 
+/**
+ * What the agent said when it proposed each pending item: the proposal's own short reason and the
+ * flags the pipeline raised. Amounts and scores are never taken from this text.
+ */
+export function pendingReasoning(entries: readonly AuditEntry[]): Map<string, { reason: string; flags: string[] }> {
+  const found = new Map<string, { reason: string; flags: string[] }>();
+  for (const entry of [...entries].reverse()) {
+    if (entry.kind !== "pipeline_result") continue;
+    const data = entry.data;
+    if (typeof data !== "object" || data === null || Array.isArray(data)) continue;
+    const record = data as { pendingId?: unknown; proposal?: { reason?: unknown }; flags?: unknown };
+    if (typeof record.pendingId !== "string" || found.has(record.pendingId)) continue;
+    const reason = typeof record.proposal?.reason === "string" ? record.proposal.reason.slice(0, 200) : "";
+    const flags = Array.isArray(record.flags) ? record.flags.filter((flag): flag is string => typeof flag === "string") : [];
+    found.set(record.pendingId, { reason, flags });
+  }
+  return found;
+}
+
 function isWhyDecision(value: unknown): value is WhyDecision {
   if (typeof value !== "object" || value === null || Array.isArray(value)) return false;
   const candidate = value as Partial<WhyDecision>;

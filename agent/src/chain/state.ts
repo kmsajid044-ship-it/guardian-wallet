@@ -46,6 +46,12 @@ export class ChainStateReader {
     }));
   }
 
+  /** Status of one pending item as the contract stores it now. */
+  async pendingStatus(id: bigint): Promise<string> {
+    const p = await this.client.readContract({ address: getAddress(this.deployment.guardianWallet), abi: guardianWalletAbi, functionName: "getPending", args: [id] });
+    return statuses[p.status] ?? "UNKNOWN";
+  }
+
   async pending(): Promise<Array<Record<string, string>>> {
     const wallet = getAddress(this.deployment.guardianWallet);
     const count = await this.client.readContract({ address: wallet, abi: guardianWalletAbi, functionName: "pendingCount" });
