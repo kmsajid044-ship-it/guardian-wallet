@@ -1,5 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useId, useRef, useState, type ComponentType, type ReactNode } from "react";
 import { Ban, CalendarClock, CheckCircle2, CircleDashed, CircleHelp, Clock, Copy, Check, Info, ListChecks, RefreshCw, TriangleAlert, X, XCircle } from "lucide-react";
+import { AnimatePresence, motion } from "motion/react";
+import { useTransition } from "./effects";
 
 /*
  * Shared console building blocks. Plain words lead; the exact technical value from the backend
@@ -152,6 +154,7 @@ export const useToast = () => useContext(ToastContext);
 export function ToastProvider({ children }: { children: ReactNode }) {
   const [toasts, setToasts] = useState<Toast[]>([]);
   const next = useRef(1);
+  const toastMotion = useTransition({ type: "spring", stiffness: 460, damping: 32 });
   const show = useCallback((toast: Omit<Toast, "id">) => {
     const id = next.current++;
     setToasts((current) => [...current, { ...toast, id }]);
@@ -160,11 +163,11 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   return <ToastContext.Provider value={show}>
     {children}
     <div aria-live="polite" role="status" className="pointer-events-none fixed right-6 bottom-6 z-50 flex w-[min(420px,calc(100vw-48px))] flex-col gap-3">
-      {toasts.map((toast) => <div key={toast.id} data-testid="toast" className={`pointer-events-auto flex items-start gap-3 rounded-card border bg-surface p-4 text-body shadow-[0_8px_30px_rgba(11,18,32,.14)] ${toast.tone === "ok" ? "border-[color-mix(in_srgb,var(--color-ok)_35%,transparent)]" : toast.tone === "bad" ? "border-[color-mix(in_srgb,var(--color-bad)_35%,transparent)]" : "border-line"}`}>
+      <AnimatePresence initial={false}>{toasts.map((toast) => <motion.div key={toast.id} layout data-testid="toast" initial={{ opacity: 0, y: 24, scale: 0.96 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, x: 40 }} transition={toastMotion} className={`glass pointer-events-auto flex items-start gap-3 rounded-card border bg-surface p-4 text-body shadow-[0_8px_30px_rgba(11,18,32,.14)] ${toast.tone === "ok" ? "border-[color-mix(in_srgb,var(--color-ok)_35%,transparent)]" : toast.tone === "bad" ? "border-[color-mix(in_srgb,var(--color-bad)_35%,transparent)]" : "border-line"}`}>
         {toast.tone === "ok" ? <CheckCircle2 aria-hidden className="mt-0.5 size-5 shrink-0 text-ok" /> : toast.tone === "bad" ? <TriangleAlert aria-hidden className="mt-0.5 size-5 shrink-0 text-bad" /> : <Info aria-hidden className="mt-0.5 size-5 shrink-0 text-cobalt" />}
         <div className="flex-1"><p className="font-medium text-fg">{toast.text}</p>{toast.action && <a href={toast.action.href} className="mt-1 inline-flex font-medium text-cobalt hover:underline">{toast.action.label}</a>}</div>
         <button type="button" aria-label="Dismiss" onClick={() => setToasts((current) => current.filter((item) => item.id !== toast.id))} className="inline-grid size-7 place-items-center rounded-control text-muted hover:bg-subtle"><X aria-hidden className="size-4" /></button>
-      </div>)}
+      </motion.div>)}</AnimatePresence>
     </div>
   </ToastContext.Provider>;
 }
@@ -180,7 +183,7 @@ export function ConfirmDialog({ open, title, children, confirmLabel, onConfirm, 
     if (open && !dialog.open) dialog.showModal();
     if (!open && dialog.open) dialog.close();
   }, [open]);
-  return <dialog ref={ref} onCancel={(event) => { event.preventDefault(); onCancel(); }} aria-labelledby="confirm-title" className="m-auto w-[min(440px,calc(100vw-32px))] rounded-card border border-line bg-surface p-0 text-fg shadow-[0_20px_60px_rgba(11,18,32,.25)] backdrop:bg-[rgba(11,18,32,.45)]">
+  return <dialog ref={ref} onCancel={(event) => { event.preventDefault(); onCancel(); }} aria-labelledby="confirm-title" className="glass-modal m-auto w-[min(440px,calc(100vw-32px))] rounded-card border border-line bg-surface p-0 text-fg shadow-[0_20px_60px_rgba(11,18,32,.25)] backdrop:bg-[rgba(11,18,32,.45)]">
     <div className="p-6">
       <h2 id="confirm-title" className="font-display text-figure font-semibold">{title}</h2>
       <div className="mt-2 text-body text-fg2">{children}</div>

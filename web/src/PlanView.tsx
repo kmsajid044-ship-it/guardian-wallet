@@ -1,5 +1,7 @@
-import { useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Play, ShieldCheck, X } from "lucide-react";
+import { motion } from "motion/react";
+import { useTransition } from "./effects";
 import { ErrorState, Hash, InfoTip, StatusChip, TERMS, Term, TierBadge } from "./ui";
 
 /** Mirrors agent/src/planner/planner.ts. Every state and number here is what the agent returned. */
@@ -59,7 +61,7 @@ function StepRow({ step, api }: { step: PlanStep; api: Api }) {
   return <li data-testid={`plan-step-${step.id}`} className="rounded-control border border-line bg-surface p-4">
     <div className="flex flex-wrap items-center justify-between gap-3">
       <span className="inline-flex items-center gap-2"><b data-testid="step-id" className="mono text-fg">{step.id}</b><span className="text-body text-fg">{step.proposal.kind === "save" ? `Move ${step.proposal.amount ?? "?"} ${step.proposal.currency ?? ""} to savings` : `Pay ${step.proposal.recipientContactId ?? "?"} ${step.proposal.amount ?? "?"} ${step.proposal.currency ?? ""}`}</span></span>
-      <StatusChip code={step.state} testId="step-state" codeTestId="step-state-code" />
+      <StateChip code={step.state} />
     </div>
     <dl className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-4">
       {field("Operation", step.operation, "step-operation", true)}
@@ -80,4 +82,20 @@ function StepRow({ step, api }: { step: PlanStep; api: Api }) {
       {receipt && <span data-testid="step-receipt" className="font-medium">{receipt}</span>}
     </div>}
   </li>;
+}
+
+/** Step state chip that morphs Planned → Checked → Done, drawing a small check when a step is done. */
+function StateChip({ code }: { code: string }) {
+  const morph = useTransition({ type: "spring", stiffness: 420, damping: 34 });
+  const draw = useTransition({ duration: 0.32, ease: "easeOut", delay: 0.08 });
+  // No entrance on first render; only a change of state animates.
+  const first = useRef(true);
+  useEffect(() => { first.current = false; }, []);
+  return <motion.span layout="position" transition={morph} className="inline-flex items-center gap-1.5">
+    {code === "EXECUTED" && <svg aria-hidden viewBox="0 0 16 16" className="size-4 text-ok"><motion.path d="M3 8.5l3.2 3L13 4.5" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" initial={{ pathLength: 0 }} animate={{ pathLength: 1 }} transition={draw} /></svg>}
+    {/* Keyed by state: a new state pops in; the old chip is gone at once, so there is only ever one. */}
+    <motion.span key={code} className="inline-flex" initial={first.current ? false : { opacity: 0, scale: 0.85, y: 4 }} animate={{ opacity: 1, scale: 1, y: 0 }} transition={morph}>
+      <StatusChip code={code} testId="step-state" codeTestId="step-state-code" />
+    </motion.span>
+  </motion.span>;
 }

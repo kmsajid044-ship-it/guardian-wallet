@@ -1,0 +1,23 @@
+{
+  "measuredAt": "2026-10-19T15:04:36.195Z",
+  "viewport": "1440x900 @2x",
+  "browser": "Chrome 155.0.8059.80",
+  "effects": "on",
+  "results": {
+    "home": {
+      "fps": 60,
+      "p95FrameMs": 18,
+      "frames": 300
+    },
+    "wallet": {
+      "fps": 59.9,
+      "p95FrameMs": 18.2,
+      "frames": 300
+    },
+    "attack-lab": {
+      "fps": 60,
+      "p95FrameMs": 18.3,
+      "frames": 300
+    }
+  }
+}

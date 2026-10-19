@@ -41,6 +41,10 @@ generated inventory of every installed package and its license is in `docs/LICEN
 | @fontsource/urbanist, @fontsource/inter, @fontsource/jetbrains-mono (self-hosted fonts) | 5.2.8 | OFL-1.1 (fonts), MIT (packaging) |
 | vite | 8.3.4 | MIT |
 | @vitejs/plugin-react | 6.1.2 | MIT |
+| three (3D rendering, bundled; loaded only for the Home and Attack Lab scenes) | 0.186.1 | MIT |
+| @react-three/fiber | 9.8.2 | MIT |
+| @react-three/drei (procedural lighting only; no remote assets) | 10.7.9 | MIT |
+| motion (animation) | 14.4.0 | MIT |
 
 ## Eval harness
 | Package | Version | License |

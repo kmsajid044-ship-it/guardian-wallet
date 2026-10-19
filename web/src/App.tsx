@@ -1,6 +1,11 @@
 import { useCallback, useEffect, useMemo, useState, type ComponentType, type FormEvent, type ReactNode } from "react";
-import { ArrowLeft, ArrowRight, BarChart3, Bot, CheckCircle2, CircleCheck, CircleDot, FileCheck2, Hand, House, ListChecks, Moon, Pause, Play, Send, ShieldAlert, ShieldCheck, SlidersHorizontal, Sparkles, Sun, UserRound, Wallet as WalletIcon } from "lucide-react";
+import { ArrowLeft, ArrowRight, BarChart3, Bot, CheckCircle2, CircleCheck, CircleDot, FileCheck2, Hand, House, ListChecks, Moon, Pause, Play, Send, ShieldAlert, ShieldCheck, SlidersHorizontal, Sparkles, Sun, UserRound, Wallet as WalletIcon, X } from "lucide-react";
+import { createPortal } from "react-dom";
+import { AnimatePresence, motion } from "motion/react";
 import { AttackLab } from "./AttackLab";
+import { EffectsProvider, useEffectsSetting, useTransition } from "./effects";
+import { Ambient, AnimatedNumber, PageMotion, ReduceEffectsSwitch, useMedia } from "./motion-kit";
+import { Scene3D } from "./three/Scene3D";
 import { EvidenceInspector } from "./EvidenceInspector";
 import { PlanView, type Plan } from "./PlanView";
 import { ValueDashboard } from "./ValueDashboard";
@@ -68,7 +73,7 @@ const contactName = (contacts: Contact[], id?: string) => {
 };
 
 export default function App() {
-  return <ToastProvider><Console /></ToastProvider>;
+  return <EffectsProvider><ToastProvider><Console /></ToastProvider></EffectsProvider>;
 }
 
 function Console() {
@@ -108,20 +113,22 @@ function Console() {
     } catch (cause) { toast({ tone: "bad", text: `Could not ${paused ? "pause" : "resume"}: ${cause instanceof Error ? cause.message : "request failed"}` }); }
     finally { setSwitching(false); }
   }
+  const bannerMotion = useTransition({ type: "spring", stiffness: 420, damping: 36 });
   const askPause = () => setConfirmPause(true);
   const resume = () => void setPaused(false);
 
   return <div>
-    <div className="min-h-screen bg-page text-fg">
-      <div className="flex min-h-screen min-w-0 flex-col">
+    <div className="app-root min-h-screen bg-page text-fg">
+      <Ambient />
+      <div className="relative z-[1] flex min-h-screen min-w-0 flex-col">
         <TopBar route={route} chain={chain} paused={state.paused} switching={switching} dark={dark} setDark={setDark} askPause={askPause} resume={resume} />
-        {state.paused && <div data-testid="paused-banner" role="status" className="border-b border-[color-mix(in_srgb,var(--color-warn)_30%,transparent)] bg-warn-bg">
+        <AnimatePresence initial={false}>{state.paused && <motion.div key="paused" data-testid="paused-banner" role="status" initial={{ y: -24, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: -24, opacity: 0 }} transition={bannerMotion} className="relative z-[19] border-b border-[color-mix(in_srgb,var(--color-warn)_30%,transparent)] bg-warn-bg">
           <div className="mx-auto flex w-full max-w-[1440px] flex-wrap items-center justify-between gap-3 px-6 py-3 text-body font-medium text-warn lg:px-10">
             <span className="inline-flex items-center gap-2"><Hand aria-hidden className="size-4" />All AI payments are paused. Only the owner can resume.</span>
             <button data-testid="banner-resume" onClick={resume} disabled={switching} className="secondary-button"><Play aria-hidden className="size-4" />Resume</button>
           </div>
-        </div>}
-        <main className="mx-auto w-full max-w-[1600px] flex-1 space-y-8 px-5 py-8 md:px-8 lg:px-12">
+        </motion.div>}</AnimatePresence>
+        <main className="mx-auto w-full max-w-[1600px] flex-1 px-5 py-8 md:px-8 lg:px-12"><PageMotion routeKey={route}>
           <section className="page-heading">
             <div className="flex items-center gap-3">
               {route !== "/" && <a href="#/" aria-label="Back to Home" className="icon-button"><ArrowLeft aria-hidden className="size-4" /></a>}
@@ -137,7 +144,7 @@ function Console() {
           {route === "/attack-lab" && <AttackLab api={api} />}
           {route === "/evaluation" && <ValueDashboard api={api} />}
           {route === "/evidence" && <EvidenceInspector api={api} />}
-        </main>
+        </PageMotion></main>
         <Footer />
       </div>
     </div>
@@ -148,16 +155,17 @@ function Console() {
 }
 
 function TopBar({ route, chain, paused, switching, dark, setDark, askPause, resume }: { route: string; chain: Chain | undefined; paused: boolean; switching: boolean; dark: boolean; setDark(value: boolean): void; askPause(): void; resume(): void }) {
-  return <header className="sticky top-0 z-20 border-b border-line bg-page/95 backdrop-blur-sm">
+  const { reduced } = useEffectsSetting();
+  return <header className="top-bar sticky top-0 z-20 border-b border-line bg-page/95 backdrop-blur-sm">
     <div className="mx-auto flex w-full max-w-[1600px] flex-wrap items-center gap-3 px-5 py-4 md:px-8 lg:px-12">
       <a href="#/" className="mr-auto inline-flex min-h-10 items-center gap-3" aria-label="Guardian Wallet Home">
         <span aria-hidden className="grid size-10 place-items-center rounded-full bg-cobalt text-ink"><ShieldCheck className="size-5" /></span>
         <span className="font-display text-heading font-medium">Guardian Wallet</span>
       </a>
-      <nav aria-label="Main" className="order-3 flex w-full gap-1 overflow-x-auto rounded-full border border-line bg-surface p-1 xl:order-none xl:w-auto">
+      <nav aria-label="Main" className="glass-bar glass order-3 flex w-full gap-1 overflow-x-auto rounded-full border border-line bg-surface p-1 2xl:order-none 2xl:w-auto">
         {pages.map(({ href, label, icon: Icon }) => {
           const active = route === href;
-          return <a key={href} href={`#${href}`} aria-label={label} aria-current={active ? "page" : undefined} className={`nav-pill ${active ? "nav-pill-active" : ""}`}><Icon aria-hidden className="size-4 shrink-0" /><span>{label === "Evidence Inspector" ? "Evidence" : label}</span></a>;
+          return <a key={href} href={`#${href}`} aria-label={label} aria-current={active ? "page" : undefined} className={`nav-pill ${active ? "nav-pill-active" : ""}`}>{active && !reduced && <motion.span aria-hidden layoutId="nav-glow" className="nav-glow" transition={{ type: "spring", stiffness: 480, damping: 40 }} />}<Icon aria-hidden className="size-4 shrink-0" /><span>{label === "Evidence Inspector" ? "Evidence" : label}</span></a>;
         })}
       </nav>
       <span className="status-pill border-line bg-surface text-fg2" title="Read from the node by the agent">
@@ -166,6 +174,7 @@ function TopBar({ route, chain, paused, switching, dark, setDark, askPause, resu
         <InfoTip term="block" text={TERMS.block} />
       </span>
       <span className="status-pill border-line bg-surface text-fg2"><UserRound aria-hidden className="size-3.5" />Owner<InfoTip term="role" text="You are signed in as the wallet owner: you approve requests, change limits, and can pause or resume. A guardian may only pause." /></span>
+      <ReduceEffectsSwitch />
       <button aria-label="Toggle color mode" className="icon-button" onClick={() => setDark(!dark)}>{dark ? <Sun aria-hidden className="size-4" /> : <Moon aria-hidden className="size-4" />}</button>
       <span className="inline-flex items-center gap-1">
         {paused
@@ -196,7 +205,8 @@ function greeting(): string {
 function Home({ state, pending, loaded, askPause }: { state: State; pending: Pending[]; loaded: boolean; askPause(): void }) {
   const split = POSITIONING.indexOf(". ") + 1;
   return <div className="space-y-6">
-    <section className="home-hero card">
+    <section className="home-hero has-scene card">
+      <Scene3D kind="shield" className="hero-scene" />
       <p className="eyebrow">{greeting()}, owner</p>
       <p data-testid="positioning" className="mt-2"><span className="text-body text-fg2">{POSITIONING.slice(0, split)}</span>{" "}<span className="mt-2 block max-w-4xl font-display text-[clamp(2rem,4vw,3.5rem)] font-light leading-[1.05] tracking-[-.04em] text-fg">{POSITIONING.slice(split + 1)}</span></p>
       <p className="mt-3 text-body text-fg2">This is a research prototype: balances are simulated demo units. No real money and no customer funds are involved.</p>
@@ -207,17 +217,17 @@ function Home({ state, pending, loaded, askPause }: { state: State; pending: Pen
         {!loaded ? <SkeletonRows rows={2} /> : state.balances.length === 0 ? <Empty text="No balances yet. Seed the demo ledger to see them here." /> : <ul className="space-y-3">
           {state.balances.filter((balance) => balance.code === "USD").map((balance) => <li key={balance.code} data-testid="home-balance">
             <div className="flex items-center justify-between gap-3"><span className="label">{balance.code} available</span><span className="code-tag">DEMO BALANCE</span></div>
-            <p className="figure hero-number whitespace-nowrap"><span className="currency-mark">$</span>{balance.available}</p>
+            <p className="figure hero-number whitespace-nowrap"><span className="currency-mark">$</span><AnimatedNumber value={balance.available} /></p>
             <p className="text-small text-muted">{balance.savings} {balance.code} in savings</p>
           </li>)}
         </ul>}
       </Card>
       <Card title="CNY balance" tip={TERMS.demoBalance}>
-        {!loaded ? <SkeletonRows rows={2} /> : <ul className="space-y-3">{state.balances.filter((balance) => balance.code === "CNY").map((balance) => <li key={balance.code} data-testid="home-balance"><div className="flex items-center justify-between gap-3"><span className="label">{balance.code} available</span><span className="code-tag">DEMO BALANCE</span></div><p className="figure hero-number whitespace-nowrap"><span className="currency-mark">¥</span>{balance.available}</p><p className="text-small text-muted">{balance.savings} {balance.code} in savings</p>{balance.disclaimer && <p className="mt-2 text-small text-muted">{balance.disclaimer}</p>}</li>)}</ul>}
+        {!loaded ? <SkeletonRows rows={2} /> : <ul className="space-y-3">{state.balances.filter((balance) => balance.code === "CNY").map((balance) => <li key={balance.code} data-testid="home-balance"><div className="flex items-center justify-between gap-3"><span className="label">{balance.code} available</span><span className="code-tag">DEMO BALANCE</span></div><p className="figure hero-number whitespace-nowrap"><span className="currency-mark">¥</span><AnimatedNumber value={balance.available} /></p><p className="text-small text-muted">{balance.savings} {balance.code} in savings</p>{balance.disclaimer && <p className="mt-2 text-small text-muted">{balance.disclaimer}</p>}</li>)}</ul>}
       </Card>
       <Card title="Needs your approval">
         <a href="#/control" data-testid="glance-pending" className="block">
-          <span className="figure text-display">{pending.length}</span>
+          <span className="figure text-display"><AnimatedNumber value={String(pending.length)} /></span>
           <span className="ml-2 text-body text-fg2">{pending.length === 1 ? "request is waiting" : "requests are waiting"}</span>
         </a>
         <p className="mt-2 text-body text-fg2">{pending.length ? "The AI stopped and is waiting for your decision." : "No approvals waiting. Your AI is working within its limits."}</p>
@@ -390,34 +400,81 @@ const auditKinds: Record<string, string> = {
 };
 
 function Wallet({ state, audit, loaded }: { state: State; audit: AuditEntry[]; loaded: boolean }) {
+  const { reduced } = useEffectsSetting();
+  const wide = useMedia("(min-width: 768px)");
   const [recipient, setRecipient] = useState("ana");
   const [amount, setAmount] = useState("");
   const [currency, setCurrency] = useState("USD");
+  const [sheetOpen, setSheetOpen] = useState(false);
   const recipients = ["ana", "bob", "cara"];
   function askAgent() { if (!amount.trim()) return; sessionStorage.setItem("guardian-agent-prefill", `Pay ${recipient[0]!.toUpperCase()}${recipient.slice(1)} ${amount} ${currency}`); location.hash = "/agent"; }
+  // With effects on, the send form opens as a bottom sheet; with effects reduced it stays inline.
+  const asSheet = !reduced;
+  useEffect(() => { if (!asSheet) setSheetOpen(false); }, [asSheet]);
+  useEffect(() => {
+    if (!sheetOpen) return;
+    const close = (event: KeyboardEvent) => { if (event.key === "Escape") setSheetOpen(false); };
+    addEventListener("keydown", close);
+    return () => removeEventListener("keydown", close);
+  }, [sheetOpen]);
+  const form = <SendForm state={state} recipients={recipients} recipient={recipient} setRecipient={setRecipient} amount={amount} setAmount={setAmount} currency={currency} setCurrency={setCurrency} askAgent={askAgent} />;
+  const stacked = !reduced && wide && loaded && state.balances.length > 1;
   return <div className="space-y-6">
     <PageHeader lead={pageLead("/wallet")}>Balances are read from the simulated ledger on chain.</PageHeader>
     <section className="grid gap-6 md:grid-cols-2 2xl:grid-cols-4">
       {!loaded ? [0, 1].map((key) => <div key={key} className="card"><SkeletonRows rows={3} /></div>)
         : state.balances.length === 0 ? <div className="md:col-span-2"><Empty text="No balances yet. Seed the demo ledger to see them here." /></div>
+        : stacked ? <CardStack balances={state.balances} />
         : state.balances.map((balance) => <BalanceCard key={balance.code} balance={balance} />)}
-      <div className="card"><p className="label inline-flex items-center gap-1">Daily spending left<InfoTip term="daily limit" text={TERMS.dailyLimit} /></p><p className="figure mt-2 text-figure">{state.remainingDaily} USD</p><p className="mt-2 text-body text-fg2">{state.spentToday} USD used today of {state.dailyLimit} USD.</p></div>
+      <div className="card"><p className="label inline-flex items-center gap-1">Daily spending left<InfoTip term="daily limit" text={TERMS.dailyLimit} /></p><p className="figure mt-2 text-figure"><AnimatedNumber value={state.remainingDaily} /> USD</p><p className="mt-2 text-body text-fg2">{state.spentToday} USD used today of {state.dailyLimit} USD.</p></div>
       <div className="card"><p className="label">FX reference</p><p className="figure mt-2 text-figure">1 USD = 7.10 CNY</p><p className="mt-2 text-small text-muted">Illustrative cached snapshot of 2026-10-16 · not a market rate · read only, never used to compute amounts</p></div>
     </section>
-    <section className="card send-panel">
-      <div className="grid gap-8 lg:grid-cols-[.8fr_1.2fr]">
-        <div><p className="eyebrow">Send with safeguards</p><h2 className="mt-2 font-display text-figure font-medium">Who should the AI pay?</h2><div className="mt-5 flex flex-wrap gap-4">{recipients.map((id) => <button key={id} type="button" onClick={() => setRecipient(id)} aria-pressed={recipient === id} className={`recipient-button ${recipient === id ? "recipient-button-active" : ""}`}><span>{id.slice(0, 1).toUpperCase()}</span>{id[0]!.toUpperCase() + id.slice(1)}</button>)}</div><p className="mt-5 text-small text-muted">Only contacts on the allowlist appear here.</p></div>
-        <div className="send-amount-panel"><p className="label text-center">Amount for {recipient[0]!.toUpperCase() + recipient.slice(1)}</p><label className="send-amount"><span className="sr-only">Payment amount</span><span className="currency-mark">{currency === "USD" ? "$" : "¥"}</span><input value={amount} onChange={(event) => setAmount(event.target.value)} inputMode="decimal" placeholder="0.00" /></label><p className="text-center text-small text-muted">Available {state.balances.find((item) => item.code === currency)?.available ?? "—"} {currency}</p><div className="mx-auto mt-4 flex w-fit rounded-full border border-line bg-inner p-1">{["USD", "CNY"].map((code) => <button key={code} type="button" onClick={() => setCurrency(code)} className={`currency-switch ${currency === code ? "currency-switch-active" : ""}`}>{code}</button>)}</div><button type="button" onClick={askAgent} disabled={!amount.trim()} className="primary-button mt-5 w-full"><Send aria-hidden className="size-4" />Ask AI to pay</button>{currency === "CNY" && <p className="mt-3 text-small text-muted">{CNY_DISCLAIMER}</p>}</div>
-      </div>
-    </section>
+    {asSheet ? <section className="card send-panel flex flex-wrap items-center justify-between gap-4">
+      <div><p className="eyebrow">Send with safeguards</p><h2 className="mt-2 font-display text-figure font-medium">Who should the AI pay?</h2><p className="mt-1 text-body text-fg2">Pick an allowlisted contact and an amount. The AI checks it before anything is signed.</p></div>
+      <button type="button" data-testid="open-send-sheet" onClick={() => setSheetOpen(true)} className="primary-button"><Send aria-hidden className="size-4" />Start a payment</button>
+    </section> : <section className="card send-panel">{form}</section>}
+    {asSheet && createPortal(<AnimatePresence>{sheetOpen && <>
+      <motion.div key="scrim" className="sheet-scrim" onClick={() => setSheetOpen(false)} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }} />
+      <motion.div key="sheet" role="dialog" aria-modal="true" aria-label="Send with safeguards" data-testid="send-sheet" className="send-sheet glass-modal glass" initial={{ y: "100%", x: "-50%" }} animate={{ y: "0%", x: "-50%" }} exit={{ y: "100%", x: "-50%" }} transition={{ type: "spring", stiffness: 380, damping: 38, mass: 0.9 }}>
+        <div aria-hidden className="mx-auto -mt-2 mb-4 h-1.5 w-12 rounded-full bg-line" />
+        <button type="button" aria-label="Close" onClick={() => setSheetOpen(false)} className="icon-button absolute top-4 right-4 z-[2]"><X aria-hidden className="size-4" /></button>
+        {form}
+      </motion.div>
+    </>}</AnimatePresence>, document.body)}
     <AuditLog entries={audit} loaded={loaded} />
+  </div>;
+}
+
+function SendForm({ state, recipients, recipient, setRecipient, amount, setAmount, currency, setCurrency, askAgent }: { state: State; recipients: string[]; recipient: string; setRecipient(id: string): void; amount: string; setAmount(value: string): void; currency: string; setCurrency(code: string): void; askAgent(): void }) {
+  // The typed amount shrinks gently as it gets longer so it always fits.
+  const amountMotion = useTransition({ type: "spring", stiffness: 500, damping: 36 });
+  const scale = Math.max(0.55, 1 - Math.max(0, amount.length - 4) * 0.07);
+  return <div className="grid gap-8 lg:grid-cols-[.8fr_1.2fr]">
+    <div><p className="eyebrow">Send with safeguards</p><h2 className="mt-2 font-display text-figure font-medium">Who should the AI pay?</h2><div className="mt-5 flex flex-wrap gap-4">{recipients.map((id) => <button key={id} type="button" onClick={() => setRecipient(id)} aria-pressed={recipient === id} className={`recipient-button ${recipient === id ? "recipient-button-active" : ""}`}><span>{id.slice(0, 1).toUpperCase()}</span>{id[0]!.toUpperCase() + id.slice(1)}</button>)}</div><p className="mt-5 text-small text-muted">Only contacts on the allowlist appear here.</p></div>
+    <div className="send-amount-panel"><p className="label text-center">Amount for {recipient[0]!.toUpperCase() + recipient.slice(1)}</p><label className="send-amount"><span className="sr-only">Payment amount</span><motion.span className="flex items-center justify-center" animate={{ scale }} transition={amountMotion}><span className="currency-mark">{currency === "USD" ? "$" : "¥"}</span><input value={amount} onChange={(event) => setAmount(event.target.value)} inputMode="decimal" placeholder="0.00" /></motion.span></label><p className="text-center text-small text-muted">Available {state.balances.find((item) => item.code === currency)?.available ?? "—"} {currency}</p><div className="mx-auto mt-4 flex w-fit rounded-full border border-line bg-inner p-1">{["USD", "CNY"].map((code) => <button key={code} type="button" onClick={() => setCurrency(code)} className={`currency-switch ${currency === code ? "currency-switch-active" : ""}`}>{code}</button>)}</div><button type="button" onClick={askAgent} disabled={!amount.trim()} className="primary-button mt-5 w-full"><Send aria-hidden className="size-4" />Ask AI to pay</button>{currency === "CNY" && <p className="mt-3 text-small text-muted">{CNY_DISCLAIMER}</p>}</div>
+  </div>;
+}
+
+/** Currency cards as a stack; hover, focus, or a click fans them out side by side. */
+function CardStack({ balances }: { balances: Balance[] }) {
+  const [pinned, setPinned] = useState(false);
+  const [hover, setHover] = useState(false);
+  const open = pinned || hover;
+  // Widths and offsets in percent of a card, so the fanned row exactly fills the stack with a 6% gap.
+  const width = 100 / (balances.length + 0.06 * (balances.length - 1));
+  return <div data-testid="card-stack" className="card-stack md:col-span-2" tabIndex={0} aria-label={open ? "Demo balances, fanned out" : "Demo balances, stacked. Press Enter to fan out"} onMouseEnter={() => setHover(true)} onMouseLeave={() => setHover(false)} onFocus={() => setHover(true)} onBlur={() => setHover(false)} onClick={() => setPinned(!pinned)} onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); setPinned(!pinned); } }}>
+    {balances.map((balance, index) => <motion.div key={balance.code} className="stack-item" style={{ width: `${width}%`, zIndex: balances.length - index }}
+      animate={open ? { x: `${index * 106}%`, y: 0, rotate: 0, scale: 1 } : { x: `${index * 14}%`, y: index * 18, rotate: index * 2.5, scale: 1 - index * 0.04 }}
+      transition={{ type: "spring", stiffness: 340, damping: 32, mass: 0.9 }}>
+      <BalanceCard balance={balance} />
+    </motion.div>)}
   </div>;
 }
 
 function BalanceCard({ balance }: { balance: Balance }) {
   return <div className={`card bank-card bank-card-${balance.code.toLowerCase()}`} data-testid="balance-card">
     <div className="flex items-start justify-between gap-2"><p className="label">{balance.code} available</p><span data-testid="demo-balance" className="code-tag">DEMO BALANCE</span></div>
-    <p className="figure mt-2 text-display">{balance.available}<span className="ml-2 text-heading text-fg2">{balance.code}</span></p>
+    <p className="figure mt-2 text-display"><AnimatedNumber value={balance.available} /><span className="ml-2 text-heading text-fg2">{balance.code}</span></p>
     <p className="mt-2 text-body text-fg2">{balance.savings} {balance.code} in savings</p>
     {balance.disclaimer && <p data-testid="currency-disclaimer" className="mt-3 text-small text-muted">{balance.disclaimer}</p>}
   </div>;
@@ -515,11 +572,11 @@ function ApprovalInbox({ items, contacts, threshold, loaded, refresh }: { items:
     finally { setBusy(""); }
   }
   return <Card title="Needs your approval" kicker={`${items.length} waiting`}>
-    {done.length > 0 && <ul data-testid="pending-confirmations" className="mb-4 space-y-2">{done.map((item) => <li key={item.transactionHash} data-testid={`confirmed-${item.pendingId}`} className="flex flex-wrap items-center gap-x-2 rounded-control border border-[color-mix(in_srgb,var(--color-ok)_25%,transparent)] bg-ok-bg px-4 py-3 text-body font-medium text-ok">Pending #{item.pendingId} {item.pendingStatus === "EXECUTED" ? "approved and paid" : "rejected"} · confirmed on chain in block {item.blockNumber} · <span className="font-mono text-small">{item.transactionHash.slice(0, 10)}…{item.transactionHash.slice(-8)}</span></li>)}</ul>}
+    {done.length > 0 && <ul data-testid="pending-confirmations" className="mb-4 space-y-2">{done.map((item) => <motion.li initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} key={item.transactionHash} data-testid={`confirmed-${item.pendingId}`} className="flex flex-wrap items-center gap-x-2 rounded-control border border-[color-mix(in_srgb,var(--color-ok)_25%,transparent)] bg-ok-bg px-4 py-3 text-body font-medium text-ok">Pending #{item.pendingId} {item.pendingStatus === "EXECUTED" ? "approved and paid" : "rejected"} · confirmed on chain in block {item.blockNumber} · <span className="font-mono text-small">{item.transactionHash.slice(0, 10)}…{item.transactionHash.slice(-8)}</span></motion.li>)}</ul>}
     <div data-testid="approval-inbox" className="grid gap-4 xl:grid-cols-2">
       {!loaded ? <div className="card-tight"><SkeletonRows rows={4} /></div>
         : items.length === 0 ? <div className="xl:col-span-2"><Empty text="No approvals waiting. Your AI is working within its limits." /></div>
-        : items.map((item) => <PendingCard key={item.id} item={item} name={contactName(contacts, item.recipientContactId)} threshold={threshold} busy={busy} error={errors[item.id] ?? ""} decide={decide} />)}
+        : <AnimatePresence initial={false}>{items.map((item) => <PendingCard key={item.id} item={item} name={contactName(contacts, item.recipientContactId)} threshold={threshold} busy={busy} error={errors[item.id] ?? ""} decide={decide} />)}</AnimatePresence>}
     </div>
   </Card>;
 }
@@ -527,8 +584,10 @@ function ApprovalInbox({ items, contacts, threshold, loaded, refresh }: { items:
 function PendingCard({ item, name, threshold, busy, error, decide }: { item: Pending; name: string; threshold: string; busy: string; error: string; decide(id: string, kind: "approve" | "reject"): Promise<void> }) {
   const rules = [...new Set([...(item.why ? [item.why.decidedBy.rule] : []), ...(item.flags ?? []), ...(item.why?.factors.map((factor) => factor.code) ?? [])])];
   const expires = new Date(Number(item.expiresAt) * 1000);
+  const collapse = useTransition({ type: "spring", stiffness: 420, damping: 40 });
   const field = (label: ReactNode, value: ReactNode, testId: string) => <div><dt className="label">{label}</dt><dd data-testid={testId} className="text-body font-medium">{value}</dd></div>;
-  return <article data-testid={`pending-${item.id}`} className="flex flex-col rounded-card border border-line bg-surface p-5">
+  return <motion.article layout data-testid={`pending-${item.id}`} className="flex flex-col overflow-hidden rounded-card border border-line bg-surface p-5"
+    exit={{ opacity: 0, scale: 0.96, height: 0, paddingTop: 0, paddingBottom: 0, marginTop: 0, borderWidth: 0 }} transition={collapse}>
     <div className="flex items-start justify-between gap-3">
       <div>
         <p className="figure text-display">{item.amount} <span className="text-heading text-fg2">{item.currency}</span></p>
@@ -560,7 +619,7 @@ function PendingCard({ item, name, threshold, busy, error, decide }: { item: Pen
       <ul data-testid="pending-rules" className="mt-1 flex flex-wrap gap-1.5">{rules.length ? rules.map((rule) => <li key={rule} className="code-tag">{rule}</li>) : <li className="text-body text-muted">No rule recorded.</li>}</ul>
       {item.why && <div className="mt-3"><WhyPanel why={item.why} testId={`why-panel-${item.id}`} /></div>}
     </details>
-  </article>;
+  </motion.article>;
 }
 
 /** Explains one decision with the risk score, its real factors, and the rule that decided the outcome. */

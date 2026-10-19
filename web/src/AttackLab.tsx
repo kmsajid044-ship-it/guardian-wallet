@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { Circle, Play, ShieldAlert, ShieldCheck } from "lucide-react";
+import { Scene3D } from "./three/Scene3D";
 import { Chip, ErrorState, Hash, InfoTip, PageHeader, SkeletonRows, TERMS } from "./ui";
 
 type Step = { layer: string; outcome: string; detail: string; transactionHash?: string; blockNumber?: string; revert?: string };
@@ -49,21 +50,24 @@ export function AttackLab({ api }: { api: Api }) {
 
   async function run(id: string) {
     setBusy(id);
-    try { const result = await api<Attack>(`/attack-lab/run/${id}`, { method: "POST", body: "{}" }); setItems((current) => current.map((item) => item.id === id ? result : item)); setError(""); }
+    try { const result = await api<Attack>(`/attack-lab/run/${id}`, { method: "POST", body: "{}" }); setItems((current) => current.map((item) => item.id === id ? result : item)); countBlocked([result]); setError(""); }
     catch (cause) { setError(cause instanceof Error ? cause.message : "Scenario failed"); }
     finally { setBusy(""); }
   }
   async function runAll() {
     setBusy("all");
-    try { setItems(await api<Attack[]>("/attack-lab/run-all", { method: "POST", body: "{}" })); setError(""); }
+    try { const results = await api<Attack[]>("/attack-lab/run-all", { method: "POST", body: "{}" }); setItems(results); countBlocked(results); setError(""); }
     catch (cause) { setError(cause instanceof Error ? cause.message : "Scenarios failed"); }
     finally { setBusy(""); }
   }
 
   const ran = items.filter((item) => item.status !== "READY");
+  // Counts every blocked result as it arrives, so a rerun pulses the cube again.
+  const [blockedRuns, setBlockedRuns] = useState(0);
+  const countBlocked = (results: Attack[]) => setBlockedRuns((count) => count + results.filter((item) => item.status === "BLOCKED").length);
   const blocked = ran.filter((item) => item.status === "BLOCKED").length;
   return <div className="space-y-6">
-    <PageHeader lead="Watch eleven real attacks try to misuse the AI, and see what stops each one." action={<button data-testid="run-all-attacks" onClick={() => void runAll()} disabled={!!busy || !loaded} className="primary-button"><Play aria-hidden className="size-4" />{busy === "all" ? `Running all ${items.length || 11}…` : `Run all ${items.length || 11}`}</button>}>Each attack gets a fresh wallet on our FISCO BCOS chain. It goes through the AI first and, where marked, straight to the contract with the agent's key. Demo units only.</PageHeader>
+    <PageHeader lead="Watch eleven real attacks try to misuse the AI, and see what stops each one." action={<span className="inline-flex items-center gap-4"><Scene3D kind="cube" pulses={blockedRuns} className="cube-scene" /><button data-testid="run-all-attacks" onClick={() => void runAll()} disabled={!!busy || !loaded} className="primary-button"><Play aria-hidden className="size-4" />{busy === "all" ? `Running all ${items.length || 11}…` : `Run all ${items.length || 11}`}</button></span>}>Each attack gets a fresh wallet on our FISCO BCOS chain. It goes through the AI first and, where marked, straight to the contract with the agent's key. Demo units only.</PageHeader>
     {error && <ErrorState message={error} retry={() => void load()} />}
     {busy === "all" && <div role="status" className="card"><p className="text-body text-fg2">Running every attack on the chain. This takes about a minute.</p><div className="mt-3"><SkeletonRows rows={2} /></div></div>}
     {ran.length > 0 && <section data-testid="attack-summary" className="card">

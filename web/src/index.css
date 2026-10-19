@@ -94,3 +94,108 @@
    utility colour classes cannot override the card's intentionally fixed ink palette. */
 .bank-card, .bank-card .text-fg, .bank-card .text-fg2, .bank-card .text-muted { color: #0E0F11; }
 .bank-card .text-fg2, .bank-card .text-muted { color: #34383D; }
+
+/* ------------------------------------------------------------------ Liquid glass (effects on)
+   Everything below applies only while effects are on (html.effects-on). "Reduce effects" and
+   prefers-reduced-motion keep the solid design above unchanged. Contrast: light glass is 62% white
+   (muted text >= 4.6:1, worst case with a blob under the card); dark glass is a 70% dark tint under
+   a 6% white sheen, with lighter muted text (#959BA4, >= 4.9:1); lime accent text on light glass
+   uses the darker #557400 (5.1:1). Tables and inset lists stay on solid panels. */
+:root {
+  --glass-fill: rgba(255, 255, 255, .62); --glass-tint: rgba(255, 255, 255, 0);
+  --glass-edge-hi: rgba(255, 255, 255, .95); --glass-edge-lo: rgba(14, 15, 17, .07); --glass-spec: rgba(255, 255, 255, .95);
+  --glass-shadow: 0 30px 70px -32px rgba(14, 15, 17, .30), 0 2px 8px rgba(14, 15, 17, .05);
+  --glass-blur: blur(22px) saturate(160%);
+}
+.dark {
+  --glass-fill: rgba(255, 255, 255, .06); --glass-tint: rgba(23, 25, 29, .70);
+  --glass-edge-hi: rgba(255, 255, 255, .24); --glass-edge-lo: rgba(255, 255, 255, .03); --glass-spec: rgba(255, 255, 255, .38);
+  --glass-shadow: 0 34px 80px -34px rgba(0, 0, 0, .70);
+}
+html.effects-on.dark { --color-muted: #959BA4; }
+html.effects-on:not(.dark) :is(.eyebrow, .link-button, .text-cobalt, .chip-info) { color: #557400; }
+
+html.effects-on .app-root { background: transparent; }
+html.effects-on :is(.card, .card-tight, .glass) {
+  position: relative; isolation: isolate; border-color: transparent;
+  background: linear-gradient(var(--glass-fill), var(--glass-fill)), var(--glass-tint);
+  -webkit-backdrop-filter: var(--glass-blur); backdrop-filter: var(--glass-blur);
+  box-shadow: var(--glass-shadow);
+}
+/* 1px edge: lighter top-left fading to a faint bottom-right, drawn as a masked gradient ring. */
+html.effects-on :is(.card, .card-tight, .glass)::before {
+  position: absolute; inset: -1px; z-index: 0; content: ""; pointer-events: none; border-radius: inherit; padding: 1px;
+  background: linear-gradient(135deg, var(--glass-edge-hi), var(--glass-edge-lo) 55%, var(--glass-edge-lo));
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); -webkit-mask-composite: xor;
+  mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0);
+}
+/* Thin specular highlight along the top edge. */
+html.effects-on :is(.card, .card-tight, .glass)::after {
+  position: absolute; top: 0; left: 14%; right: 14%; height: 1px; content: ""; pointer-events: none;
+  background: linear-gradient(90deg, transparent, var(--glass-spec), transparent);
+}
+html.effects-on .bank-card::after { opacity: .6; }
+/* The bank cards keep their opaque lime and sky colour; glass is only the edge and shadow. */
+html.effects-on .bank-card-usd { background: #C6F432; } html.effects-on .bank-card-cny { background: #7CC4FF; }
+html.effects-on .bank-card { -webkit-backdrop-filter: none; backdrop-filter: none; }
+html.effects-on .home-hero::before { inset: 0; height: auto; }
+html.effects-on .card table { border-radius: 16px; background: var(--color-surface); }
+html.effects-on header.top-bar { background: color-mix(in srgb, var(--color-page) 55%, transparent); -webkit-backdrop-filter: var(--glass-blur); backdrop-filter: var(--glass-blur); border-color: color-mix(in srgb, var(--color-line) 60%, transparent); }
+html.effects-on .glass-bar { border-color: transparent; }
+html.effects-on .glass-modal { background: linear-gradient(var(--glass-fill), var(--glass-fill)), var(--glass-tint); -webkit-backdrop-filter: var(--glass-blur); backdrop-filter: var(--glass-blur); }
+html.effects-on .glass-modal::backdrop { -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px); }
+html.effects-on .nav-pill-active { background: transparent !important; }
+
+/* Solid fallback where backdrop-filter is unsupported: the same fill, fully opaque. */
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  html.effects-on :is(.card, .card-tight, .glass, .glass-modal) { background: var(--color-surface); }
+  html.effects-on header.top-bar { background: var(--color-page); }
+}
+
+/* Ambient colour behind the glass: very soft lime and sky blobs drifting over 26-38 s. */
+.ambient { position: fixed; inset: 0; z-index: 0; overflow: hidden; pointer-events: none; }
+.ambient span { position: absolute; border-radius: 50%; will-change: transform; }
+.ambient .blob-lime { top: -22vmax; left: -14vmax; width: 64vmax; height: 64vmax; background: radial-gradient(closest-side, rgba(198, 244, 50, .20), rgba(198, 244, 50, 0)); animation: blob-drift-a 30s ease-in-out infinite alternate; }
+.ambient .blob-sky { right: -18vmax; bottom: -26vmax; width: 70vmax; height: 70vmax; background: radial-gradient(closest-side, rgba(124, 196, 255, .18), rgba(124, 196, 255, 0)); animation: blob-drift-b 38s ease-in-out infinite alternate; }
+.ambient .blob-lime-2 { top: 34%; right: 18%; width: 34vmax; height: 34vmax; background: radial-gradient(closest-side, rgba(198, 244, 50, .10), rgba(198, 244, 50, 0)); animation: blob-drift-c 26s ease-in-out infinite alternate; }
+.dark .ambient .blob-lime { opacity: .75; } .dark .ambient .blob-sky { opacity: .7; }
+@keyframes blob-drift-a { to { transform: translate3d(9vmax, 7vmax, 0) scale(1.08); } }
+@keyframes blob-drift-b { to { transform: translate3d(-10vmax, -6vmax, 0) scale(1.06); } }
+@keyframes blob-drift-c { to { transform: translate3d(-6vmax, 5vmax, 0) scale(.92); } }
+html.effects-reduced .ambient { display: none; }
+
+/* 3D posters: a static gradient shown while a canvas loads, and alone when WebGL is unavailable. */
+.scene-poster { position: absolute; inset: 0; border-radius: inherit; pointer-events: none; background: radial-gradient(60% 55% at 50% 45%, rgba(198, 244, 50, .28), rgba(124, 196, 255, .14) 55%, transparent 75%); }
+.scene-canvas { position: absolute; inset: 0; }
+
+/* Wallet: currency cards as a stack that fans out on hover, focus, or click. */
+.card-stack { position: relative; min-height: 300px; }
+.card-stack > .stack-item { position: absolute; inset: 0 auto auto 0; width: min(100%, 440px); }
+.send-sheet { position: fixed; left: 50%; bottom: 0; z-index: 45; width: min(760px, calc(100vw - 24px)); max-height: 88vh; overflow: auto; border-radius: 28px 28px 0 0; }
+.sheet-scrim { position: fixed; inset: 0; z-index: 44; background: rgba(11, 18, 32, .35); }
+
+/* Nav: the lime pill slides between tabs (effects on); text stays above it. */
+.nav-pill { position: relative; }
+.nav-pill .nav-glow { position: absolute; inset: 0; z-index: 0; display: block; border-radius: 999px; background: #C6F432; box-shadow: 0 6px 18px -8px rgba(198, 244, 50, .7); }
+.nav-pill > :not(.nav-glow) { position: relative; z-index: 1; }
+
+/* Reduce effects switch. */
+.effects-switch { display: inline-flex; min-height: 40px; align-items: center; gap: 8px; border-radius: 999px; border: 1px solid var(--color-line); background: var(--color-surface); padding: 0 10px; color: var(--color-fg2); }
+.effects-switch:hover { color: var(--color-fg); }
+.effects-switch-track { position: relative; width: 30px; height: 18px; border-radius: 999px; background: var(--color-inner); border: 1px solid var(--color-line); transition: background-color 200ms; }
+.effects-switch-thumb { position: absolute; top: 2px; left: 2px; width: 12px; height: 12px; border-radius: 50%; background: var(--color-fg2); transition: transform 200ms, background-color 200ms; }
+.effects-switch-on .effects-switch-track { background: #C6F432; border-color: #C6F432; }
+.effects-switch-on .effects-switch-thumb { transform: translateX(12px); background: #0E0F11; }
+html.effects-reduced *, html.effects-reduced *::before, html.effects-reduced *::after { transition-duration: 0ms !important; animation-duration: 0ms !important; }
+
+/* Home hero with the 3D shield on the right. */
+.hero-scene { position: absolute; top: 0; bottom: 0; right: 1%; width: min(36%, 480px); pointer-events: none; }
+.home-hero.has-scene { min-height: 320px; display: flex; flex-direction: column; justify-content: center; }
+.home-hero.has-scene > :not(.hero-scene) { position: relative; z-index: 1; }
+@media (min-width: 1024px) { .home-hero.has-scene > :not(.hero-scene) { max-width: 62%; } }
+@media (max-width: 1023px) { .hero-scene { opacity: .35; width: 60%; right: -10%; } }
+.cube-scene { width: 72px; height: 72px; flex: none; }
+.cube-scene .scene-poster { border-radius: 18px; }
+html.effects-on .send-sheet.glass { position: fixed; padding: clamp(24px, 3vw, 36px); border-bottom-left-radius: 0; border-bottom-right-radius: 0; }
+/* Hidden tooltips near the right edge must not widen the page. */
+.app-root { overflow-x: clip; }
