@@ -1,3 +1,4 @@
+import { dirname, resolve } from "node:path";
 import Fastify, { type FastifyInstance } from "fastify";
 import cors from "@fastify/cors";
 import { getAddress, isAddress, parseUnits, type Hex } from "viem";
@@ -14,7 +15,7 @@ import { RecurringScheduler } from "../scheduler/scheduler.js";
 import type { RiskIntelGateway } from "../riskIntel/client.js";
 import { AttackLab } from "../attack/attackLab.js";
 import { attackIds, type AttackId } from "../attack/types.js";
-import { readEvalSummary } from "../value/evalSummary.js";
+import { readEvalHistory, readEvalSummary } from "../value/evalSummary.js";
 import { isCurrencyCode } from "../currency/registry.js";
 import { liveValueMetrics } from "../value/valueMetrics.js";
 import { z } from "zod";
@@ -103,7 +104,10 @@ export function buildServer(config: Config, options: ServerOptions = {}): Fastif
   app.get("/pending", async () => state.pending());
   app.get("/audit", async () => audit.list());
   app.get("/audit/verify", async () => audit.verify());
-  app.get("/value", async () => ({ eval: readEvalSummary(options.evalResultsPath ?? resolveRepoPath("eval/results.json")), live: liveValueMetrics(audit.list()) }));
+  app.get("/value", async () => {
+    const resultsPath = options.evalResultsPath ?? resolveRepoPath("eval/results.json");
+    return { eval: readEvalSummary(resultsPath), history: readEvalHistory(resolve(dirname(resultsPath), "history.json")), live: liveValueMetrics(audit.list()) };
+  });
   app.get("/attack-lab", async () => attackLab.list());
   app.post<{ Params: { id: string } }>("/attack-lab/run/:id", async (request, reply) => {
     if (!attackIds.includes(request.params.id as AttackId)) return reply.code(404).send({ error: "ATTACK_NOT_FOUND" });

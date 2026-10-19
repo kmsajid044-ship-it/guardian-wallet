@@ -21,6 +21,10 @@ const valueResponse = {
   },
   live: { decisions: 7, routes: { EXECUTED: 3, NEEDS_APPROVAL: 1, BLOCKED: 2, ANSWER_ONLY: 1, SCHEDULE_READY: 0 }, ownerApprovals: 1, pauses: 1, currencies: [{ code: "USD", name: "US dollar (demo units)" }, { code: "CNY", name: "Chinese yuan (demo units)", disclaimer: CNY_DISCLAIMER }], movedOut: { USD: "150", CNY: "0" }, savedToSavings: { USD: "50", CNY: "0" }, blockedValue: { USD: "600", CNY: "0" }, attackLab: { runs: 11, blocked: 11 }, estimatedMinutesSaved: 12.5, lastActivity: "2026-10-16T09:30:00.000Z" },
 };
+const valueHistory = [
+  { label: "held-out, offline parser, before fixes", generatedAt: "2026-10-19T08:46:00.000Z", commit: "0a3d437", suite: "heldout", llm: "mock", scenarioCount: 20, taskSuccess: metric(0.8, 16, 20), unsafeActionRate: metric(0, 0, 20), attackBlockRate: metric(0.778, 7, 9), clarificationAccuracy: metric(1, 6, 6), failedIds: ["H01", "H10", "H14", "H15"] },
+  { label: "all 61, offline parser, after fixes", generatedAt: "2026-10-19T08:59:00.000Z", commit: "85563bf", suite: "all", llm: "mock", scenarioCount: 61, taskSuccess: metric(1, 61, 61), unsafeActionRate: metric(0, 0, 61), attackBlockRate: metric(1, 29, 29), clarificationAccuracy: metric(1, 15, 15), failedIds: [] },
+];
 const proofHash = `0x${"b".repeat(64)}`;
 const attacks = Array.from({ length: 11 }, (_, index) => ({ id: `A${index + 1}`, title: `Safety scenario ${index + 1}`, description: "Synthetic adversarial scenario", status: "READY", directProofRequired: [2, 3, 6, 7, 8, 9, 10].includes(index + 1) }));
 
@@ -40,7 +44,7 @@ async function mockApi(page: Page) {
     if (url.pathname === "/pending") return route.fulfill({ json: pending });
     if (url.pathname === "/contacts") return route.fulfill({ json: [{ id: "ana", address: "0x1000000000000000000000000000000000000001", label: "Ana · synthetic contact", allowed: true, activeAfter: "0" }] });
     if (url.pathname === "/audit") return route.fulfill({ json: [{ id: 1, timestamp: "2026-10-16T08:00:00.000Z", kind: "pipeline_result", hash: "f".repeat(64), data: { decision: { outcome: "EXECUTED", transactionHash, blockNumber: "42" } } }] });
-    if (url.pathname === "/value") return route.fulfill({ json: valueResponse });
+    if (url.pathname === "/value") return route.fulfill({ json: { ...valueResponse, history: valueHistory } });
     if (url.pathname === "/attack-lab") return route.fulfill({ json: attacks });
     if (url.pathname === "/attack-lab/run-all") return route.fulfill({ json: attacks.map(item => ({ ...item, status: "BLOCKED", backend: "fisco", blockedBy: "on-chain contract", reason: "Safety rule enforced", transactionHash, blockNumber: "46", onChain: true, directProof: { transactionHash: proofHash, blockNumber: "47", status: "reverted", detail: "Agent key call refused" }, steps: [{ layer: "on-chain contract", outcome: "REVERTED", detail: "Refused", transactionHash: proofHash, blockNumber: "47" }] })) });
     if (/^\/attack-lab\/run\/A\d+$/.test(url.pathname)) return route.fulfill({ json: { ...attacks.find(item => url.pathname.split("/").pop() === item.id), status: "BLOCKED", backend: "fisco", blockedBy: "firewall", reason: "Unsafe instruction refused", onChain: false, steps: [{ layer: "firewall", outcome: "BLOCKED", detail: "INSTRUCTION_INJECTION" }] } });
@@ -118,6 +122,9 @@ test("shows evaluation targets and live audit counts on the Value Dashboard", as
   await expect(page.getByTestId("eval-scenarios")).toContainText("N01");
   await expect(page.getByTestId("live-metrics")).toContainText("150 USD");
   await expect(page.getByTestId("live-metrics")).toContainText("11/11");
+  await expect(page.getByTestId("eval-history")).toContainText("held-out, offline parser, before fixes");
+  await expect(page.getByTestId("eval-history")).toContainText("H01, H10, H14, H15");
+  await expect(page.getByTestId("eval-history")).toContainText("all 61, offline parser, after fixes");
 });
 
 test("shows the CNY disclaimer wherever CNY demo balances appear", async ({ page }) => {

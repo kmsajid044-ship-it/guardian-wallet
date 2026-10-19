@@ -12,12 +12,13 @@ type Live = {
   movedOut: Record<string, string>; savedToSavings: Record<string, string>; blockedValue: Record<string, string>;
   attackLab: { runs: number; blocked: number }; estimatedMinutesSaved: number; lastActivity: string | null;
 };
-export type ValueResponse = { eval: EvalSummary | null; live: Live };
+type HistoryRow = { label: string; generatedAt: string; commit: string; suite: string; llm: string; scenarioCount: number; taskSuccess: Metric; unsafeActionRate: Metric; attackBlockRate: Metric; clarificationAccuracy: Metric; failedIds: string[] };
+export type ValueResponse = { eval: EvalSummary | null; history?: HistoryRow[]; live: Live };
 type Api = <T>(path: string, init?: RequestInit) => Promise<T>;
 
 const pct = (metric?: Metric) => metric ? `${(metric.value * 100).toFixed(metric.value === 1 || metric.value === 0 ? 0 : 1)}%` : "—";
 const ratio = (metric?: Metric) => metric?.numerator !== undefined ? `${metric.numerator} of ${metric.denominator}` : "";
-const suiteLabel: Record<string, string> = { normal: "Owner tasks", clarification: "Ambiguous requests", attack: "Chat attacks", "attack-lab": "Attack Lab" };
+const suiteLabel: Record<string, string> = { normal: "Owner tasks", clarification: "Ambiguous requests", attack: "Chat attacks", "attack-lab": "Attack Lab", heldout: "Held-out (docs only)" };
 /** "150 USD · 0 CNY", optionally without one code. */
 const perCurrency = (values: Record<string, string>, except?: string) => Object.entries(values).filter(([code]) => code !== except).map(([code, value]) => `${value} ${code}`).join(" · ");
 const minutes = (value: number) => value >= 60 ? `${(value / 60).toFixed(1)} h` : `${value.toFixed(1)} min`;
@@ -71,6 +72,19 @@ export function ValueDashboard({ api }: { api: Api }) {
           {run.scenarios.map((scenario) => <span key={scenario.id} title={`${scenario.title} · ${scenario.latencyMs} ms`} className={`status-pill ${scenario.success ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-200" : "bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-200"}`}>{scenario.id}{scenario.unsafe ? " · unsafe" : ""}</span>)}
         </div>
       </section>
+      {data?.history && data.history.length > 0 && <section data-testid="eval-history" className="card">
+        <h2 className="text-lg font-bold">Run history</h2>
+        <p className="mt-1 text-sm text-slate-500">Labelled runs from <code>eval/history.json</code>; rows are added, never replaced.</p>
+        <div className="mt-4 overflow-x-auto"><table className="w-full min-w-[760px] text-left text-sm">
+          <thead className="text-xs uppercase tracking-wider text-slate-400"><tr><th className="py-2">Run</th><th>Scenarios</th><th>Task success</th><th>Unsafe</th><th>Attacks blocked</th><th>Clarification</th><th>Failed</th></tr></thead>
+          <tbody>{data.history.map((row) => <tr key={`${row.label}-${row.generatedAt}`} className="border-t border-slate-100 dark:border-white/10">
+            <td className="py-3 font-semibold">{row.label}<span className="block text-xs font-normal text-slate-500">{new Date(row.generatedAt).toLocaleString()} · commit {row.commit} · {row.llm}</span></td>
+            <td>{row.scenarioCount}</td><td>{pct(row.taskSuccess)} <span className="text-xs text-slate-500">{ratio(row.taskSuccess)}</span></td>
+            <td>{pct(row.unsafeActionRate)}</td><td>{pct(row.attackBlockRate)} <span className="text-xs text-slate-500">{ratio(row.attackBlockRate)}</span></td>
+            <td>{pct(row.clarificationAccuracy)}</td><td className="font-mono text-xs">{row.failedIds.length ? row.failedIds.join(", ") : "none"}</td>
+          </tr>)}</tbody>
+        </table></div>
+      </section>}
     </> : data && <section className="card text-slate-500">No evaluation results yet. Run <code>pnpm eval</code> to produce them.</section>}
 
     {live && <section data-testid="live-metrics" className="card">

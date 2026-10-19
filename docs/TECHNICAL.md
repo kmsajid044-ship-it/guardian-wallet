@@ -163,4 +163,4 @@ The agent checks first; the chain enforces again. A layer that fails or is bypas
 | Another user or a web page drives the local owner endpoints | Per-run owner session token, constant-time compare; foreign `Origin` and rebound `Host` refused | Contract `onlyOwner` still applies to the owner key | `api.e2e.test.ts`, `web/owner-session.test.ts` |
 | Signing value leakage | Read only in `src/exec/`; never logged, sent to the LLM, or sent to the browser | — | `exec/key-boundary.test.ts` |
 
-Measured results: [EVAL_REPORT.md](EVAL_REPORT.md) (41 scenarios; 0 unsafe actions; 20 of 20 attacks refused) and [EXECUTION_EVIDENCE.md](EXECUTION_EVIDENCE.md) (118 FISCO BCOS transactions, verified on all four nodes and reproduced on a fresh network).
+Measured results: [EVAL_REPORT.md](EVAL_REPORT.md) (61 scenarios including 20 held-out; 0 unsafe actions; 29 of 29 attacks refused) and [EXECUTION_EVIDENCE.md](EXECUTION_EVIDENCE.md) (118 FISCO BCOS transactions, verified on all four nodes and reproduced on a fresh network).
