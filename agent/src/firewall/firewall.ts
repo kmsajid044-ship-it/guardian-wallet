@@ -9,7 +9,9 @@ const instructionPatterns = [
   /ignore\s+(?:all\s+)?(?:previous|prior)\s+(?:instructions|rules)/i,
   /system\s+(?:message|prompt)/i,
   /act\s+as\s+(?:the\s+)?owner/i,
-  /\b(?:i am|i'm|this is|from)\s+(?:the\s+)?owner\b/i,
+  /\b(?:i am|i'm|im|it'?s(?:\s+me)?,?|this is|from)\s+(?:the\s+|your\s+|ur\s+)?(?:account\s+)?owner\b/i,
+  // Pressure to skip the owner's approval step (urgency, "just do it", splitting to stay under it).
+  /\b(?:skip|bypass|avoid|without|no\s+time\s+for|no\s+need\s+for|(?:does\s*n'?t|do\s*n'?t|does\s+not|do\s+not)\s+need)\s+(?:the\s+|an?\s+|any\s+|owner\s+)?approval\b/i,
   /override\s+(?:the\s+)?policy/i,
   /disregard\s+(?:all\s+)?(?:previous|prior|system)/i,
   /developer\s+message/i,

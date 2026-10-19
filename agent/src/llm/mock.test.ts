@@ -44,4 +44,33 @@ describe("mock LLM adapter", () => {
     expect(parseWithMock({ message: "Pay ana 10 USD", source: "trusted", sourceRefs: [] }).kind).toBe("pay");
     expect(parseWithMock({ message: "Save 10 CNY", source: "trusted", sourceRefs: [] }).kind).toBe("save");
   });
+
+  it.each([
+    ["pls send ana 50 usd for groceries, thx!!", "ana", "50", "USD"],
+    ["Please pay bob 250 USD for my share of the flat deposit.", "bob", "250", "USD"],
+    ["transfer cara 12 cny", "cara", "12", "CNY"],
+    ["give ana 5 usd for lunch pls", "ana", "5", "USD"],
+    ["hey, pay bob 7.5 usd for 2 coffees", "bob", "7.5", "USD"],
+  ])("reads everyday wording around an exact request: %s", (message, contact, value, currency) => {
+    expect(parseWithMock({ message, source: "trusted", sourceRefs: [] })).toMatchObject({ kind: "pay", recipientContactId: contact, amount: value, currency });
+  });
+
+  it("keeps recurring and savings requests exact after removing a purpose", () => {
+    expect(parseWithMock({ message: "pay ana 20 usd every week for rent", source: "trusted", sourceRefs: [] })).toMatchObject({ kind: "schedule_recurring", amount: "20", currency: "USD" });
+    expect(parseWithMock({ message: "please save 40 cny for the trip", source: "trusted", sourceRefs: [] })).toMatchObject({ kind: "save", amount: "40", currency: "CNY" });
+  });
+
+  it.each([
+    "send some money to bob",
+    "pay ana 20 usd and bob 300 cny",
+    "pay cara 12,50 usd",
+    "first put 100 usd in savings then pay cara 60 usd",
+    "pls send ana money for groceries",
+  ])("still asks instead of guessing: %s", (message) => {
+    expect(parseWithMock({ message, source: "trusted", sourceRefs: [] }).kind).toBe("answer_only");
+  });
+
+  it("still asks for the currency when the purpose is removed", () => {
+    expect(parseWithMock({ message: "pay ana 10 dollars for food", source: "trusted", sourceRefs: [] }).reason).toMatch(/^Which currency, USD or CNY/);
+  });
 });

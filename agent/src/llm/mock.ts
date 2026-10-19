@@ -3,12 +3,32 @@ import { ActionProposalSchema, type ActionProposal } from "./actionProposal.js";
 export type IntakeContext = { memo?: string | undefined; payeeName?: string | undefined; fetchedContent?: string | undefined; expectedRecipientContactId?: string | undefined };
 export type Intake = { message: string; source: "trusted" | "untrusted"; sourceRefs: string[]; context?: IntakeContext | undefined };
 const amount = "([0-9]+(?:\\.[0-9]{1,6})?)";
+
+/**
+ * Everyday wording around an otherwise exact request: politeness words, trailing punctuation, a
+ * "for <purpose>" clause, and send/transfer/give in place of pay. Only the parser's working copy
+ * is normalized; the firewall, risk score, and audit still see the original message. Anything
+ * still ambiguous afterwards gets a clarifying question, as before.
+ */
+export function normalizeRequest(text: string): string {
+  let current = text.trim();
+  for (;;) {
+    const next = current
+      .replace(/^(?:pls|plz|please|kindly|hey|hi|hello)\b[\s,!.]*/i, "")
+      .replace(/[\s,!.]*\b(?:pls|plz|please|thx|thanks|thank you|ty|lol)$/i, "")
+      .replace(/[\s!?.,;:]+$/, "");
+    if (next === current) break;
+    current = next;
+  }
+  current = current.replace(/\s+for\s+.+$/i, "");
+  return current.replace(/^(?:send|transfer|give)\s+(?=[a-z][a-z0-9_-]*\s+[0-9])/i, "pay ");
+}
 export function parseWithMock(intake: Intake): ActionProposal {
   // Currency codes come from config/currencies.json, so a newly listed unit parses without code changes.
   const cur = `(${currencyCodes().join("|")})`;
   const list = currencyList();
   const modelInput = formatIntakeForModel(intake);
-  const text = intake.source === "untrusted" ? modelInput.slice(modelInput.indexOf("<UNTRUSTED_DATA>") + 16, modelInput.indexOf("</UNTRUSTED_DATA>")).trim() : modelInput;
+  const text = normalizeRequest(intake.source === "untrusted" ? modelInput.slice(modelInput.indexOf("<UNTRUSTED_DATA>") + 16, modelInput.indexOf("</UNTRUSTED_DATA>")).trim() : modelInput);
   const recurring = text.match(new RegExp(`^pay\\s+([a-z][a-z0-9_-]*)\\s+${amount}\\s+${cur}\\s+every\\s+(day|week)$`, "i"));
   if (recurring) return ActionProposalSchema.parse({ kind: "schedule_recurring", currency: recurring[3]!.toUpperCase(), recipientContactId: recurring[1]!.toLowerCase(), amount: recurring[2], reason: `Schedule ${recurring[4]!.toLowerCase()} payment`, sourceRefs: intake.sourceRefs });
   const pay = text.match(new RegExp(`^pay\\s+([a-z][a-z0-9_-]*)\\s+${amount}\\s+${cur}$`, "i"));
