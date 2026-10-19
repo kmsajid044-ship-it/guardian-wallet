@@ -4,13 +4,14 @@
 //   verify-running --rpc <urls>    mode (a): re-fetch every receipt by hash from each endpoint
 //   compare <replay dir> --rpc <url>  mode (b): compare a fresh-chain replay with the original
 // Research prototype: USD and CNY demo balances on a permissioned local chain, no real money.
-import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { loadConfig } from "../agent/src/config.js";
 import { evidenceMarkdown, type SnapshotInfo, type Verification } from "../agent/src/evidence/doc.js";
 import { EvidenceRunner, type EvidenceRun } from "../agent/src/evidence/runner.js";
 import { compareRuns, rpcEndpoint, verifyRunning } from "../agent/src/evidence/verify.js";
+import { loadEvidence } from "../agent/src/evidence/inspect.js";
 
 const repoRoot = fileURLToPath(new URL("../", import.meta.url));
 const evidenceDir = resolve(repoRoot, "evidence");
@@ -70,19 +71,7 @@ function save(run: EvidenceRun, out: string) {
   writeFileSync(resolve(out, "evidence.json"), `${JSON.stringify(summary, null, 2)}\n`);
 }
 
-function load(directory: string): EvidenceRun {
-  const summary = JSON.parse(readFileSync(resolve(directory, "evidence.json"), "utf8")) as Omit<EvidenceRun, "rawReceipts" | "rawTransactions">;
-  const rawReceipts: EvidenceRun["rawReceipts"] = {};
-  const rawTransactions: EvidenceRun["rawTransactions"] = {};
-  const files = new Set(readdirSync(resolve(directory, "receipts")));
-  for (const tx of summary.transactions) {
-    if (!files.has(`${tx.hash}.json`)) throw new Error(`missing receipt file for ${tx.hash}`);
-    const file = JSON.parse(readFileSync(resolve(directory, "receipts", `${tx.hash}.json`), "utf8")) as { transaction: unknown; receipt: unknown };
-    rawReceipts[tx.hash] = file.receipt;
-    rawTransactions[tx.hash] = file.transaction;
-  }
-  return { ...summary, rawReceipts, rawTransactions };
-}
+function load(directory: string): EvidenceRun { return loadEvidence(directory); }
 
 function verification(): Verification {
   const path = resolve(evidenceDir, "verification.json");

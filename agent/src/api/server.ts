@@ -21,6 +21,8 @@ import { isCurrencyCode } from "../currency/registry.js";
 import { liveValueMetrics } from "../value/valueMetrics.js";
 import { z } from "zod";
 import { createOwnerSessionGuard } from "./ownerSession.js";
+import { inspectEvidence, loadEvidenceSummary, loadEvidenceTx, loadVerification } from "../evidence/inspect.js";
+import { rpcEndpoint, verifyTransaction } from "../evidence/verify.js";
 
 type ServerOptions = {
   deployment?: Deployment;
@@ -31,6 +33,8 @@ type ServerOptions = {
   evalResultsPath?: string;
   /** Per-run secret required on every /owner/* route. A random one is generated when omitted. */
   ownerSessionToken?: string;
+  /** Exported execution evidence (evidence/ by default). */
+  evidenceDir?: string;
 };
 
 const ChatRequestSchema = z.object({
@@ -139,6 +143,28 @@ export function buildServer(config: Config, options: ServerOptions = {}): Fastif
     if (!/^0x[0-9a-fA-F]{64}$/.test(request.params.hash)) return reply.code(400).send({ error: "INVALID_HASH" });
     try { return serializeReceipt(await chain.getReceipt(request.params.hash as Hex)); }
     catch (error) { return reply.code(404).send({ error: "RECEIPT_NOT_FOUND", message: errorMessage(error) }); }
+  });
+  const evidenceDir = options.evidenceDir ?? resolveRepoPath("evidence");
+  app.get("/evidence", async (_request, reply) => {
+    const summary = loadEvidenceSummary(evidenceDir);
+    if (!summary) return reply.code(404).send({ error: "EVIDENCE_NOT_FOUND", message: "Run ./scripts/evidence.sh to export evidence." });
+    return inspectEvidence(summary, loadVerification(evidenceDir));
+  });
+  // Mode (a) for one transaction: the node that produced the evidence must return the same receipt.
+  app.get<{ Params: { hash: string } }>("/evidence/verify/:hash", async (request, reply) => {
+    if (!/^0x[0-9a-fA-F]{64}$/.test(request.params.hash)) return reply.code(400).send({ error: "INVALID_HASH" });
+    const summary = loadEvidenceSummary(evidenceDir);
+    const found = summary && loadEvidenceTx(evidenceDir, summary, request.params.hash);
+    if (!summary || !found) return reply.code(404).send({ error: "NOT_IN_EVIDENCE", message: "This hash is not in the exported evidence." });
+    let endpoint;
+    try { endpoint = rpcEndpoint(summary.network.rpcUrl); }
+    catch (error) { return reply.code(400).send({ error: "ENDPOINT_REFUSED", message: errorMessage(error) }); }
+    try {
+      const chainId = Number(BigInt(await endpoint.request("eth_chainId", []) as string));
+      const { problems, receipt } = await verifyTransaction(found.run, found.tx, endpoint.request);
+      if (chainId !== summary.network.chainId) problems.unshift(`chain ID ${chainId} ≠ ${summary.network.chainId}`);
+      return { hash: found.tx.hash, rpcUrl: endpoint.rpcUrl, chainId, expected: { blockNumber: found.tx.blockNumber, blockHash: found.tx.blockHash, status: found.tx.status }, receipt, match: problems.length === 0, problems };
+    } catch (error) { return reply.code(502).send({ error: "NODE_UNAVAILABLE", message: `Could not reach ${endpoint.rpcUrl}: ${errorMessage(error)}` }); }
   });
   app.post<{ Params: { id: string } }>("/owner/pending/:id/approve", async (request, reply) => {
     try { return await runOwnerAction({ kind: "approve", pendingId: BigInt(request.params.id) }, "pending_approved"); }

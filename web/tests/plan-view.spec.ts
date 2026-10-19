@@ -1,47 +1,22 @@
-import { spawn, type ChildProcess } from "node:child_process";
 import { mkdirSync } from "node:fs";
 import { resolve } from "node:path";
-import { createInterface } from "node:readline";
 import { expect, test } from "@playwright/test";
+import { startLiveAgent, useLiveAgent, type LiveAgent } from "./live-agent";
 
 // End to end against the real agent API on a fresh local Anvil chain: nothing here is mocked.
 // The page keeps its usual agent URL; the browser's requests are redirected to the live server.
 const TARGET = "Pay Ana 50 USD, then move 200 CNY to savings, and ask me before anything above 300 USD.";
 const CNY_DISCLAIMER = "Simulated demo units denominated in CNY for illustration. No value, not issued, not redeemable, not a digital currency, not linked to e-CNY.";
-const PAGE_API = "http://127.0.0.1:8787";
 
-let server: ChildProcess | undefined;
-let apiUrl = "";
+let agent: LiveAgent;
 let rpcUrl = "";
 
 test.describe.configure({ mode: "serial", timeout: 120_000 });
-
-test.beforeAll(async () => {
-  const agentDirectory = resolve(process.cwd(), "../agent");
-  const foundry = resolve(process.env.HOME ?? "", ".foundry/bin");
-  server = spawn("pnpm", ["exec", "tsx", "src/exec/e2eServer.ts"], { cwd: agentDirectory, env: { ...process.env, PATH: `${foundry}:${process.env.PATH ?? ""}` }, stdio: ["ignore", "pipe", "inherit"] });
-  const lines = createInterface({ input: server.stdout! });
-  const ready = await new Promise<{ apiUrl: string; rpcUrl: string }>((resolveReady, reject) => {
-    const timer = setTimeout(() => reject(new Error("live agent did not start")), 90_000);
-    server!.once("exit", (code) => reject(new Error(`live agent exited with ${code}`)));
-    lines.on("line", (line) => {
-      if (!line.startsWith("{")) return;
-      clearTimeout(timer);
-      resolveReady(JSON.parse(line) as { apiUrl: string; rpcUrl: string });
-    });
-  });
-  ({ apiUrl, rpcUrl } = ready);
-});
-
-test.afterAll(async () => {
-  if (!server || server.exitCode !== null) return;
-  const exited = new Promise((resolveExit) => server!.once("exit", resolveExit));
-  server.kill("SIGTERM");
-  await exited;
-});
+test.beforeAll(async () => { agent = await startLiveAgent(); rpcUrl = agent.rpcUrl; });
+test.afterAll(async () => { await agent?.stop(); });
 
 test("runs the pay, save, and approval-cap request as a plan with real receipts", async ({ page, request }) => {
-  await page.route(`${PAGE_API}/**`, (route) => route.continue({ url: route.request().url().replace(PAGE_API, apiUrl) }));
+  await useLiveAgent(page, agent);
   await page.goto("/");
   await page.getByLabel("Message the agent").fill(TARGET);
   await page.getByRole("button", { name: "Send" }).click();

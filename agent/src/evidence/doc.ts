@@ -1,4 +1,5 @@
 import { CNY_DISCLAIMER } from "../currency/registry.js";
+import { verifyAuditChain } from "../audit/audit.js";
 import type { EvidenceRun } from "./runner.js";
 import type { FreshVerification, RunningVerification } from "./verify.js";
 
@@ -6,6 +7,20 @@ export type SnapshotInfo = { node: string; file: string; sha256: string; bytes: 
 export type Verification = { running?: RunningVerification; fresh?: FreshVerification };
 
 const cell = (value: string) => value.replaceAll("|", "\\|").replaceAll("\n", " ");
+
+function offChainLines(run: EvidenceRun): string[] {
+  const blocks = (run.decisions ?? []).filter((item) => item.offChain);
+  if (!blocks.length) return ["None recorded in this export."];
+  const logs = Object.entries(run.auditLogs ?? {});
+  const valid = logs.filter(([, entries]) => verifyAuditChain(entries).valid).length;
+  return [
+    "| Scenario | Layer | Rule | Outcome | Tier | Audit entry | Entry hash |",
+    "|---|---|---|---|---|---|---|",
+    ...blocks.map((item) => `| ${item.scenario} | ${item.layer} | ${cell(item.rule)} | ${item.outcome} | ${item.tier ?? "—"} | ${item.log} #${item.entryId} (${item.kind}) | \`${item.entryHash}\` |`),
+    "",
+    `${valid} of ${logs.length} decision audit logs verify end to end.`,
+  ];
+}
 
 export function evidenceMarkdown(run: EvidenceRun, snapshot: SnapshotInfo | undefined, verification: Verification): string {
   const byScenario = new Map(run.scenarios.map((scenario) => [scenario.id, scenario]));
@@ -38,9 +53,15 @@ export function evidenceMarkdown(run: EvidenceRun, snapshot: SnapshotInfo | unde
       return `| ${tx.scenario} ${cell(byScenario.get(tx.scenario)?.title ?? "")} | ${cell(tx.label)} | \`${tx.hash}\` | ${tx.blockNumber} | \`${tx.blockHash}\` | ${cell(events)} | ${tx.timestamp} | ${tx.status === "reverted" ? "❌ " : ""}${cell(tx.result)} |`;
     }),
     "",
+    "## Off-chain blocks",
+    "",
+    "Refused by the firewall, the tier gate, or the agent pipeline before anything was signed. No transaction was sent, so none is listed and there is no hash. The record is the decision's entry in the scenario's hash-chained audit log (each entry hash is SHA-256 of the previous hash and the entry's canonical JSON), exported in `evidence/evidence.json` under `auditLogs`.",
+    "",
+    ...offChainLines(run),
+    "",
     "## Exported files",
     "",
-    "- `evidence/evidence.json`: run metadata, scenarios, and every transaction with decoded call, events, roles, gas, and result.",
+    "- `evidence/evidence.json`: run metadata, scenarios, every transaction with decoded call, events, roles, gas, and result, every agent decision (`decisions`), and the decision audit logs (`auditLogs`).",
     "- `evidence/receipts/<tx hash>.json`: the raw `eth_getTransactionReceipt` and `eth_getTransactionByHash` responses, unmodified.",
     snapshot
       ? `- \`${snapshot.file}\`: ${snapshot.node} data directory at block ${snapshot.blockNumber} (\`${snapshot.blockHash}\`), ${(snapshot.bytes / 1_048_576).toFixed(1)} MiB, SHA-256 \`${snapshot.sha256}\`. Taken ${snapshot.takenAt} with ${snapshot.node} stopped (consensus continued on three of four nodes) and restarted afterwards. Excludes ${snapshot.excludes.join(", ")}, which hold node signing material.`

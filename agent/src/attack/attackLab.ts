@@ -1,5 +1,5 @@
 import { encodeFunctionData, getAddress, keccak256, stringToHex, type Address, type Hex } from "viem";
-import { AuditLog, type JsonValue } from "../audit/audit.js";
+import { AuditLog, type AuditEntry, type JsonValue } from "../audit/audit.js";
 import { toCurrencyCode } from "../currency/registry.js";
 import { guardianWalletAbi } from "../chain/abi.js";
 import type { Config } from "../config.js";
@@ -29,6 +29,11 @@ export type AttackLabOptions = {
   /** Shared audit log; each finished scenario is appended as an `attack_lab_result` entry. */
   audit?: AuditLog;
   executor?: AttackExecutor;
+  /**
+   * Receives each finished scenario's decision audit log: the hash-chained entries its pipeline
+   * wrote, plus the tier gate's refusals of owner-only operations. Used by the evidence export.
+   */
+  onDecisions?: (id: AttackId, entries: AuditEntry[]) => void;
 };
 
 /**
@@ -40,6 +45,8 @@ export class AttackLab {
   private readonly results = new Map<AttackId, AttackResult>();
   private executorInstance: AttackExecutor | undefined;
   private queue: Promise<unknown> = Promise.resolve();
+  /** Decision audit log of the scenario that is running; scenarios are serialised. */
+  private decisions: AuditLog | undefined;
 
   constructor(private readonly config: Config, private readonly environment: NodeJS.ProcessEnv, private readonly options: AttackLabOptions = {}) {
     this.executorInstance = options.executor;
@@ -70,6 +77,7 @@ export class AttackLab {
   private async execute(id: AttackId): Promise<AttackResult> {
     const started = Date.now();
     const steps: AttackStep[] = [];
+    this.decisions = undefined;
     let result: AttackResult;
     try {
       const outcome = await this.scenario(id, steps);
@@ -90,6 +98,9 @@ export class AttackLab {
       };
     }
     this.results.set(id, result);
+    // Set by setup() while the scenario ran; TypeScript cannot see that through the awaits.
+    const decisions = this.decisions as AuditLog | undefined;
+    if (decisions) this.options.onDecisions?.(id, decisions.list());
     this.options.audit?.append({ timestamp: new Date().toISOString(), kind: "attack_lab_result", data: JSON.parse(JSON.stringify(result)) as JsonValue });
     return result;
   }
@@ -236,6 +247,7 @@ export class AttackLab {
     steps.push({ layer: "owner setup", outcome: "RECORDED", detail: "Owner engaged the kill switch", ...evidenceFields(pause) });
     const gate = tierGate({ operation: "owner" });
     if (gate.allowed) throw this.fail(steps, "tier gate allowed an agent resume");
+    this.recordGate("resume the wallet", "unpause", gate);
     steps.push({ layer: "tier gate", outcome: "BLOCKED", detail: `Agent request "resume the wallet" is ${gate.tier}: ${gate.reason}` });
     const whilePaused = await pipeline.run(intake("Pay ana 20 USD"));
     expectPipelineBlocked(steps, whilePaused, "on-chain contract", ["PAUSED"]);
@@ -270,6 +282,7 @@ export class AttackLab {
     const flags = expectPipelineBlocked(steps, chat, "firewall", ["POLICY_CHANGE_ATTEMPT"]);
     if (chat.tier !== "T3") throw this.fail(steps, `policy change was classified ${chat.tier ?? "without a tier"}`);
     const gate = tierGate({ operation: "owner" });
+    this.recordGate("raise the agent's own limits", "setPolicy", gate);
     steps.push({ layer: "tier gate", outcome: "BLOCKED", detail: `setPolicy is ${gate.tier}: ${gate.reason}` });
     const raised = { ...fixture.policy, perTxLimit: 1_000_000n * UNIT, dailyLimit: 1_000_000n * UNIT, approvalThreshold: 1_000_000n * UNIT };
     const direct = await fixture.probe("agent", getAddress(fixture.deployment.guardianWallet), encodeFunctionData({ abi: guardianWalletAbi, functionName: "setPolicy", args: [raised] }));
@@ -297,8 +310,17 @@ export class AttackLab {
     // Deterministic proposals and no paid payee check keep every run reproducible.
     const pipelineConfig: Config = { ...this.config, LLM_PROVIDER: "mock", DEPLOYMENTS_FILE: "attack-lab", AUDIT_DB_PATH: ":memory:" };
     delete pipelineConfig.RISK_INTEL_URL;
-    const pipeline = new AgentPipeline(pipelineConfig, fixture.deployment, this.executor.publicClient, new AuditLog(":memory:"), { ana, ...contacts }, this.environment, new MockAdapter());
+    this.decisions = new AuditLog(":memory:");
+    const pipeline = new AgentPipeline(pipelineConfig, fixture.deployment, this.executor.publicClient, this.decisions, { ana, ...contacts }, this.environment, new MockAdapter());
     return { fixture, pipeline };
+  }
+
+  /** The tier gate refuses an owner-only operation off-chain; the refusal is audited like a pipeline decision. */
+  private recordGate(request: string, operation: string, gate: ReturnType<typeof tierGate>): void {
+    this.decisions?.append({
+      timestamp: new Date().toISOString(), kind: "tier_gate_decision",
+      data: { request, operation, decision: { outcome: "BLOCKED", tier: gate.tier, reason: gate.reason, layer: "tier gate", rule: "OWNER_ONLY_OPERATION", transactionHash: null, blockNumber: null } },
+    });
   }
 
   private async createPending(steps: AttackStep[], pipeline: AgentPipeline): Promise<bigint> {

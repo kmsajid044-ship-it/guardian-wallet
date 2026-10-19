@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState, type FormEvent, type ReactNode } from "react";
 import { AttackLab } from "./AttackLab";
+import { EvidenceInspector } from "./EvidenceInspector";
 import { PlanView, type Plan } from "./PlanView";
 import { ValueDashboard } from "./ValueDashboard";
 
@@ -62,6 +63,7 @@ export default function App() {
         {route === "/policy" && <Policy state={state} contacts={contacts} refresh={refresh} />}
         {route === "/attack-lab" && <AttackLab api={api} />}
         {route === "/value" && <ValueDashboard api={api} />}
+        {route === "/evidence" && <EvidenceInspector api={api} />}
       </main>
       <footer className="border-t border-slate-200 bg-white/80 px-6 py-5 text-center text-sm font-medium text-slate-500 dark:border-white/10 dark:bg-[#0b1714] dark:text-slate-400">{footer}</footer>
     </div>
@@ -69,7 +71,7 @@ export default function App() {
 }
 
 function Header({ dark, setDark, paused }: { dark: boolean; setDark(value: boolean): void; paused: boolean }) {
-  const links = [["/", "Operations"], ["/policy", "Policy"], ["/attack-lab", "Attack Lab"], ["/value", "Value Dashboard"]];
+  const links = [["/", "Operations"], ["/policy", "Policy"], ["/attack-lab", "Attack Lab"], ["/value", "Value Dashboard"], ["/evidence", "Evidence"]];
   return <header className="sticky top-0 z-20 border-b border-slate-200 bg-white/90 backdrop-blur-xl dark:border-white/10 dark:bg-[#0b1714]/90">
     <div className="mx-auto flex max-w-[1600px] items-center gap-7 px-5 py-4 lg:px-10">
       <a href="#/" className="mr-auto flex items-center gap-3"><span className="grid size-10 place-items-center rounded-xl bg-emerald-600 text-lg font-black text-white">G</span><span><b className="block text-base leading-none">Guardian</b><small className="text-xs text-slate-500">Owner Console</small></span></a>

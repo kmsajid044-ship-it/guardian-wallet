@@ -29,21 +29,36 @@ export async function verifyRunning(run: EvidenceRun, endpoints: Array<{ rpcUrl:
     const check: RunningCheck = { rpcUrl, checked: 0, matched: 0, mismatches: [] };
     for (const tx of run.transactions) {
       check.checked += 1;
-      const problems: string[] = [];
-      const receipt = await request("eth_getTransactionReceipt", [tx.hash]);
-      const transaction = await request("eth_getTransactionByHash", [tx.hash]);
-      const block = await request("eth_getBlockByNumber", [`0x${tx.blockNumber.toString(16)}`, false]) as { hash?: string; timestamp?: string } | null;
-      if (!receipt) problems.push("receipt not found");
-      else if (canonicalJson(receipt as JsonValue) !== canonicalJson(run.rawReceipts[tx.hash] as JsonValue)) problems.push("receipt differs from export");
-      if (!transaction) problems.push("transaction not found");
-      else if (canonicalJson(stripPending(transaction) as JsonValue) !== canonicalJson(stripPending(run.rawTransactions[tx.hash]) as JsonValue)) problems.push("transaction differs from export");
-      if (block?.hash?.toLowerCase() !== tx.blockHash.toLowerCase()) problems.push(`block ${tx.blockNumber} hash ${block?.hash ?? "missing"} ≠ ${tx.blockHash}`);
+      const { problems } = await verifyTransaction(run, tx, request);
       if (problems.length) check.mismatches.push(`${tx.hash}: ${problems.join("; ")}`);
       else check.matched += 1;
     }
     checks.push(check);
   }
   return { mode: "running", verifiedAt: new Date().toISOString(), transactions: run.transactions.length, endpoints: checks, passed: checks.every((check) => check.checked === run.transactions.length && check.matched === check.checked) };
+}
+
+export type ReceiptSummary = { status: string; blockNumber: number; blockHash: string; transactionIndex: number };
+
+/**
+ * Mode (a) for one transaction: the node's raw receipt and transaction must equal the export, and
+ * the block at the recorded height must carry the recorded block hash.
+ */
+export async function verifyTransaction(run: EvidenceRun, tx: EvidenceTx, request: Request): Promise<{ problems: string[]; receipt: ReceiptSummary | null }> {
+  const problems: string[] = [];
+  const receipt = await request("eth_getTransactionReceipt", [tx.hash]) as Record<string, string> | null;
+  const transaction = await request("eth_getTransactionByHash", [tx.hash]);
+  const block = await request("eth_getBlockByNumber", [`0x${tx.blockNumber.toString(16)}`, false]) as { hash?: string; timestamp?: string } | null;
+  if (!receipt) problems.push("receipt not found");
+  else if (canonicalJson(receipt as JsonValue) !== canonicalJson(run.rawReceipts[tx.hash] as JsonValue)) problems.push("receipt differs from export");
+  if (!transaction) problems.push("transaction not found");
+  else if (canonicalJson(stripPending(transaction) as JsonValue) !== canonicalJson(stripPending(run.rawTransactions[tx.hash]) as JsonValue)) problems.push("transaction differs from export");
+  if (block?.hash?.toLowerCase() !== tx.blockHash.toLowerCase()) problems.push(`block ${tx.blockNumber} hash ${block?.hash ?? "missing"} ≠ ${tx.blockHash}`);
+  const summary = receipt ? {
+    status: receipt.status === "0x1" ? "success" : "reverted", blockNumber: Number(BigInt(receipt.blockNumber ?? "0x0")),
+    blockHash: receipt.blockHash ?? "", transactionIndex: Number(BigInt(receipt.transactionIndex ?? "0x0")),
+  } : null;
+  return { problems, receipt: summary };
 }
 
 // Some clients add per-request fields to transaction objects; keep the signed content.
@@ -93,6 +108,15 @@ export function compareRuns(original: EvidenceRun, replay: EvidenceRun, rpcUrl: 
       const b = canonicalJson(right[index] as unknown as JsonValue);
       if (a === b) transactionsMatched += 1;
       else { scenarioOk = false; differences.push(`${scenario.id} tx ${index + 1}: ${diffFields(left[index]!, right[index]!)}`); }
+    }
+    // Off-chain refusals leave no transaction; the replay must reach the same decisions.
+    const decisionsOf = (value: EvidenceRun) => (value.decisions ?? []).filter((item) => item.scenario === scenario.id)
+      .map((item) => `${item.kind} ${item.outcome} ${item.tier ?? "-"} ${item.layer} ${item.rule} ${item.transactionHash ? "on-chain" : "off-chain"}`);
+    const originalDecisions = decisionsOf(original);
+    const replayDecisions = decisionsOf(replay);
+    if (original.decisions && originalDecisions.join("\n") !== replayDecisions.join("\n")) {
+      scenarioOk = false;
+      differences.push(`${scenario.id}: decisions [${originalDecisions.join("; ")}] originally, [${replayDecisions.join("; ")}] on replay`);
     }
     if (scenarioOk) scenariosMatched += 1;
   }

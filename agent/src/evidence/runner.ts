@@ -3,14 +3,15 @@ import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { decodeErrorResult, decodeEventLog, decodeFunctionData, getAddress, keccak256, stringToHex, type Abi, type Address, type Hex } from "viem";
 import { AttackLab } from "../attack/attackLab.js";
-import type { AttackId, AttackResult } from "../attack/types.js";
-import { AuditLog } from "../audit/audit.js";
+import { attackIds, type AttackId, type AttackResult } from "../attack/types.js";
+import { AuditLog, type AuditEntry } from "../audit/audit.js";
 import type { Config } from "../config.js";
 import { AttackExecutor, UNIT, type AttackFixture } from "../exec/attackExecutor.js";
 import { MockAdapter } from "../llm/provider.js";
 import { AgentPipeline, type PipelineResult } from "../pipeline/pipeline.js";
 import { policyReasons } from "../policy/types.js";
 import { fromCurrencyCode } from "../currency/registry.js";
+import { decisionsFromAudit, type EvidenceDecision } from "./inspect.js";
 
 const repoRoot = fileURLToPath(new URL("../../../", import.meta.url));
 const artifactAbi = (name: string): Abi => (JSON.parse(readFileSync(resolve(repoRoot, `contracts/out/${name}.sol/${name}.json`), "utf8")) as { abi: Abi }).abi;
@@ -53,6 +54,10 @@ export type EvidenceRun = {
   roles: { owner: Address; agent: Address; contacts: Record<string, Address> };
   scenarios: EvidenceScenario[];
   transactions: EvidenceTx[];
+  /** Every agent decision, on-chain or not, with the audit entry that records it. Absent in older exports. */
+  decisions?: EvidenceDecision[];
+  /** The hash-chained decision audit logs: "core" for E01–E07, one per Attack Lab deployment. */
+  auditLogs?: Record<string, AuditEntry[]>;
   rawReceipts: Record<Hex, unknown>;
   rawTransactions: Record<Hex, unknown>;
 };
@@ -70,10 +75,12 @@ export class EvidenceRunner {
   private readonly roles = new Map<string, string>();
   private readonly contracts = new Map<string, string>();
   private readonly counters = { GuardianWallet: 0, DemoLedger: 0 };
+  private readonly coreAudit = new AuditLog(":memory:");
+  private readonly attackAudits = new Map<AttackId, AuditEntry[]>();
 
   constructor(private readonly config: Config, private readonly environment: NodeJS.ProcessEnv, private readonly log: (line: string) => void = () => undefined) {
     this.executor = AttackExecutor.create(config, environment);
-    this.lab = new AttackLab(config, environment, { executor: this.executor });
+    this.lab = new AttackLab(config, environment, { executor: this.executor, onDecisions: (id, entries) => this.attackAudits.set(id, entries) });
     this.roles.set(this.executor.ownerAddress.toLowerCase(), "owner");
     this.roles.set(this.executor.agentAddress.toLowerCase(), "agent");
     this.roles.set("0x00000000000000000000000000000000000000f3", "fee account");
@@ -88,6 +95,8 @@ export class EvidenceRunner {
     const transactions: EvidenceTx[] = [];
     const rawReceipts: EvidenceRun["rawReceipts"] = {};
     const rawTransactions: EvidenceRun["rawTransactions"] = {};
+    const decisions: EvidenceDecision[] = [];
+    const auditLogs: Record<string, AuditEntry[]> = {};
     let core: { fixture: AttackFixture; pipeline: AgentPipeline } | undefined;
     const coreSetup = async () => core ??= await this.coreFixture();
 
@@ -140,8 +149,9 @@ export class EvidenceRunner {
         const passed = pause.status === "success" && (paused.flags ?? []).includes("PAUSED") && resume.status === "success" && after.route === "EXECUTED";
         return { passed, detail: `paused payment ${paused.route} (${(paused.flags ?? []).join(", ")}); after resume ${after.route}` };
       }],
-      ...(["A2", "A3", "A4", "A5", "A6", "A7", "A8", "A9", "A10"] as AttackId[]).map((id): [string, string, string, ScenarioBody] => [
-        `E-${id}`, `Attack Lab ${id}`, "Attack refused on-chain (fresh deployment per attack)", async (recorder) => {
+      // Every attack, including those refused off-chain only: their proof is the audit entry.
+      ...attackIds.map((id): [string, string, string, ScenarioBody] => [
+        `E-${id}`, `Attack Lab ${id}`, "Attack refused on-chain or off-chain (fresh deployment per attack)", async (recorder) => {
           const result = await this.lab.run(id);
           labelAttack(recorder, result);
           return { passed: result.status === "BLOCKED", detail: `${result.title}: ${result.status} by ${result.blockedBy}; ${result.reason}` };
@@ -153,6 +163,7 @@ export class EvidenceRunner {
       this.log(`${id} ${title}`);
       const start = await client.getBlockNumber({ cacheTime: 0 });
       const labels = new Map<string, string>();
+      const coreBefore = this.coreAudit.list().length;
       const outcome = await body({ label: (hash, label) => { if (hash) labels.set(hash.toLowerCase(), label); } });
       const end = await client.getBlockNumber({ cacheTime: 0 });
       const collected = await this.collect(id, start + 1n, end, labels, rawReceipts, rawTransactions);
@@ -161,6 +172,11 @@ export class EvidenceRunner {
       const missing = [...labels.keys()].filter((hash) => !captured.has(hash));
       if (missing.length) { outcome.passed = false; outcome.detail += `; ${missing.length} labelled transaction(s) outside the recorded block range`; }
       scenarios.push({ id, title, expectation, passed: outcome.passed, detail: outcome.detail, transactions: collected.map((tx) => tx.hash) });
+      const attack = attackIds.find((item) => `E-${item}` === id);
+      if (attack) {
+        auditLogs[id] = this.attackAudits.get(attack) ?? [];
+        decisions.push(...decisionsFromAudit(id, id, auditLogs[id]));
+      } else decisions.push(...decisionsFromAudit(id, "core", this.coreAudit.list().slice(coreBefore)));
       this.log(`  ${outcome.passed ? "ok" : "FAILED"}: ${collected.length} transactions; ${outcome.detail}`);
     }
 
@@ -172,7 +188,7 @@ export class EvidenceRunner {
         firstBlock, lastBlock: Number(await client.getBlockNumber({ cacheTime: 0 })),
       },
       roles: { owner: this.executor.ownerAddress, agent: this.executor.agentAddress, contacts: { ...evidenceContacts } },
-      scenarios, transactions, rawReceipts, rawTransactions,
+      scenarios, transactions, decisions, auditLogs: { core: this.coreAudit.list(), ...auditLogs }, rawReceipts, rawTransactions,
     };
   }
 
@@ -180,7 +196,7 @@ export class EvidenceRunner {
     const fixture = await this.executor.fixture({ allowlist: Object.entries(evidenceContacts).map(([id, address]) => ({ address, label: `${id} · synthetic contact` })) });
     const pipelineConfig: Config = { ...this.config, LLM_PROVIDER: "mock", DEPLOYMENTS_FILE: "evidence", AUDIT_DB_PATH: ":memory:" };
     delete pipelineConfig.RISK_INTEL_URL;
-    const pipeline = new AgentPipeline(pipelineConfig, fixture.deployment, this.executor.publicClient, new AuditLog(":memory:"), evidenceContacts, this.environment, new MockAdapter());
+    const pipeline = new AgentPipeline(pipelineConfig, fixture.deployment, this.executor.publicClient, this.coreAudit, evidenceContacts, this.environment, new MockAdapter());
     return { fixture, pipeline };
   }
 
