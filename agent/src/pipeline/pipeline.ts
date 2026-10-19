@@ -16,6 +16,7 @@ import { tierGate, type PermissionTier } from "../policy/tierGate.js";
 import type { AgentAction, PolicyVerdict } from "../policy/types.js";
 import { scoreRisk } from "../risk/score.js";
 import { RiskIntelClient, type PayeeRiskResult, type RiskIntelGateway } from "../riskIntel/client.js";
+import { buildWhy, type WhyDecision } from "./why.js";
 
 export type PipelineResult = {
   proposal: ActionProposal;
@@ -32,6 +33,8 @@ export type PipelineResult = {
   riskIntel?: PayeeRiskResult;
   tier?: PermissionTier;
   blockNumber?: string;
+  /** Explained decision for the owner console: real risk factors plus the layer that decided. */
+  why?: WhyDecision;
 };
 
 export const UNTRUSTED_APPROVAL_FLAG = "UNTRUSTED_SOURCE_REQUIRES_APPROVAL";
@@ -81,19 +84,34 @@ export class AgentPipeline {
     const proposalHistory = historyAddress ? this.paymentHistory(getAddress(historyAddress)) : [];
     const firewall = inspectProposal(intake.message, intake.source, proposal, this.contacts, proposalHistory, intake.context);
     if (firewall.blocked) {
-      return this.finish({ proposal, route: "BLOCKED", tier: firewall.flags.includes("POLICY_CHANGE_ATTEMPT") ? "T3" : "T0", flags: firewall.flags }, llm);
+      return this.finish({
+        proposal, route: "BLOCKED", tier: firewall.flags.includes("POLICY_CHANGE_ATTEMPT") ? "T3" : "T0", flags: firewall.flags,
+        why: buildWhy({ decision: "BLOCKED", layer: "firewall", rule: firewall.flags.join(", "), detail: "The firewall refused the request before policy, simulation, or risk scoring ran." }),
+      }, llm);
     }
     if (proposal.kind === "answer_only") {
-      return this.finish({ proposal, route: "ANSWER_ONLY", tier: "T0", clarification: { required: true, questions: [proposal.reason] } }, llm);
+      return this.finish({
+        proposal, route: "ANSWER_ONLY", tier: "T0", clarification: { required: true, questions: [proposal.reason] },
+        why: buildWhy({ decision: "ANSWER_ONLY", layer: "pipeline", rule: "CLARIFICATION_REQUIRED", detail: "The request was missing a required detail, so the agent asked a targeted question instead of acting." }),
+      }, llm);
     }
     const untrusted = intake.source === "untrusted";
     if (proposal.kind === "schedule_recurring") {
       // Scheduled runs are trusted, so an untrusted request must not create the schedule itself.
-      if (untrusted) return this.finish({ proposal, route: "NEEDS_APPROVAL", tier: "T2", flags: [UNTRUSTED_APPROVAL_FLAG] }, llm);
-      return this.finish({ proposal, route: "SCHEDULE_READY", tier: "T1" }, llm);
+      if (untrusted) return this.finish({
+        proposal, route: "NEEDS_APPROVAL", tier: "T2", flags: [UNTRUSTED_APPROVAL_FLAG],
+        why: buildWhy({ decision: "NEEDS_APPROVAL", layer: "tier gate", rule: UNTRUSTED_APPROVAL_FLAG, detail: "An untrusted request never creates a recurring schedule; only the owner can approve it." }),
+      }, llm);
+      return this.finish({
+        proposal, route: "SCHEDULE_READY", tier: "T1",
+        why: buildWhy({ decision: "SCHEDULE_READY", layer: "pipeline", rule: "RECURRING_VALIDATED", detail: "The recurring request is trusted and complete; every run re-enters the full pipeline." }),
+      }, llm);
     }
     if (proposal.kind === "cancel_recurring") {
-      return this.finish({ proposal, route: "ANSWER_ONLY", tier: "T0", clarification: { required: true, questions: ["Which recurring payment ID should I cancel?"] } }, llm);
+      return this.finish({
+        proposal, route: "ANSWER_ONLY", tier: "T0", clarification: { required: true, questions: ["Which recurring payment ID should I cancel?"] },
+        why: buildWhy({ decision: "ANSWER_ONLY", layer: "pipeline", rule: "CLARIFICATION_REQUIRED", detail: "The agent needs the recurring payment ID before it can cancel anything." }),
+      }, llm);
     }
 
     const chainPolicy = await this.reader.getPolicy();
@@ -101,7 +119,10 @@ export class AgentPipeline {
     if (action.kind === "pay" || action.kind === "request_approval") {
       const recipient = await this.reader.getRecipient(action.to);
       if (!recipient.allowed) {
-        return this.finish({ proposal, route: "BLOCKED", tier: "T1", flags: ["UNKNOWN_CONTACT"] }, llm);
+        return this.finish({
+          proposal, route: "BLOCKED", tier: "T1", flags: ["UNKNOWN_CONTACT"],
+          why: buildWhy({ decision: "BLOCKED", layer: "contract", rule: "RECIPIENT_NOT_ALLOWED", detail: "The contact is not on the owner's allowlist, so the wallet contract would refuse this recipient." }),
+        }, llm);
       }
     }
     const policy = await precheckAction(this.reader, action);
@@ -109,7 +130,10 @@ export class AgentPipeline {
     if (policy.route === "BLOCKED") {
       if (simulation.outcome !== "BLOCKED") throw new Error("policy and contract simulation disagree");
       const evidence = await this.executor.submit(action, { policy, simulation });
-      return this.finish({ ...commonWithoutRisk(proposal, policy, simulation), route: "BLOCKED", tier: "T1", flags: [policy.reason], transactionHash: evidence.transactionHash, blockNumber: evidence.blockNumber.toString() }, llm, { action, amount: action.amount.toString() });
+      return this.finish({
+        ...commonWithoutRisk(proposal, policy, simulation), route: "BLOCKED", tier: "T1", flags: [policy.reason], transactionHash: evidence.transactionHash, blockNumber: evidence.blockNumber.toString(),
+        why: buildWhy({ decision: "BLOCKED", layer: "contract", rule: policy.reason, detail: `Contract policy refused the action with ${policy.reason}; the refusal is recorded on chain.` }),
+      }, llm, { action, amount: action.amount.toString() });
     }
     const amount = action.amount;
     const spent = await this.reader.getSpentToday();
@@ -119,9 +143,15 @@ export class AgentPipeline {
       try {
         riskIntelResult = await this.riskIntel.checkPayee(action.to);
         const fetchedFirewall = inspectProposal(intake.message, intake.source, proposal, this.contacts, history, { ...intake.context, fetchedContent: JSON.stringify(riskIntelResult) });
-        if (fetchedFirewall.blocked) return this.finish({ ...commonWithoutRisk(proposal, policy, simulation), route: "BLOCKED", tier: "T0", flags: fetchedFirewall.flags }, llm);
+        if (fetchedFirewall.blocked) return this.finish({
+          ...commonWithoutRisk(proposal, policy, simulation), route: "BLOCKED", tier: "T0", flags: fetchedFirewall.flags,
+          why: buildWhy({ decision: "BLOCKED", layer: "firewall", rule: fetchedFirewall.flags.join(", "), detail: "The firewall refused content fetched for this action before risk scoring ran." }),
+        }, llm);
       } catch {
-        return this.finish({ ...commonWithoutRisk(proposal, policy, simulation), route: "BLOCKED", flags: ["RISK_INTEL_UNAVAILABLE"] }, llm);
+        return this.finish({
+          ...commonWithoutRisk(proposal, policy, simulation), route: "BLOCKED", flags: ["RISK_INTEL_UNAVAILABLE"],
+          why: buildWhy({ decision: "BLOCKED", layer: "risk engine", rule: "RISK_INTEL_UNAVAILABLE", detail: "The payee risk check could not complete, so the action failed closed." }),
+        }, llm);
       }
     }
     const risk = scoreRisk({
@@ -143,19 +173,41 @@ export class AgentPipeline {
       ...(riskIntelResult ? { riskIntel: riskIntelResult } : {}),
     };
     const tier = tierGate({ operation: "agent", policyRoute: policy.route, riskRoute: risk.route, untrustedSource: untrusted });
-    if (simulation.outcome === "BLOCKED") return this.finish({ ...common, route: "BLOCKED", tier: tier.tier, flags: ["contract simulation"] }, llm);
-    if (!tier.allowed) return this.finish({ ...common, route: "BLOCKED", tier: tier.tier, flags: [tier.reason] }, llm);
+    if (simulation.outcome === "BLOCKED") return this.finish({
+      ...common, route: "BLOCKED", tier: tier.tier, flags: ["contract simulation"],
+      why: buildWhy({ decision: "BLOCKED", risk, layer: "contract", rule: "SIMULATION_BLOCKED", detail: "Contract simulation returned a refusal, so nothing was signed." }),
+    }, llm);
+    if (!tier.allowed) return this.finish({
+      ...common, route: "BLOCKED", tier: tier.tier, flags: [tier.reason],
+      why: buildWhy({ decision: "BLOCKED", risk, layer: "risk engine", rule: "RISK_SCORE_AT_LEAST_85", detail: tier.reason }),
+    }, llm);
     // A T2 action the contract would execute directly is held off-chain for the owner; nothing is signed.
     if (tier.tier === "T2" && policy.route === "EXECUTE") {
-      return this.finish({ ...common, route: "NEEDS_APPROVAL", tier: tier.tier, ...(untrusted ? { flags: [UNTRUSTED_APPROVAL_FLAG] } : {}) }, llm);
+      return this.finish({
+        ...common, route: "NEEDS_APPROVAL", tier: tier.tier, ...(untrusted ? { flags: [UNTRUSTED_APPROVAL_FLAG] } : {}),
+        why: buildWhy({
+          decision: "NEEDS_APPROVAL", risk, layer: untrusted ? "tier gate" : "risk engine",
+          rule: untrusted ? UNTRUSTED_APPROVAL_FLAG : "RISK_SCORE_60_TO_84", detail: tier.reason,
+        }),
+      }, llm);
     }
 
     const execution = await this.executor.submit(action, { policy, simulation });
     const pendingId = policy.route === "NEEDS_APPROVAL" ? simulation.auxiliary.toString() : undefined;
+    const decision = policy.route === "NEEDS_APPROVAL" ? "NEEDS_APPROVAL" : "EXECUTED";
+    const why = policy.route === "NEEDS_APPROVAL"
+      ? buildWhy({
+          decision, risk, layer: "contract", rule: "APPROVAL_THRESHOLD",
+          detail: risk.route === "FORCE_APPROVAL"
+            ? "The amount is at or above the owner's approval threshold, and the risk score agrees; the contract created a pending item only the owner can approve."
+            : "The amount is at or above the owner's approval threshold, so the contract created a pending item only the owner can approve.",
+        })
+      : buildWhy({ decision, risk, layer: "tier gate", rule: "WITHIN_POLICY_AND_RISK_LIMITS", detail: "Policy, simulation, risk, and tier checks all passed." });
     return this.finish({
       ...common,
-      route: policy.route === "NEEDS_APPROVAL" ? "NEEDS_APPROVAL" : "EXECUTED",
+      route: decision,
       tier: tier.tier,
+      why,
       transactionHash: execution.transactionHash,
       blockNumber: execution.blockNumber.toString(),
       ...(pendingId === undefined ? {} : { pendingId }),
@@ -220,6 +272,7 @@ export class AgentPipeline {
       reason: decisionReason(result),
       tier: result.tier ?? "T0",
       riskFactors: result.risk?.factors ?? [],
+      why: result.why ?? null,
       transactionHash: result.transactionHash ?? null,
       blockNumber: result.blockNumber ?? null,
     };

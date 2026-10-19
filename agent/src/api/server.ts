@@ -8,6 +8,7 @@ import { ChainStateReader } from "../chain/state.js";
 import { createChainAdapter } from "../chain/ChainAdapter.js";
 import { loadDeployment, resolveRepoPath, type Config, type Deployment } from "../config.js";
 import { AgentPipeline } from "../pipeline/pipeline.js";
+import { pendingExplanations } from "../pipeline/why.js";
 import { OwnerExecutor } from "../exec/ownerExecutor.js";
 import type { LlmAdapter } from "../llm/adapter.js";
 import { PlanManager, PlanStepsSchema } from "../planner/planner.js";
@@ -95,13 +96,18 @@ export function buildServer(config: Config, options: ServerOptions = {}): Fastif
         currency: result.proposal.currency!,
         intervalSeconds,
       });
-      return { ...result, route: "SCHEDULED", recurring };
+      return { ...result, route: "SCHEDULED", recurring, ...(result.why ? { why: { ...result.why, decision: "SCHEDULED" } } : {}) };
     }
     return result;
   });
   app.get("/state", async () => state.state());
   app.get("/contacts", async () => state.recipients());
-  app.get("/pending", async () => state.pending());
+  // Each pending item carries the explanation of the pipeline decision that created it.
+  app.get("/pending", async () => {
+    const items = await state.pending();
+    const explanations = pendingExplanations(audit.list());
+    return items.map((item) => ({ ...item, why: explanations.get(item.id ?? "") ?? null }));
+  });
   app.get("/audit", async () => audit.list());
   app.get("/audit/verify", async () => audit.verify());
   app.get("/value", async () => {

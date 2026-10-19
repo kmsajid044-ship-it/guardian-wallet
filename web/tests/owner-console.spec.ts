@@ -4,8 +4,11 @@ import { expect, test, type Page } from "@playwright/test";
 
 const transactionHash = `0x${"a".repeat(64)}`;
 const CNY_DISCLAIMER = "Simulated demo units denominated in CNY for illustration. No value, not issued, not redeemable, not a digital currency, not linked to e-CNY.";
+const firstPaymentFactor = { code: "FIRST_PAYMENT", points: 10, explanation: "This is the first recorded payment to the contact." };
+const executedWhy = { decision: "EXECUTED", riskScore: 10, riskClass: "low", factors: [firstPaymentFactor], decidedBy: { layer: "tier gate", rule: "WITHIN_POLICY_AND_RISK_LIMITS", detail: "Policy, simulation, risk, and tier checks all passed.", ownerApprovalRequired: false } };
+const pendingWhy = { decision: "NEEDS_APPROVAL", riskScore: 10, riskClass: "low", factors: [firstPaymentFactor], decidedBy: { layer: "contract", rule: "APPROVAL_THRESHOLD", detail: "The amount is at or above the owner's approval threshold, so the contract created a pending item only the owner can approve.", ownerApprovalRequired: true } };
 const state = { paused: false, balances: [{ code: "USD", name: "US dollar (demo units)", available: "5000", savings: "300" }, { code: "CNY", name: "Chinese yuan (demo units)", available: "35000", savings: "0", disclaimer: CNY_DISCLAIMER }], spentToday: "100", remainingDaily: "900", perTxLimit: "500", dailyLimit: "1000", approvalThreshold: "200", recipientCooldown: "600", pendingExpiry: "86400", opsPerCallLimit: "0.1", opsDailyLimit: "5" };
-const pending = [{ id: "1", recipientContactId: "ana", amount: "200", currency: "USD", status: "PENDING", expiresAt: "1792200000" }];
+const pending = [{ id: "1", recipientContactId: "ana", amount: "200", currency: "USD", status: "PENDING", expiresAt: "1792200000", why: pendingWhy }];
 const metric = (value: number, numerator: number, denominator: number, target?: string, pass?: boolean) => ({ value, numerator, denominator, unit: "ratio", ...(target ? { target, pass } : {}) });
 const valueResponse = {
   eval: {
@@ -43,12 +46,12 @@ async function mockApi(page: Page) {
     if (url.pathname === "/state") return route.fulfill({ json: state });
     if (url.pathname === "/pending") return route.fulfill({ json: pending });
     if (url.pathname === "/contacts") return route.fulfill({ json: [{ id: "ana", address: "0x1000000000000000000000000000000000000001", label: "Ana · synthetic contact", allowed: true, activeAfter: "0" }] });
-    if (url.pathname === "/audit") return route.fulfill({ json: [{ id: 1, timestamp: "2026-10-16T08:00:00.000Z", kind: "pipeline_result", hash: "f".repeat(64), data: { decision: { outcome: "EXECUTED", transactionHash, blockNumber: "42" } } }] });
+    if (url.pathname === "/audit") return route.fulfill({ json: [{ id: 1, timestamp: "2026-10-16T08:00:00.000Z", kind: "pipeline_result", hash: "f".repeat(64), data: { decision: { outcome: "EXECUTED", transactionHash, blockNumber: "42" }, why: executedWhy } }] });
     if (url.pathname === "/value") return route.fulfill({ json: { ...valueResponse, history: valueHistory } });
     if (url.pathname === "/attack-lab") return route.fulfill({ json: attacks });
     if (url.pathname === "/attack-lab/run-all") return route.fulfill({ json: attacks.map(item => ({ ...item, status: "BLOCKED", backend: "fisco", blockedBy: "on-chain contract", reason: "Safety rule enforced", transactionHash, blockNumber: "46", onChain: true, directProof: { transactionHash: proofHash, blockNumber: "47", status: "reverted", detail: "Agent key call refused" }, steps: [{ layer: "on-chain contract", outcome: "REVERTED", detail: "Refused", transactionHash: proofHash, blockNumber: "47" }] })) });
     if (/^\/attack-lab\/run\/A\d+$/.test(url.pathname)) return route.fulfill({ json: { ...attacks.find(item => url.pathname.split("/").pop() === item.id), status: "BLOCKED", backend: "fisco", blockedBy: "firewall", reason: "Unsafe instruction refused", onChain: false, steps: [{ layer: "firewall", outcome: "BLOCKED", detail: "INSTRUCTION_INJECTION" }] } });
-    if (url.pathname === "/chat") return route.fulfill({ json: { route: "EXECUTED", tier: "T1", explanation: "Executed payment after policy, simulation, and risk checks.", transactionHash, blockNumber: "42", proposal: { kind: "pay", amount: "100", currency: "USD", recipientContactId: "ana" }, risk: { score: 10, factors: [] } } });
+    if (url.pathname === "/chat") return route.fulfill({ json: { route: "EXECUTED", tier: "T1", explanation: "Executed payment after policy, simulation, and risk checks.", transactionHash, blockNumber: "42", proposal: { kind: "pay", amount: "100", currency: "USD", recipientContactId: "ana" }, risk: { score: 10, factors: [firstPaymentFactor] }, why: executedWhy } });
     if (url.pathname === "/owner/pending/1/approve") { pending.splice(0); return route.fulfill({ json: { transactionHash, blockNumber: "43", status: "success" } }); }
     if (url.pathname === "/owner/pause") { state.paused = true; return route.fulfill({ json: { transactionHash, blockNumber: "44", status: "success" } }); }
     if (url.pathname === "/owner/unpause") { state.paused = false; return route.fulfill({ json: { transactionHash, blockNumber: "45", status: "success" } }); }
@@ -57,7 +60,7 @@ async function mockApi(page: Page) {
   });
 }
 
-test.beforeEach(async ({ page }) => { ownerHeaderSeen.splice(0); state.paused = false; pending.splice(0, pending.length, { id: "1", recipientContactId: "ana", amount: "200", currency: "USD", status: "PENDING", expiresAt: "1792200000" }); await mockApi(page); await page.goto("/"); });
+test.beforeEach(async ({ page }) => { ownerHeaderSeen.splice(0); state.paused = false; pending.splice(0, pending.length, { id: "1", recipientContactId: "ana", amount: "200", currency: "USD", status: "PENDING", expiresAt: "1792200000", why: pendingWhy }); await mockApi(page); await page.goto("/"); });
 
 test("chat executes a T1 payment and shows the plan", async ({ page }) => {
   await page.getByLabel("Message the agent").fill("Pay Ana 100 USD");
@@ -72,6 +75,49 @@ test("owner approves a T2 inbox item", async ({ page }) => {
   await page.getByTestId("approve-1").click();
   await expect(page.getByTestId("approval-inbox")).toContainText("No items need your approval");
   expect(ownerHeaderSeen).toEqual(["/owner/pending/1/approve"]);
+});
+
+test("shows why an executed action was allowed", async ({ page }) => {
+  await page.getByLabel("Message the agent").fill("Pay Ana 100 USD");
+  await page.getByRole("button", { name: "Send" }).click();
+  const panel = page.getByTestId("why-panel");
+  await expect(panel).toContainText("Why this action?");
+  await expect(panel.getByTestId("why-score")).toHaveText("10/100");
+  await expect(panel.getByTestId("why-class")).toHaveText("low");
+  await expect(panel.getByTestId("why-approval")).toHaveText("Not required");
+  await expect(panel.getByTestId("why-factors")).toContainText("first recorded payment to the contact");
+  await expect(panel.getByTestId("why-decided-by")).toContainText("tier gate");
+});
+
+test("shows the risk engine as the deciding layer for a blocked action", async ({ page }) => {
+  const sanctionedFactor = { code: "RISK_INTEL_SANCTIONED", points: 100, explanation: "Risk Intel reported a sanctions match." };
+  await page.route("http://127.0.0.1:8787/chat", route => route.fulfill({ json: { route: "BLOCKED", tier: "T2", explanation: "The risk score reached the blocked band.", proposal: { kind: "pay", amount: "100", currency: "USD", recipientContactId: "ana" }, risk: { score: 100, factors: [sanctionedFactor] }, why: { decision: "BLOCKED", riskScore: 100, riskClass: "blocked", factors: [sanctionedFactor], decidedBy: { layer: "risk engine", rule: "RISK_SCORE_AT_LEAST_85", detail: "Risk score is at least 85", ownerApprovalRequired: false } } } }));
+  await page.getByLabel("Message the agent").fill("Pay Ana 100 USD");
+  await page.getByRole("button", { name: "Send" }).click();
+  const panel = page.getByTestId("why-panel");
+  await expect(panel.getByTestId("why-score")).toHaveText("100/100");
+  await expect(panel.getByTestId("why-class")).toHaveText("blocked");
+  await expect(panel.getByTestId("why-factors")).toContainText("sanctions match");
+  await expect(panel.getByTestId("why-decided-by")).toContainText("risk engine");
+  await expect(panel.getByTestId("why-approval")).toHaveText("Not required");
+});
+
+test("explains every pending approval with the rule that decided it", async ({ page }) => {
+  const panel = page.getByTestId("why-panel-1");
+  await expect(panel).toContainText("Why this action?");
+  await expect(panel.getByTestId("why-class")).toHaveText("low");
+  await expect(panel.getByTestId("why-approval")).toHaveText("Required");
+  await expect(panel.getByTestId("why-decided-by")).toContainText("contract");
+  await expect(panel.getByTestId("why-decided-by")).toContainText("APPROVAL THRESHOLD");
+});
+
+test("expands the explanation for an audit decision", async ({ page }) => {
+  await page.getByTestId("why-toggle-1").click();
+  const panel = page.getByTestId("why-panel-audit-1");
+  await expect(panel.getByTestId("why-score")).toHaveText("10/100");
+  await expect(panel.getByTestId("why-decided-by")).toContainText("WITHIN POLICY AND RISK LIMITS");
+  await page.getByTestId("why-toggle-1").click();
+  await expect(panel).toHaveCount(0);
 });
 
 test("kill switch pauses and resumes the agent", async ({ page }) => {
