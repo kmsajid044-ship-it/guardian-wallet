@@ -53,6 +53,11 @@ describe("CloudLlmAdapter", () => {
     expect(traces[0]!.outcome).toBe("rate_limited");
   });
 
+  it("accepts a plain explanation reply that carries tool_calls: null (Mistral)", async () => {
+    const { instance } = adapter([response(200, { choices: [{ message: { role: "assistant", content: "Paid 50 USD to Ana.", tool_calls: null } }] })]);
+    await expect(instance.explain({ route: "EXECUTED", structuredResult: { route: "EXECUTED" } })).resolves.toBe("Paid 50 USD to Ana.");
+  });
+
   it("fails fast without retries when the key has no request quota (429 with a limit of 0)", async () => {
     const waits: number[] = [];
     const traces: LlmTrace[] = [];

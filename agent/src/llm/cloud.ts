@@ -41,7 +41,7 @@ const ResponseSchema = z.object({
   choices: z.array(z.object({
     message: z.object({
       content: z.string().nullable().optional(),
-      tool_calls: z.array(z.object({ function: z.object({ name: z.string(), arguments: z.string() }).passthrough() }).passthrough()).optional(),
+      tool_calls: z.array(z.object({ function: z.object({ name: z.string(), arguments: z.string() }).passthrough() }).passthrough()).nullish(),
     }).passthrough(),
   }).passthrough()).min(1),
   usage: z.object({ prompt_tokens: z.number().optional(), completion_tokens: z.number().optional(), total_tokens: z.number().optional() }).passthrough().optional(),
