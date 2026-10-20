@@ -1,3 +1,18 @@
+## FinTechathon 2026 submission (Team Entropy, Topic F)
+
+| # | Submission item | Where |
+|---|---|---|
+| 1 | Technical documentation | [docs/TECHNICAL.md](https://github.com/kmsajid044-ship-it/guardian-wallet/blob/main/docs/TECHNICAL.md) |
+| 2 | Presentation deck | [docs/Guardian_Wallet_Deck.pdf](https://github.com/kmsajid044-ship-it/guardian-wallet/blob/main/docs/Guardian_Wallet_Deck.pdf) |
+| 3 | Demo video (2:04, captioned, no audio) | [docs/Guardian_Wallet_Demo.mp4](https://github.com/kmsajid044-ship-it/guardian-wallet/blob/main/docs/Guardian_Wallet_Demo.mp4) |
+| 4 | Source code, README, deployment, tests | This repository; see [Quick start](https://github.com/kmsajid044-ship-it/guardian-wallet/blob/main/README.md#quick-start) |
+| 5 | Security self-assessment | [docs/SECURITY_SELF_ASSESSMENT.md](https://github.com/kmsajid044-ship-it/guardian-wallet/blob/main/docs/SECURITY_SELF_ASSESSMENT.md) |
+| 6 | Execution evidence (real on-chain transaction hashes, FISCO BCOS) | [docs/EXECUTION_EVIDENCE.md](https://github.com/kmsajid044-ship-it/guardian-wallet/blob/main/docs/EXECUTION_EVIDENCE.md) and [evidence/evidence.json](https://github.com/kmsajid044-ship-it/guardian-wallet/blob/main/evidence/evidence.json) |
+
+- Live online demo: https://104-208-100-228.sslip.io
+- Final report: [docs/FINAL_REPORT.md](https://github.com/kmsajid044-ship-it/guardian-wallet/blob/main/docs/FINAL_REPORT.md)
+- Known limitations: [docs/KNOWN_LIMITATIONS.md](https://github.com/kmsajid044-ship-it/guardian-wallet/blob/main/docs/KNOWN_LIMITATIONS.md)
+
 <p align="center">
   <img src="docs/assets/banner.svg" alt="Guardian Wallet: a trust and control layer for autonomous AI finance" width="100%">
 </p>
