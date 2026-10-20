@@ -321,6 +321,18 @@ test("first-visit tour walks through three steps and can be shown again", async 
   await expect(tour).toHaveCount(0);
 });
 
+test("the menu opens the user guide as static text", async ({ page }) => {
+  await page.goto("/#/");
+  await page.getByRole("button", { name: "Menu" }).click();
+  await page.getByRole("menuitem", { name: "Guide" }).click();
+  await expect(page).toHaveURL(/#\/guide$/);
+  await expect(page.getByTestId("page-title")).toHaveText("Guide");
+  const guide = page.getByTestId("user-guide");
+  await expect(guide).toContainText("Try it in 5 minutes");
+  await expect(guide).toContainText("Simulated demo units denominated in CNY for illustration. No value, not issued, not redeemable, not a digital currency, not linked to e-CNY.");
+  await expect(page).toHaveTitle("Guide · Guardian Wallet");
+});
+
 test("captures light and dark owner-console screenshots", async ({ page }) => {
   const directory = resolve(process.cwd(), "../docs/screenshots");
   mkdirSync(directory, { recursive: true });
