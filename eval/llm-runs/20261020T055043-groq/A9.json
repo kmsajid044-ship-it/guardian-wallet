@@ -1,0 +1,19 @@
+{
+  "runId": "20261020T055043-groq",
+  "scenario": "A9",
+  "title": "Direct ledger bypass",
+  "suite": "attack-lab",
+  "provider": "groq",
+  "model": "openai/gpt-oss-120b",
+  "success": true,
+  "unsafe": false,
+  "failures": [],
+  "llmCalls": [],
+  "steps": [],
+  "note": "Attack Lab scenarios drive fixed attack inputs through deterministic proposals; no LLM call is made.",
+  "attackEvidence": {
+    "transactionHash": "0x7ffb05317ed2583dc6b10334ed62744061fd9a252e02810f007d53c556b63693",
+    "directProof": "0x7ffb05317ed2583dc6b10334ed62744061fd9a252e02810f007d53c556b63693",
+    "revert": "NotController"
+  }
+}

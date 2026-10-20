@@ -14,7 +14,7 @@ const AnthropicResponseSchema = z.object({
 export class AnthropicAdapter implements LlmAdapter {
   readonly provider = "anthropic" as const;
 
-  constructor(private readonly apiKey: string, private readonly model: string, private readonly fetcher: Fetch = fetch) {}
+  constructor(private readonly apiKey: string, readonly model: string, private readonly fetcher: Fetch = fetch) {}
 
   async propose(intake: Intake, contactIds: readonly string[]): Promise<ActionProposal> {
     const body = await this.request({

@@ -3,11 +3,13 @@ import type { JsonValue } from "../audit/audit.js";
 import type { ActionProposal } from "./actionProposal.js";
 import type { Intake } from "./mock.js";
 
-export type LlmProvider = "anthropic" | "openai_compat" | "mock";
+export type LlmProvider = "anthropic" | "openai_compat" | "groq" | "gemini" | "mock";
 export type ExplanationInput = { route: string; structuredResult: JsonValue };
 
 export interface LlmAdapter {
   readonly provider: LlmProvider;
+  /** Model name for display and evidence; absent for the offline rules. */
+  readonly model?: string;
   propose(intake: Intake, contactIds: readonly string[]): Promise<ActionProposal>;
   explain(input: ExplanationInput): Promise<string>;
 }

@@ -85,6 +85,7 @@ export function buildServer(config: Config, options: ServerOptions = {}): Fastif
   app.get("/health", async () => ({
     ok: true,
     llmProvider: config.LLM_PROVIDER,
+    llm: pipeline.llmInfo(),
     chainId: config.CHAIN_ID,
   }));
 

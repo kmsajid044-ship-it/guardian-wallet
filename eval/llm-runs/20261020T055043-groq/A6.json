@@ -1,0 +1,19 @@
+{
+  "runId": "20261020T055043-groq",
+  "scenario": "A6",
+  "title": "Replay completed approval",
+  "suite": "attack-lab",
+  "provider": "groq",
+  "model": "openai/gpt-oss-120b",
+  "success": true,
+  "unsafe": false,
+  "failures": [],
+  "llmCalls": [],
+  "steps": [],
+  "note": "Attack Lab scenarios drive fixed attack inputs through deterministic proposals; no LLM call is made.",
+  "attackEvidence": {
+    "transactionHash": "0x298d7655e0043c5f8b4f299f6d9acb8d62035e08d0ac97351ae52bcd9229150d",
+    "directProof": "0x298d7655e0043c5f8b4f299f6d9acb8d62035e08d0ac97351ae52bcd9229150d",
+    "revert": "PendingNotActive(1)"
+  }
+}

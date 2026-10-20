@@ -13,6 +13,7 @@ const pendingItem = () => ({ id: "1", recipientContactId: "ana", amount: "200", 
 const pending = [pendingItem()];
 const POSITIONING = "Guardian Wallet: a trust and control layer for autonomous AI finance. Let AI handle your financial tasks, without giving up control of your money.";
 let approveFails = false;
+let aiLabel = "offline rules";
 const metric = (value: number, numerator: number, denominator: number, target?: string, pass?: boolean) => ({ value, numerator, denominator, unit: "ratio", ...(target ? { target, pass } : {}) });
 const valueResponse = {
   eval: {
@@ -49,6 +50,7 @@ async function mockApi(page: Page) {
       ownerHeaderSeen.push(url.pathname);
     }
     if (url.pathname === "/state") return route.fulfill({ json: state });
+    if (url.pathname === "/health") return route.fulfill({ json: { ok: true, llmProvider: "mock", llm: { provider: "mock", model: null, label: aiLabel }, chainId: 1337 } });
     if (url.pathname === "/chain") return route.fulfill({ json: { backend: "fisco", chainId: 1337, blockHeight: "2325" } });
     if (url.pathname === "/pending") return route.fulfill({ json: pending });
     if (url.pathname === "/contacts") return route.fulfill({ json: [{ id: "ana", address: "0x1000000000000000000000000000000000000001", label: "Ana · synthetic contact", allowed: true, activeAfter: "0" }, { id: "bob", address: "0x1000000000000000000000000000000000000002", label: "Bob · synthetic contact", allowed: true, activeAfter: "0" }] });
@@ -77,7 +79,7 @@ async function send(page: Page, text: string) {
 }
 
 test.beforeEach(async ({ page }, testInfo) => {
-  ownerHeaderSeen.splice(0); chatMessages.splice(0); state.paused = false; approveFails = false; pending.splice(0, pending.length, pendingItem());
+  ownerHeaderSeen.splice(0); chatMessages.splice(0); state.paused = false; approveFails = false; aiLabel = "offline rules"; pending.splice(0, pending.length, pendingItem());
   // The first-time tour has its own test; everywhere else it is already done.
   if (!testInfo.title.includes("tour")) await page.addInitScript(() => localStorage.setItem("guardian-tour-done", "1"));
   await mockApi(page); await page.goto("/");
@@ -158,6 +160,13 @@ test("a plan shows its steps in plain words and the technical view shows the sta
   await expect(page.getByTestId("plan-run")).toHaveCount(0);
   await page.getByTestId("plan-step-S1").getByTestId("step-verify").click();
   await expect(page.getByTestId("plan-step-S1").getByTestId("step-receipt")).toHaveText("Receipt success · block 42");
+});
+
+test("the top bar names the active AI: a cloud model or the offline rules", async ({ page }) => {
+  await expect(page.getByTestId("ai-provider")).toHaveText("AI: offline rules");
+  aiLabel = "GPT-OSS 120B via Groq";
+  await page.reload();
+  await expect(page.getByTestId("ai-provider")).toHaveText("AI: GPT-OSS 120B via Groq");
 });
 
 test("navigation has four tabs and older links open where their content moved", async ({ page }) => {

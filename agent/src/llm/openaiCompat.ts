@@ -19,7 +19,7 @@ const OpenAiResponseSchema = z.object({
 export class OpenAiCompatAdapter implements LlmAdapter {
   readonly provider = "openai_compat" as const;
 
-  constructor(private readonly baseUrl: string, private readonly apiKey: string, private readonly model: string, private readonly fetcher: Fetch = fetch) {}
+  constructor(private readonly baseUrl: string, private readonly apiKey: string, readonly model: string, private readonly fetcher: Fetch = fetch) {}
 
   async propose(intake: Intake, contactIds: readonly string[]): Promise<ActionProposal> {
     const body = await this.request({

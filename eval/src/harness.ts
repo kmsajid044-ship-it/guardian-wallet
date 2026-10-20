@@ -6,6 +6,7 @@ import type { Config } from "../../agent/src/config.js";
 import { AttackExecutor, type AttackFixture } from "../../agent/src/exec/attackExecutor.js";
 import type { LlmAdapter } from "../../agent/src/llm/adapter.js";
 import { createLlmAdapter, MockAdapter } from "../../agent/src/llm/provider.js";
+import type { LlmTrace } from "../../agent/src/llm/cloud.js";
 import { AgentPipeline } from "../../agent/src/pipeline/pipeline.js";
 import { canonicalCommand, PlanManager } from "../../agent/src/planner/planner.js";
 import { clarificationReplyMinutes, ownerReviewMinutes } from "../../agent/src/value/baselines.js";
@@ -32,6 +33,9 @@ export type StepRecord = {
   blockNumber?: string;
   latencyMs: number;
   owner?: { decision: "approve" | "reject"; transactionHash: string };
+  /** Which proposer produced this step, and whether it fell back to the deterministic parser. */
+  llm?: { effective: string; fallback: boolean; rejected?: string };
+  proposal?: unknown;
 };
 
 /** What a clarifying question must mention for each `questionAbout` detail. */
@@ -56,11 +60,14 @@ export type ScenarioResult = {
   blockedBy?: string;
   heldout?: { persona: string; category: string; expectedOutcome: string };
   evidence?: { transactionHash?: string; directProof?: string; revert?: string };
+  llmTraces?: LlmTrace[];
 };
 
-export type HarnessOptions = { llm?: "mock" | "configured" };
+export type HarnessOptions = { llm?: "mock" | "configured"; /** Minimum gap between LLM requests (free-tier pacing). */ minIntervalMs?: number };
 
 export class EvalHarness {
+  /** LLM calls of the scenario being run, for the evidence files (no keys). */
+  private traces: LlmTrace[] = [];
   private readonly executor: AttackExecutor;
   private readonly lab: AttackLab;
   readonly llm: LlmAdapter;
@@ -68,7 +75,9 @@ export class EvalHarness {
   constructor(private readonly config: Config, private readonly environment: NodeJS.ProcessEnv, options: HarnessOptions = {}) {
     this.executor = AttackExecutor.create(config, environment);
     this.lab = new AttackLab(config, environment, { executor: this.executor });
-    this.llm = options.llm === "configured" ? createLlmAdapter(config.LLM_PROVIDER, environment) : new MockAdapter();
+    this.llm = options.llm === "configured"
+      ? createLlmAdapter(config.LLM_PROVIDER, environment, fetch, { onTrace: (trace) => this.traces.push(trace), ...(options.minIntervalMs ? { minIntervalMs: options.minIntervalMs } : {}) })
+      : new MockAdapter();
   }
 
   async run(scenario: Scenario): Promise<ScenarioResult> {
@@ -106,6 +115,7 @@ export class EvalHarness {
     const transfers: TransferExpectation[] = [...(scenario.expect?.transfers ?? [])];
     const savings: SavingExpectation[] = [...(scenario.expect?.savings ?? [])];
 
+    this.traces = [];
     if (scenario.plan) steps.push(...await runPlan(new PlanManager(pipeline, audit), scenario.plan, scenario.id, failures));
 
     for (const [index, step] of scenario.steps.entries()) {
@@ -118,6 +128,7 @@ export class EvalHarness {
         ...(result.clarification ? { question: result.clarification.questions.join(" ") } : {}),
         ...(result.transactionHash ? { transactionHash: result.transactionHash } : {}),
         ...(result.blockNumber ? { blockNumber: result.blockNumber } : {}),
+        llm: { effective: result.llm.effective, fallback: result.llm.fallback, ...(result.llm.rejected ? { rejected: result.llm.rejected } : {}) }, proposal: result.proposal,
       };
       const expected = step.expect;
       const allowed = expected.acceptableRoutes ?? (expected.route ? [expected.route] : []);
@@ -148,7 +159,7 @@ export class EvalHarness {
     failures.push(...movement.mismatches);
     const success = failures.length === 0;
     const latencyMs = steps.reduce((sum, step) => sum + step.latencyMs, 0);
-    const result: ScenarioResult = { id: scenario.id, suite: scenario.suite, title: scenario.title, success, unsafe: movement.unsafe, failures, steps, latencyMs };
+    const result: ScenarioResult = { id: scenario.id, suite: scenario.suite, title: scenario.title, success, unsafe: movement.unsafe, failures, steps, latencyMs, ...(this.traces.length ? { llmTraces: this.traces.splice(0) } : {}) };
     if (scenario.suite === "attack") result.blocked = attackRefused(steps, movement.unsafe);
     if (scenario.suite === "clarification") result.clarified = success;
     if (scenario.heldout) {
@@ -223,6 +234,7 @@ async function runPlan(planner: PlanManager, expected: PlanExpectation, scenario
       ...(tier ? { tier } : {}),
       ...(step.result?.transactionHash ? { transactionHash: step.result.transactionHash } : {}),
       ...(step.result?.blockNumber ? { blockNumber: step.result.blockNumber } : {}),
+      ...(step.result ? { llm: { effective: step.result.llm.effective, fallback: step.result.llm.fallback, ...(step.result.llm.rejected ? { rejected: step.result.llm.rejected } : {}) }, proposal: step.result.proposal } : {}),
     };
   });
 }

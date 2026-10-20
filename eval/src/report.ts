@@ -15,6 +15,11 @@ export type EvalHistoryRow = {
   unsafeActionRate: Metric;
   attackBlockRate: Metric;
   clarificationAccuracy: Metric;
+  /** Present from the first LLM run on; older offline rows have neither. */
+  fallbackCount?: Metric;
+  averageLatencyMs?: Metric;
+  model?: string;
+  evidence?: string;
   failures: Array<{ id: string; title: string; unsafe: boolean; reasons: string[] }>;
 };
 
@@ -23,6 +28,8 @@ export function historyRow(run: EvalRun, label: string, suite: string): EvalHist
   return {
     label, generatedAt: run.generatedAt, commit: run.commit, suite, llm: run.llm.effective, scenarioCount: run.scenarioCount,
     taskSuccess: m.taskSuccess, unsafeActionRate: m.unsafeActionRate, attackBlockRate: m.attackBlockRate, clarificationAccuracy: m.clarificationAccuracy,
+    ...(m.fallbackCount ? { fallbackCount: m.fallbackCount } : {}), averageLatencyMs: m.averageLatencyMs,
+    ...(run.llm.model ? { model: run.llm.model } : {}), ...(run.evidence ? { evidence: run.evidence } : {}),
     failures: run.results.filter((result) => !result.success || result.unsafe).map((result) => ({ id: result.id, title: result.title, unsafe: result.unsafe, reasons: result.failures })),
   };
 }
@@ -32,7 +39,9 @@ export type EvalRun = {
   backend: string;
   chainId: number;
   commit: string;
-  llm: { requested: string; effective: string };
+  llm: { requested: string; effective: string; model?: string };
+  /** Directory with the raw per-scenario LLM evidence of this run. */
+  evidence?: string;
   scenarioCount: number;
   bySuite: Record<string, { total: number; succeeded: number }>;
   metrics: EvalMetrics;
@@ -120,9 +129,11 @@ function historySection(history: readonly EvalHistoryRow[]): string[] {
     "",
     "Labelled runs kept in `eval/history.json`; new runs add rows and never replace earlier ones.",
     "",
-    "| Run | When (UTC) | Commit | Suite | Scenarios | Task success | Unsafe action rate | Attack block rate | Clarification accuracy |",
-    "|---|---|---|---|---|---|---|---|---|",
-    ...history.map((row) => `| ${cell(row.label)} | ${row.generatedAt.slice(0, 16).replace("T", " ")} | \`${row.commit}\` | ${row.suite} (${row.llm}) | ${row.scenarioCount} | ${cellPct(row.taskSuccess)} | ${cellPct(row.unsafeActionRate)} | ${cellPct(row.attackBlockRate)} | ${cellPct(row.clarificationAccuracy)} |`),
+    "| Run | When (UTC) | Commit | Suite | Proposer | Scenarios | Task success | Unsafe action rate | Attack block rate | Clarification accuracy | LLM fallbacks | Avg latency |",
+    "|---|---|---|---|---|---|---|---|---|---|---|---|",
+    ...history.map((row) => `| ${cell(row.label)} | ${row.generatedAt.slice(0, 16).replace("T", " ")} | \`${row.commit}\` | ${row.suite} | ${row.model ? `${row.llm} \`${row.model}\`` : row.llm === "mock" ? "offline parser" : row.llm} | ${row.scenarioCount} | ${cellPct(row.taskSuccess)} | ${cellPct(row.unsafeActionRate)} | ${cellPct(row.attackBlockRate)} | ${cellPct(row.clarificationAccuracy)} | ${row.fallbackCount && row.llm !== "mock" ? `${row.fallbackCount.value} of ${row.fallbackCount.denominator} steps` : "—"} | ${row.averageLatencyMs ? `${row.averageLatencyMs.value} ms` : "—"} |`),
+    "",
+    "LLM runs keep the raw model output of every scenario; see [LLM_EVIDENCE.md](LLM_EVIDENCE.md).",
     "",
     ...history.flatMap((row) => [
       `**Failed scenarios: ${cell(row.label)}** (${row.failures.length})`,

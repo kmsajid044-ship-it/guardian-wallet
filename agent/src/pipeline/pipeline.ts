@@ -9,7 +9,8 @@ import { inspectProposal } from "../firewall/firewall.js";
 import type { LlmAdapter, LlmProvider } from "../llm/adapter.js";
 import type { ActionProposal } from "../llm/actionProposal.js";
 import type { ApprovalCap, Intake } from "../llm/mock.js";
-import { createLlmAdapter, MockAdapter } from "../llm/provider.js";
+import { adapterLabel, createLlmAdapter, MockAdapter } from "../llm/provider.js";
+import { groundProposal } from "../llm/grounding.js";
 import { precheckAction } from "../policy/precheck.js";
 import type { PolicyReader } from "../policy/precheck.js";
 import { tierGate, type PermissionTier } from "../policy/tierGate.js";
@@ -22,7 +23,8 @@ export type PipelineResult = {
   proposal: ActionProposal;
   route: "EXECUTED" | "NEEDS_APPROVAL" | "BLOCKED" | "ANSWER_ONLY" | "SCHEDULE_READY";
   explanation: string;
-  llm: { requested: LlmProvider; effective: LlmProvider; fallback: boolean };
+  /** `rejected`: why the model's proposal failed grounding and the deterministic parser was used. */
+  llm: { requested: LlmProvider; effective: LlmProvider; fallback: boolean; rejected?: string };
   policy?: PolicyVerdict;
   risk?: ReturnType<typeof scoreRisk>;
   simulation?: { outcome: string; auxiliary: string };
@@ -42,7 +44,7 @@ export type PipelineResult = {
 };
 
 export const PLAN_APPROVAL_CAP_FLAG = "OWNER_PLAN_APPROVAL_CAP";
-type RunContext = { adapter: LlmAdapter; fallback: boolean; dryRun: boolean };
+type RunContext = { adapter: LlmAdapter; fallback: boolean; dryRun: boolean; rejected?: string };
 
 export const UNTRUSTED_APPROVAL_FLAG = "UNTRUSTED_SOURCE_REQUIRES_APPROVAL";
 
@@ -75,6 +77,11 @@ export class AgentPipeline {
 
   async run(intake: Intake): Promise<PipelineResult> { return this.evaluate(intake, false); }
 
+  /** What proposes actions right now, for the console: "GPT-OSS 120B via Groq" or "offline rules". */
+  llmInfo(): { provider: LlmProvider; model: string | null; label: string } {
+    return { provider: this.adapter.provider, model: this.adapter.model ?? null, label: adapterLabel(this.adapter) };
+  }
+
   /**
    * Runs firewall, policy pre-check, simulation, risk scoring, and the tier gate without signing or
    * submitting anything. Paid payee checks are left to the real run, so its result is authoritative.
@@ -92,6 +99,21 @@ export class AgentPipeline {
       llm.fallback = true;
       proposal = await llm.adapter.propose(intake, Object.keys(this.contacts).sort());
       assertProposalSemantics(proposal);
+    }
+    if (llm.adapter.provider !== "mock") {
+      // A model's details must be written in the request; otherwise the deterministic parser reads it.
+      const rules = await this.mockAdapter.propose(intake);
+      const grounding = groundProposal(proposal, intake.message, Object.keys(this.contacts));
+      if (!grounding.ok) {
+        llm.adapter = this.mockAdapter;
+        llm.fallback = true;
+        llm.rejected = grounding.reason;
+        proposal = rules;
+        assertProposalSemantics(proposal);
+      } else if (proposal.kind === "answer_only" && rules.kind === "answer_only") {
+        // Questions shown to the owner come from deterministic code, never from model text.
+        proposal = { ...proposal, reason: rules.reason };
+      }
     }
     const historyAddress = proposal.kind === "pay" && proposal.recipientContactId
       ? this.contacts[proposal.recipientContactId]
@@ -295,7 +317,7 @@ export class AgentPipeline {
       const result: PipelineResult = {
         ...structured, dryRun: true,
         explanation: `Validation only, nothing was signed: the checks predict ${structured.route.replaceAll("_", " ").toLowerCase()}.`,
-        llm: { requested: this.config.LLM_PROVIDER, effective: llm.adapter.provider, fallback: llm.fallback },
+        llm: { requested: this.config.LLM_PROVIDER, effective: llm.adapter.provider, fallback: llm.fallback, ...(llm.rejected ? { rejected: llm.rejected } : {}) },
       };
       this.audit.append({ timestamp: new Date().toISOString(), kind: "plan_step_validated", data: JSON.parse(JSON.stringify(result)) as JsonValue });
       return result;
@@ -310,7 +332,7 @@ export class AgentPipeline {
     const result: PipelineResult = {
       ...structured,
       explanation,
-      llm: { requested: this.config.LLM_PROVIDER, effective: llm.adapter.provider, fallback: llm.fallback },
+      llm: { requested: this.config.LLM_PROVIDER, effective: llm.adapter.provider, fallback: llm.fallback, ...(llm.rejected ? { rejected: llm.rejected } : {}) },
     };
     const serializable = JSON.parse(JSON.stringify(result)) as JsonValue;
     const decision = {

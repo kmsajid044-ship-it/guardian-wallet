@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ComponentType, type FormEvent, type ReactNode } from "react";
-import { Ban, BarChart3, CheckCircle2, ChevronDown, CircleCheck, CircleDot, CircleHelp, Clock, FileCheck2, Hand, History, House, Menu, Moon, Pause, Play, ShieldAlert, ShieldCheck, SlidersHorizontal, Sun } from "lucide-react";
+import { Ban, BarChart3, Bot, CheckCircle2, ChevronDown, CircleCheck, CircleDot, CircleHelp, Clock, FileCheck2, Hand, History, House, Menu, Moon, Pause, Play, ShieldAlert, ShieldCheck, SlidersHorizontal, Sun } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { AttackLab } from "./AttackLab";
 import { EffectsProvider, useEffectsSetting, useTransition } from "./effects";
@@ -104,6 +104,7 @@ function Console() {
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [audit, setAudit] = useState<AuditEntry[]>([]);
   const [chain, setChain] = useState<Chain>();
+  const [ai, setAi] = useState<string>();
   const [loaded, setLoaded] = useState(false);
   const [error, setError] = useState("");
   const [confirmPause, setConfirmPause] = useState(false);
@@ -116,6 +117,7 @@ function Console() {
       setState(nextState); setPending(nextPending.filter((item) => item.status === "PENDING")); setContacts(nextContacts); setAudit(nextAudit.slice().reverse()); setError(""); setLoaded(true);
     } catch (cause) { setError(cause instanceof Error ? cause.message : "Agent service unavailable"); }
     try { setChain(await api<Chain>("/chain")); } catch { setChain(undefined); }
+    try { setAi((await api<{ llm?: { label: string } }>("/health")).llm?.label ?? "offline rules"); } catch { setAi(undefined); }
   }, []);
   useEffect(() => { void refresh(); const timer = setInterval(() => void refresh(), 5_000); return () => clearInterval(timer); }, [refresh]);
   useEffect(() => { const change = () => { setHash(location.hash.slice(1)); scrollTo(0, 0); }; addEventListener("hashchange", change); return () => removeEventListener("hashchange", change); }, []);
@@ -153,7 +155,7 @@ function Console() {
     <div className="app-root min-h-screen bg-page text-fg">
       <Ambient />
       <div className="relative z-[1] flex min-h-screen min-w-0 flex-col">
-        <TopBar route={route} chain={chain} dark={dark} setDark={setDark} showTour={showTour} />
+        <TopBar route={route} chain={chain} ai={ai} dark={dark} setDark={setDark} showTour={showTour} />
         <AnimatePresence initial={false}>{state.paused && <motion.div key="paused" data-testid="paused-banner" role="status" initial={{ y: -24, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: -24, opacity: 0 }} transition={bannerMotion} className="relative z-[19] border-b border-[color-mix(in_srgb,var(--color-warn)_30%,transparent)] bg-warn-bg">
           <div className="mx-auto flex w-full max-w-[1200px] flex-wrap items-center justify-between gap-3 px-6 py-3 text-body font-medium text-warn lg:px-10">
             <span className="inline-flex items-center gap-2"><Hand aria-hidden className="size-4" />Paused. The AI can't pay anyone.</span>
@@ -181,7 +183,7 @@ function Console() {
   </div>;
 }
 
-function TopBar({ route, chain, dark, setDark, showTour }: { route: string; chain: Chain | undefined; dark: boolean; setDark(value: boolean): void; showTour(): void }) {
+function TopBar({ route, chain, ai, dark, setDark, showTour }: { route: string; chain: Chain | undefined; ai: string | undefined; dark: boolean; setDark(value: boolean): void; showTour(): void }) {
   const { reduced } = useEffectsSetting();
   const [menu, setMenu] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -209,6 +211,9 @@ function TopBar({ route, chain, dark, setDark, showTour }: { route: string; chai
         <span aria-hidden className={`size-2 rounded-full ${chain ? "bg-ok" : "bg-muted"}`} />
         <span data-testid="chain-badge" className="mono">{chain ? `${backendNames[chain.backend] ?? chain.backend} · ${chain.chainId} · #${chain.blockHeight}` : "Disconnected"}</span>
       </span>
+      {ai && <span data-testid="ai-provider" className="status-pill border-line bg-surface text-fg2" title="What turns your words into a proposal. Every proposal is still checked by the rules and the contract.">
+        <Bot aria-hidden className="size-3.5" />AI: {ai}
+      </span>}
       <TechSwitch />
       <ReduceEffectsSwitch />
       <button aria-label="Toggle color mode" className="icon-button" onClick={() => setDark(!dark)}>{dark ? <Sun aria-hidden className="size-4" /> : <Moon aria-hidden className="size-4" />}</button>

@@ -26,9 +26,10 @@ It runs on a four-node local FISCO BCOS network, a permissioned chain operated b
 | Agent latency | 219 ms average, 624 ms p95 over 60 agent requests, including on-chain confirmation | [docs/EVAL_REPORT.md](docs/EVAL_REPORT.md) |
 | Estimated owner time saved | 47.9 min over 13 owner tasks, 3.68 min per task (an estimate against stated manual baselines) | [docs/EVAL_REPORT.md](docs/EVAL_REPORT.md) |
 | On-chain evidence | 134 FISCO BCOS transactions with receipts; all 134 re-verified on all four nodes; a fresh-network replay reproduced 18/18 scenarios and 134/134 transaction effects; 7 off-chain blocks recorded with their audit entries and no hash. Browse it in the owner console under Evidence | [docs/EXECUTION_EVIDENCE.md](docs/EXECUTION_EVIDENCE.md) |
+| Real language model (Groq, `openai/gpt-oss-120b`), same 62 scenarios on FISCO BCOS | Run 1: task success 82.3% (51/62), unsafe 11.3% (7/62). After a general grounding check, run 2: task success 100% (62/62), unsafe 0% (0/62), attacks blocked 100% (29/29), clarification 100% (15/15), 10 of 60 agent steps fell back to the offline rules, 4732 ms average latency (with 4 s pacing for the free tier) | [docs/LLM_EVIDENCE.md](docs/LLM_EVIDENCE.md) |
 | Attack Lab | 11 of 11 attacks blocked; A2, A3, A6, A7, A8, A9, and A10 also refused when sent straight to the contract | [docs/ATTACK_LAB_EVIDENCE.md](docs/ATTACK_LAB_EVIDENCE.md) |
 
-All evaluation numbers use the deterministic offline parser (mock adapter), so they measure the code that verifies, enforces, and routes proposals, not a language model's understanding. No language model has been evaluated yet: no provider key is configured. The held-out scenarios were written from the documentation by the same assistant session that built the code, so they are not fully independent; see the report's Run history and scope sections.
+The first evaluation rows use the deterministic offline parser (mock adapter), so they measure the code that verifies, enforces, and routes proposals, not a language model's understanding. The Groq rows run the same scenarios with a real model proposing; the scenarios and prompts were not changed for it. The held-out scenarios were written from the documentation by the same assistant session that built the code, so they are not fully independent; see the report's Run history and scope sections.
 
 ## Setup
 
@@ -43,6 +44,15 @@ pnpm run setup && pnpm demo
 Use `pnpm run setup`, not `pnpm setup`: `setup` is a built-in pnpm command (it adds `PNPM_HOME` to your shell profile) and always takes precedence over a package script with the same name.
 
 `pnpm demo` starts Risk Intel (8788), the agent API (8787), and the owner console (5173); Ctrl-C stops all three. `AGENT_PORT`, `RISK_INTEL_PORT`, and `WEB_PORT` move them. For development, the services also run individually: `pnpm risk-intel:dev`, `pnpm --filter agent dev`, `pnpm --filter web dev`.
+
+## Real AI (optional)
+
+Without a key the app runs fully on offline rules (the deterministic parser), and the top bar shows "AI: offline rules". To let a real LLM read requests, with your own free Groq key:
+
+1. Create a free key at https://console.groq.com/keys and put it in `.env` (git-ignored): `GROQ_API_KEY=<your key>` and `LLM_PROVIDER=groq`.
+2. Restart `pnpm demo`. The top bar now shows "AI: GPT-OSS 120B via Groq".
+
+The model only proposes. Its JSON is validated with zod, and every proposal still passes the firewall, policy pre-check, simulation, risk score, tier gate, and the contract. Invalid output is retried once and a rate limit (429) up to three times with backoff; after that the request falls back to the offline rules and is marked "fallback", so a payment flow never fails because the LLM is down. Groq no longer serves Llama 3.3 70B, so the default is `openai/gpt-oss-120b`; `GROQ_MODEL` picks another. Gemini works the same way with `LLM_PROVIDER=gemini` and `GEMINI_API_KEY`. Keys are read only from `.env` and are never logged. Raw model output from the evaluation runs: [docs/LLM_EVIDENCE.md](docs/LLM_EVIDENCE.md).
 
 ## 60-second demo
 
