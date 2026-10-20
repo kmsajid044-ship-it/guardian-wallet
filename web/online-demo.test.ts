@@ -4,7 +4,8 @@ import { chainSentence, CNY_DISCLAIMER, onlineBannerText, onlineChainLabel } fro
 describe("online demo labels", () => {
   it("names FISCO BCOS only when the agent reports the fisco backend", () => {
     expect(onlineChainLabel("fisco")).toBe("FISCO BCOS · online demo");
-    expect(onlineBannerText("fisco")).toBe("Online demo: a 4-node FISCO BCOS network running inside this container, operated by the team. Fresh chain on every restart. Recorded execution evidence is in the GitHub repo.");
+    expect(onlineBannerText("fisco", undefined)).toBe("Online demo: a 4-node FISCO BCOS network running inside this container, operated by the team. Fresh chain on every restart. Recorded execution evidence is in the GitHub repo.");
+    expect(onlineBannerText("fisco", "an Azure VM")).toBe("Online demo: a 4-node FISCO BCOS network running in one container on an Azure VM operated by the team. Fresh chain on every restart. Recorded execution evidence is in the GitHub repo.");
   });
 
   it("never labels the Anvil fallback as FISCO BCOS", () => {

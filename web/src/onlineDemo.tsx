@@ -15,11 +15,15 @@ export function onlineChainLabel(backend: string): string {
   return backend === "fisco" ? "FISCO BCOS · online demo" : "private EVM development chain (Anvil)";
 }
 
+/** Where the container runs, named at build time (VITE_DEMO_HOST_LABEL, e.g. "an Azure VM"). */
+const HOST_LABEL = import.meta.env.VITE_DEMO_HOST_LABEL?.trim() || undefined;
+
 /** Banner sentence for the chain that is actually running. */
-export function onlineBannerText(backend: string): string {
+export function onlineBannerText(backend: string, host: string | undefined = HOST_LABEL): string {
+  const where = host ? `in one container on ${host} operated by the team` : "inside this container, operated by the team";
   return backend === "fisco"
-    ? "Online demo: a 4-node FISCO BCOS network running inside this container, operated by the team. Fresh chain on every restart. Recorded execution evidence is in the GitHub repo."
-    : "Online demo: a private EVM development chain (Anvil) running inside this container, operated by the team. Fresh chain on every restart. Recorded FISCO BCOS execution evidence is in the GitHub repo.";
+    ? `Online demo: a 4-node FISCO BCOS network running ${where}. Fresh chain on every restart. Recorded execution evidence is in the GitHub repo.`
+    : `Online demo: a private EVM development chain (Anvil) running ${where}. Fresh chain on every restart. Recorded FISCO BCOS execution evidence is in the GitHub repo.`;
 }
 
 /** Footer line naming the chain the console is connected to. */

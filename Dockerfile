@@ -59,7 +59,8 @@ RUN pnpm install --frozen-lockfile
 COPY --chown=user:user . .
 RUN cd contracts && forge build --quiet
 # The console is built once for the online demo: same origin as the gateway, owner actions via the gateway.
-RUN cd web && VITE_DEMO_PUBLIC=1 VITE_AGENT_API_URL=/api VITE_NETWORK=fisco pnpm exec vite build
+ARG DEMO_HOST_LABEL=""
+RUN cd web && VITE_DEMO_HOST_LABEL="${DEMO_HOST_LABEL}" VITE_DEMO_PUBLIC=1 VITE_AGENT_API_URL=/api VITE_NETWORK=fisco pnpm exec vite build
 
 ENV DEMO_PUBLIC=1 PORT=7860 CHAIN_BACKEND=fisco NODE_ENV=production
 EXPOSE 7860

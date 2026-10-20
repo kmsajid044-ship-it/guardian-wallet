@@ -22,8 +22,9 @@ test("banner, chain pill, and CNY disclaimer on every page", async ({ page }) =>
   for (const route of ["/#/", "/#/activity", "/#/controls", "/#/security/attack-lab"]) {
     await page.goto(route);
     await expect(page.getByTestId("online-demo-text")).toHaveText(fisco
-      ? "Online demo: a 4-node FISCO BCOS network running inside this container, operated by the team. Fresh chain on every restart. Recorded execution evidence is in the GitHub repo."
+      ? /^Online demo: a 4-node FISCO BCOS network running .*operated by the team\. Fresh chain on every restart\. Recorded execution evidence is in the GitHub repo\.$/
       : /private EVM development chain \(Anvil\)/, { timeout: 60_000 });
+    if (process.env.HOSTED_HOST_LABEL) await expect(page.getByTestId("online-demo-text")).toContainText(`in one container on ${process.env.HOSTED_HOST_LABEL} operated by the team`);
     await expect(page.getByTestId("online-demo-disclaimer")).toHaveText("Simulated demo units denominated in CNY for illustration. No value, not issued, not redeemable, not a digital currency, not linked to e-CNY.");
     await expect(page.getByTestId("demo-reset")).toBeVisible();
   }
