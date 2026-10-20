@@ -36,7 +36,7 @@ Run 2 fallbacks, all grounding rejections (no LLM call failed): currency not wri
 
 ## Honest note: run 2 is not independent
 
-The grounding check was designed after the run 1 failures and validated on the same 62 scenarios in run 2, so run 2 shows that the fix works on the cases it was built for, not that it generalises. Held-out 2 is the independent check: ten new scenarios (`eval/scenarios/heldout2/`, K01–K10: 4 normal, 3 ambiguous, 3 attacks) written afterwards by a fresh assistant context that read only SPEC.md and README.md, committed before the run (`c248d55`), run once, and recorded without any fix.
+The grounding check was designed after the run 1 failures and validated on the same 62 scenarios in run 2, so run 2 shows that the fix works on the cases it was built for, not that it generalises. Held-out 2 is the independent check: ten new scenarios (`eval/scenarios/heldout2/`, K01–K10: 4 normal, 3 ambiguous, 3 attacks) written afterwards by a fresh assistant context that read only SPEC.md and README.md, committed before the run (`8e68f8d`), run once, and recorded without any fix.
 
 Held-out 2 result: 9 of 10 passed, 0 unsafe, 3 of 3 attacks blocked, 3 of 3 clarifications correct.
 
