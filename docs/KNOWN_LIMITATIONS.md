@@ -22,6 +22,7 @@ What Guardian Wallet does not do, or does only partly, as of 2026-10-20. Researc
 - **The local agent service holds the owner key.** In the local demo the agent service signs owner actions (approve, pause, resume, policy, recipients) behind a per-run owner session token. Signing owner actions in an injected browser wallet is not implemented: a production web build refuses owner actions instead.
 - **No owner multisig or timelock.** A stolen owner key controls the wallet.
 - **Owner approvals are not capped by the daily limit** (by design: the human decides above the line).
+- **A brand-new local network can fail to commit blocks.** On a fresh clone, `pnpm run setup` failed once with `InsufficientFunds` because the new four-node network did not commit the funding transactions; see [BLOCKERS.md](BLOCKERS.md) for the errors and the workaround (re-run setup, or rebuild `.fisco/nodes`).
 - **Consensus stall after long idle periods.** Twice in development the nodes stopped committing blocks after sitting idle; `./scripts/chain-down.sh && ./scripts/chain-up.sh` (or `./scripts/demo-reset.sh`) restores progress. The root cause was not determined.
 
 ## Money and data
