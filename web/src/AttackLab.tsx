@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { Circle, Play, ShieldAlert, ShieldCheck } from "lucide-react";
-import { Chip, ErrorState, Hash, InfoTip, PageHeader, SkeletonRows, TERMS } from "./ui";
+import { Scene3D } from "./three/Scene3D";
+import { Chip, ErrorState, Hash, PageHeader, SkeletonRows, TechOnly } from "./ui";
 
 type Step = { layer: string; outcome: string; detail: string; transactionHash?: string; blockNumber?: string; revert?: string };
 type Proof = { transactionHash: string; blockNumber: string; status: string; detail: string };
@@ -49,21 +50,24 @@ export function AttackLab({ api }: { api: Api }) {
 
   async function run(id: string) {
     setBusy(id);
-    try { const result = await api<Attack>(`/attack-lab/run/${id}`, { method: "POST", body: "{}" }); setItems((current) => current.map((item) => item.id === id ? result : item)); setError(""); }
+    try { const result = await api<Attack>(`/attack-lab/run/${id}`, { method: "POST", body: "{}" }); setItems((current) => current.map((item) => item.id === id ? result : item)); countBlocked([result]); setError(""); }
     catch (cause) { setError(cause instanceof Error ? cause.message : "Scenario failed"); }
     finally { setBusy(""); }
   }
   async function runAll() {
     setBusy("all");
-    try { setItems(await api<Attack[]>("/attack-lab/run-all", { method: "POST", body: "{}" })); setError(""); }
+    try { const results = await api<Attack[]>("/attack-lab/run-all", { method: "POST", body: "{}" }); setItems(results); countBlocked(results); setError(""); }
     catch (cause) { setError(cause instanceof Error ? cause.message : "Scenarios failed"); }
     finally { setBusy(""); }
   }
 
   const ran = items.filter((item) => item.status !== "READY");
+  // Counts every blocked result as it arrives, so a rerun pulses the cube again.
+  const [blockedRuns, setBlockedRuns] = useState(0);
+  const countBlocked = (results: Attack[]) => setBlockedRuns((count) => count + results.filter((item) => item.status === "BLOCKED").length);
   const blocked = ran.filter((item) => item.status === "BLOCKED").length;
   return <div className="space-y-6">
-    <PageHeader lead="Watch eleven real attacks try to misuse the AI, and see what stops each one." action={<button data-testid="run-all-attacks" onClick={() => void runAll()} disabled={!!busy || !loaded} className="primary-button"><Play aria-hidden className="size-4" />{busy === "all" ? `Running all ${items.length || 11}…` : `Run all ${items.length || 11}`}</button>}>Each attack gets a fresh wallet on our FISCO BCOS chain. It goes through the AI first and, where marked, straight to the contract with the agent's key. Demo units only.</PageHeader>
+    <PageHeader lead="Watch eleven real attacks try to misuse the AI, and see what stops each one." action={<span className="inline-flex items-center gap-4"><Scene3D kind="cube" pulses={blockedRuns} className="cube-scene" /><button data-testid="run-all-attacks" onClick={() => void runAll()} disabled={!!busy || !loaded} className="primary-button"><Play aria-hidden className="size-4" />{busy === "all" ? `Running all ${items.length || 11}…` : `Run all ${items.length || 11}`}</button></span>}>Eleven real attacks, each on a fresh demo wallet; press Run to watch them fail.</PageHeader>
     {error && <ErrorState message={error} retry={() => void load()} />}
     {busy === "all" && <div role="status" className="card"><p className="text-body text-fg2">Running every attack on the chain. This takes about a minute.</p><div className="mt-3"><SkeletonRows rows={2} /></div></div>}
     {ran.length > 0 && <section data-testid="attack-summary" className="card">
@@ -73,7 +77,7 @@ export function AttackLab({ api }: { api: Api }) {
       </div>
       <div aria-hidden className="mt-3 flex h-2 overflow-hidden rounded-full bg-subtle"><div className="bg-ok" style={{ width: `${(blocked / ran.length) * 100}%` }} /><div className="bg-bad" style={{ width: `${((ran.length - blocked) / ran.length) * 100}%` }} /></div>
       <div className="mt-4 overflow-x-auto"><table className="w-full min-w-[760px] text-body">
-        <thead className="table-head"><tr><th>Attack</th><th>Result</th><th>Who stopped it</th><th><span className="inline-flex items-center gap-1">Transaction<InfoTip term="transaction" text={TERMS.txHash} /></span></th><th>Sent straight to the contract</th></tr></thead>
+        <thead className="table-head"><tr><th>Attack</th><th>Result</th><th>Who stopped it</th><th><span className="inline-flex items-center gap-1">Transaction</span></th><th>Sent straight to the contract</th></tr></thead>
         <tbody>{ran.map((item) => <tr key={item.id} className="table-row">
           <td className="font-medium"><span className="mono mr-2 text-muted">{item.id}</span>{item.title}</td>
           <td><Chip tone={item.status === "BLOCKED" ? "ok" : "bad"} icon={item.status === "BLOCKED" ? ShieldCheck : ShieldAlert}>{item.status === "BLOCKED" ? "Blocked" : "Not blocked"}</Chip></td>
@@ -97,7 +101,7 @@ export function AttackLab({ api }: { api: Api }) {
         {item.description && <p className="mt-2 text-body text-fg2"><b className="font-medium text-fg">The attacker tries: </b>{item.description}</p>}
         {expected[item.id] && <p className="mt-1 text-body text-fg2"><b className="font-medium text-fg">What should happen: </b>{expected[item.id]}</p>}
         {item.status !== "READY" && <div className="mt-4 space-y-3 border-t border-line pt-4 text-body">
-          {item.blockedBy && item.status === "BLOCKED" && <p className="inline-flex flex-wrap items-center gap-2 font-medium text-ok"><ShieldCheck aria-hidden className="size-4" />{stoppedBy[item.blockedBy] ?? `Stopped by ${item.blockedBy}`}<code className="code-tag">{item.blockedBy}</code></p>}
+          {item.blockedBy && item.status === "BLOCKED" && <p className="inline-flex flex-wrap items-center gap-2 font-medium text-ok"><ShieldCheck aria-hidden className="size-4" />{stoppedBy[item.blockedBy] ?? `Stopped by ${item.blockedBy}`}<TechOnly><code className="code-tag">{item.blockedBy}</code></TechOnly></p>}
           {item.reason && <p className="text-fg2">{item.reason}</p>}
           {item.transactionHash || item.revertRecord ? <div className="rounded-control bg-subtle p-3 text-small">
             {item.transactionHash && <p><span className="label mr-2">Transaction</span><span className="mono break-all">{item.transactionHash}</span></p>}

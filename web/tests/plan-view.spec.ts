@@ -17,8 +17,9 @@ test.afterAll(async () => { await agent?.stop(); });
 
 test("runs the pay, save, and approval-cap request as a plan with real receipts", async ({ page, request }) => {
   await useLiveAgent(page, agent);
-  await page.goto("/#/agent");
-  await page.getByLabel("Message the agent").fill(TARGET);
+  await page.goto("/#/");
+  await page.getByTestId("tech-switch").click();
+  await page.getByLabel("What should your AI do?").fill(TARGET);
   await page.getByRole("button", { name: "Send", exact: true }).click();
 
   const plan = page.getByTestId("plan-view");
@@ -46,7 +47,7 @@ test("runs the pay, save, and approval-cap request as a plan with real receipts"
   await page.getByTestId("plan-run").click();
   await expect(plan.getByTestId("plan-status")).toHaveText("Done", { timeout: 60_000 });
   await expect(plan.getByTestId("plan-status-code")).toHaveText("COMPLETED");
-  await expect(page.getByTestId("chat-summary")).toHaveText("Done. All 2 steps ran.");
+  await expect(page.getByTestId("chat-summary")).toHaveText("Done: all 2 steps.");
   for (const step of [first, second]) {
     await expect(step.getByTestId("step-state")).toHaveText("Done");
     await expect(step.getByTestId("step-state-code")).toHaveText("EXECUTED");

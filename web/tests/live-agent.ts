@@ -45,6 +45,7 @@ export async function startLiveAgent(backend: "anvil" | "fisco" = "anvil"): Prom
 
 /** Sends the page's agent requests to the live server and hands it that server's owner session. */
 export async function useLiveAgent(page: Page, agent: LiveAgent): Promise<void> {
+  await page.addInitScript(() => localStorage.setItem("guardian-tour-done", "1"));
   await page.route(`${PAGE_API}/**`, (route) => route.continue({ url: route.request().url().replace(PAGE_API, agent.apiUrl) }));
   await page.route("**/__owner-session", (route) => route.fulfill({ json: { token: agent.ownerSessionToken }, headers: { "cache-control": "no-store" } }));
 }

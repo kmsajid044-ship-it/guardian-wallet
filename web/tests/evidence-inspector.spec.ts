@@ -48,10 +48,11 @@ async function mockApi(page: Page) {
   });
 }
 
-test.beforeEach(async ({ page }) => { await mockApi(page); await page.goto("/#/evidence"); });
+test.beforeEach(async ({ page }) => { await page.addInitScript(() => localStorage.setItem("guardian-tour-done", "1")); await mockApi(page); await page.goto("/#/evidence"); });
 
 test("shows the info box, network, and the three groups", async ({ page }) => {
-  await expect(page.getByRole("heading", { name: "Evidence Inspector" })).toBeVisible();
+  await expect(page.getByTestId("security-title")).toHaveText("Evidence Inspector");
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText("Security");
   await expect(page.getByTestId("evidence-info")).toHaveText(INFO);
   await expect(page.getByTestId("evidence-network")).toContainText("FISCO BCOS · chain ID 1337 · blocks 130–150");
   await expect(page.getByTestId("currency-disclaimer")).toHaveText(CNY_DISCLAIMER);

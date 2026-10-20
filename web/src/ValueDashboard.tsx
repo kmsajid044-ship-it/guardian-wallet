@@ -38,7 +38,7 @@ export function ValueDashboard({ api }: { api: Api }) {
   const m = run?.metrics ?? {};
 
   return <div className="space-y-6">
-    <PageHeader lead="How well the AI did on its test scenarios, and what it has done live." action={run && <span data-testid="eval-verdict" className={`status-pill ${run.targetsMet ? "chip-ok" : "chip-bad"}`}>{run.targetsMet ? <CircleCheck aria-hidden className="size-3.5" /> : <Ban aria-hidden className="size-3.5" />}{run.targetsMet ? "All targets met" : "Targets missed"}</span>}>Results from the latest <code>pnpm eval</code> run on the chain, plus live counts from the audit log. Demo units only; time saved is an estimate.</PageHeader>
+    <PageHeader lead="How well the AI did on its test scenarios, and what it has done live." action={run && <span data-testid="eval-verdict" className={`status-pill ${run.targetsMet ? "chip-ok" : "chip-bad"}`}>{run.targetsMet ? <CircleCheck aria-hidden className="size-3.5" /> : <Ban aria-hidden className="size-3.5" />}{run.targetsMet ? "All targets met" : "Targets missed"}</span>}>How the AI scored on its test scenarios; time saved is an estimate.</PageHeader>
     {error && <ErrorState message={error} retry={() => void load()} />}
     {!data && !error && <div className="grid gap-6 md:grid-cols-4">{[0, 1, 2, 3].map((key) => <div key={key} className="card"><SkeletonRows rows={2} /></div>)}</div>}
 
