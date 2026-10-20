@@ -2,7 +2,7 @@
   "generatedAt": "2026-10-20T06:38:46.668Z",
   "backend": "fisco",
   "chainId": 1337,
-  "commit": "8e68f8d+uncommitted",
+  "commit": "897e4cb+uncommitted",
   "llm": {
     "requested": "groq",
     "effective": "groq",

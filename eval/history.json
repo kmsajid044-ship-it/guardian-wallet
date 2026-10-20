@@ -2,7 +2,7 @@
   {
     "label": "held-out, offline parser, before fixes",
     "generatedAt": "2026-10-19T08:46:05.337Z",
-    "commit": "8c9f7df",
+    "commit": "b4a5bf1",
     "suite": "heldout",
     "llm": "mock",
     "scenarioCount": 20,
@@ -79,7 +79,7 @@
   {
     "label": "all 61, offline parser, after fixes",
     "generatedAt": "2026-10-19T08:59:42.790Z",
-    "commit": "89111c6",
+    "commit": "507fe53",
     "suite": "all",
     "llm": "mock",
     "scenarioCount": 61,
@@ -118,7 +118,7 @@
   {
     "label": "all 62, offline parser, multi-step plan view",
     "generatedAt": "2026-10-19T11:40:57.732Z",
-    "commit": "e915ad3+uncommitted",
+    "commit": "1020036+uncommitted",
     "suite": "all",
     "llm": "mock",
     "scenarioCount": 62,
@@ -157,7 +157,7 @@
   {
     "label": "all 62, Groq GPT-OSS 120B, run 1",
     "generatedAt": "2026-10-20T06:01:39.762Z",
-    "commit": "51bd568+uncommitted",
+    "commit": "7e51aa1+uncommitted",
     "suite": "all",
     "llm": "groq",
     "scenarioCount": 62,
@@ -316,7 +316,7 @@
   {
     "label": "all 62, Groq GPT-OSS 120B, run 2, grounding check",
     "generatedAt": "2026-10-20T06:13:46.779Z",
-    "commit": "51bd568+uncommitted",
+    "commit": "7e51aa1+uncommitted",
     "suite": "all",
     "llm": "groq",
     "scenarioCount": 62,
@@ -368,7 +368,7 @@
   {
     "label": "held-out 2, Groq + grounding, written after the fix",
     "generatedAt": "2026-10-20T06:38:46.668Z",
-    "commit": "8e68f8d+uncommitted",
+    "commit": "897e4cb+uncommitted",
     "suite": "heldout2",
     "llm": "groq",
     "scenarioCount": 10,

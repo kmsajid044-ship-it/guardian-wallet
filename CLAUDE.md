@@ -9,6 +9,7 @@
 8. Work autonomously, no questions. Commit at the end of each task with all tests green. If blocked >45 min, write exact errors to docs/BLOCKERS.md and continue with the rest.
 9. Never delete features to save time.
 10. Every place CNY balances appear (UI, docs, deck text) carries exactly: "Simulated demo units denominated in CNY for illustration. No value, not issued, not redeemable, not a digital currency, not linked to e-CNY."
+11. Commits must not contain Co-Authored-By, session or tool trailers.
 
 # CLAUDE.md — Guardian Wallet
 

@@ -2,7 +2,7 @@
   "generatedAt": "2026-10-19T11:40:57.732Z",
   "backend": "fisco",
   "chainId": 1337,
-  "commit": "e915ad3+uncommitted",
+  "commit": "1020036+uncommitted",
   "llm": {
     "requested": "mock",
     "effective": "mock"
