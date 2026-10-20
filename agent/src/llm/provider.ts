@@ -24,6 +24,7 @@ export class MockAdapter implements LlmAdapter {
 
 const GroqEnvironmentSchema = z.object({ GROQ_API_KEY: z.string().min(1), GROQ_MODEL: z.string().min(1).optional() });
 const GeminiEnvironmentSchema = z.object({ GEMINI_API_KEY: z.string().min(1), GEMINI_MODEL: z.string().min(1).optional() });
+const MistralEnvironmentSchema = z.object({ MISTRAL_API_KEY: z.string().min(1), MISTRAL_MODEL: z.string().min(1).optional() });
 
 /**
  * The configured adapter, or the offline rules when its key is missing: the app always runs.
@@ -40,6 +41,10 @@ export function createLlmAdapter(provider: LlmProvider, environment: NodeJS.Proc
       const value = GeminiEnvironmentSchema.parse(environment);
       return new CloudLlmAdapter("gemini", PROVIDER_DEFAULTS.gemini.baseUrl, value.GEMINI_API_KEY, value.GEMINI_MODEL ?? PROVIDER_DEFAULTS.gemini.model, { ...cloud, fetcher });
     }
+    if (provider === "mistral") {
+      const value = MistralEnvironmentSchema.parse(environment);
+      return new CloudLlmAdapter("mistral", PROVIDER_DEFAULTS.mistral.baseUrl, value.MISTRAL_API_KEY, value.MISTRAL_MODEL ?? PROVIDER_DEFAULTS.mistral.model, { ...cloud, fetcher });
+    }
     if (provider === "anthropic") {
       const value = AnthropicEnvironmentSchema.parse(environment);
       return new AnthropicAdapter(value.ANTHROPIC_API_KEY, value.ANTHROPIC_MODEL, fetcher);
@@ -54,8 +59,22 @@ export function createLlmAdapter(provider: LlmProvider, environment: NodeJS.Proc
 /** "AI: GPT-OSS 120B via Groq", or "AI: offline rules" when no model is in use. */
 export function adapterLabel(adapter: LlmAdapter): string {
   if (adapter.provider === "mock" || !adapter.model) return adapter.provider === "mock" ? "offline rules" : adapter.provider;
-  const via = adapter.provider === "groq" || adapter.provider === "gemini" ? PROVIDER_DEFAULTS[adapter.provider].name : adapter.provider === "anthropic" ? "Anthropic" : "OpenAI-compatible API";
+  const via = adapter.provider === "groq" || adapter.provider === "gemini" || adapter.provider === "mistral" ? PROVIDER_DEFAULTS[adapter.provider].name : adapter.provider === "anthropic" ? "Anthropic" : "OpenAI-compatible API";
   return `${modelLabel(adapter.model)} via ${via}`;
+}
+
+/** Outcome of the most recent model call: none yet, answered, or failed so the offline rules answered. */
+export type ModelCallState = "unused" | "ok" | "failed";
+
+/**
+ * The console's AI label, honest about what actually answers: the model's name only once a call has
+ * succeeded, and "offline rules" while the last call failed (quota, rate limit, outage, or the cap).
+ */
+export function liveAdapterLabel(adapter: LlmAdapter, state: ModelCallState): string {
+  const name = adapterLabel(adapter);
+  if (adapter.provider === "mock") return name;
+  if (state === "failed") return `offline rules (${name} unavailable)`;
+  return state === "unused" ? `${name} (not used yet)` : name;
 }
 
 function deterministicExplanation(value: JsonValue): string {

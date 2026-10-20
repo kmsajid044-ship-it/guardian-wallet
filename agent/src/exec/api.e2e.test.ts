@@ -230,12 +230,15 @@ describe("agent API pipeline", () => {
       },
     });
     try {
+      expect((await fallbackApp.inject({ method: "GET", url: "/health" })).json()).toMatchObject({ llm: { status: "unused", label: "anthropic (not used yet)" } });
       const response = await fallbackApp.inject({ method: "POST", url: "/chat", payload: { message: "What is my balance?", source: "trusted" } });
       expect(response.statusCode).toBe(200);
       expect(response.json()).toMatchObject({
         route: "ANSWER_ONLY",
         llm: { requested: "anthropic", effective: "mock", fallback: true },
       });
+      // The console names the model only while it answers; after a failed call it says offline rules.
+      expect((await fallbackApp.inject({ method: "GET", url: "/health" })).json()).toMatchObject({ llm: { status: "failed", label: "offline rules (anthropic unavailable)" } });
     } finally {
       await fallbackApp.close();
     }

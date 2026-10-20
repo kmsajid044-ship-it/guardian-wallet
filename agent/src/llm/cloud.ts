@@ -13,7 +13,7 @@ import { actionProposalJsonSchema, buildSystemPrompt, buildUserPrompt, explanati
  * The API key is only ever sent in the Authorization header; it is never logged or traced.
  */
 
-export type CloudProvider = "groq" | "gemini";
+export type CloudProvider = "groq" | "gemini" | "mistral";
 
 /** One HTTP attempt as seen by the evidence recorder; never contains the key or headers. */
 export type LlmAttempt = { status: number | "error"; rawOutput?: string; error?: string; waitedMs?: number; usage?: { prompt?: number; completion?: number; total?: number } };
@@ -50,6 +50,7 @@ const ResponseSchema = z.object({
 export const PROVIDER_DEFAULTS: Record<CloudProvider, { baseUrl: string; model: string; name: string }> = {
   groq: { baseUrl: "https://api.groq.com/openai/v1", model: "openai/gpt-oss-120b", name: "Groq" },
   gemini: { baseUrl: "https://generativelanguage.googleapis.com/v1beta/openai", model: "gemini-2.5-flash", name: "Gemini" },
+  mistral: { baseUrl: "https://api.mistral.ai/v1", model: "mistral-small-latest", name: "Mistral" },
 };
 
 class RateLimited extends Error { constructor(readonly waitMs: number, message: string) { super(message); } }
@@ -162,6 +163,11 @@ export class CloudLlmAdapter implements LlmAdapter {
     attempt.status = response.status;
     const json: unknown = await response.json().catch(() => ({}));
     if (response.status === 429) {
+      // A workspace with no request quota (Mistral sends a per-minute limit of 0) will not recover by waiting.
+      if (response.headers.get("x-ratelimit-limit-req-minute") === "0") {
+        attempt.error = "no request quota";
+        throw new Error(`${this.provider} has no request quota for this key (429, limit 0)`);
+      }
       attempt.error = "rate limited";
       throw new RateLimited(retryAfterMs(response), `${this.provider} rate limit (429)`);
     }
@@ -204,5 +210,7 @@ export function modelLabel(model: string): string {
   if (llama) return `Llama ${llama[1]} ${llama[2]}B`;
   const gemini = /^gemini-([\d.]+)-(\w+)/.exec(id);
   if (gemini) return `Gemini ${gemini[1]} ${gemini[2]![0]!.toUpperCase()}${gemini[2]!.slice(1)}`;
+  const mistral = /^(mistral|ministral|magistral)-(small|medium|large|tiny)/.exec(id);
+  if (mistral) return `${mistral[1]![0]!.toUpperCase()}${mistral[1]!.slice(1)} ${mistral[2]![0]!.toUpperCase()}${mistral[2]!.slice(1)}`;
   return model;
 }

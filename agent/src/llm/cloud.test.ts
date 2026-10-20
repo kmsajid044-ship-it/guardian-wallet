@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { CloudLlmAdapter, modelLabel, retryAfterMs, type LlmTrace } from "./cloud.js";
-import { adapterLabel, createLlmAdapter } from "./provider.js";
+import { adapterLabel, createLlmAdapter, liveAdapterLabel } from "./provider.js";
 
 const intake = { message: "Pay Ana 50 USD", source: "trusted" as const, sourceRefs: ["test"] };
 const proposal = { kind: "pay", currency: "USD", recipientContactId: "ana", amount: "50", reason: "Pay Ana", sourceRefs: ["test"] };
@@ -53,6 +53,16 @@ describe("CloudLlmAdapter", () => {
     expect(traces[0]!.outcome).toBe("rate_limited");
   });
 
+  it("fails fast without retries when the key has no request quota (429 with a limit of 0)", async () => {
+    const waits: number[] = [];
+    const traces: LlmTrace[] = [];
+    const { instance, requests } = adapter([response(429, { message: "Rate limit exceeded" }, { "x-ratelimit-limit-req-minute": "0" })], traces, waits);
+    await expect(instance.propose(intake, ["ana"])).rejects.toThrow("no request quota");
+    expect(requests).toHaveLength(1);
+    expect(waits).toEqual([]);
+    expect(traces[0]).toMatchObject({ outcome: "error", attempts: [{ status: 429, error: "no request quota" }] });
+  });
+
   it("succeeds after a 429 and honours the server's reset hint", async () => {
     const waits: number[] = [];
     const { instance } = adapter([response(429, {}, { "x-ratelimit-reset-tokens": "7.5s" }), response(200, toolReply(JSON.stringify(proposal)))], [], waits);
@@ -78,6 +88,19 @@ describe("provider selection", () => {
     expect(adapterLabel(createLlmAdapter("groq", {}))).toBe("offline rules");
     expect(adapterLabel(createLlmAdapter("gemini", { GEMINI_API_KEY: "k" }))).toBe("Gemini 2.5 Flash via Gemini");
     expect(createLlmAdapter("gemini", {}).provider).toBe("mock");
+    const mistral = createLlmAdapter("mistral", { MISTRAL_API_KEY: "test-key-not-real" });
+    expect(mistral).toMatchObject({ provider: "mistral", model: "mistral-small-latest" });
+    expect(adapterLabel(mistral)).toBe("Mistral Small via Mistral");
+    expect(createLlmAdapter("mistral", { MISTRAL_API_KEY: "k", MISTRAL_MODEL: "mistral-medium-latest" }).model).toBe("mistral-medium-latest");
+    expect(createLlmAdapter("mistral", {}).provider).toBe("mock");
+  });
+
+  it("names the model in the console only once a call has succeeded", () => {
+    const mistral = createLlmAdapter("mistral", { MISTRAL_API_KEY: "test-key-not-real" });
+    expect(liveAdapterLabel(mistral, "unused")).toBe("Mistral Small via Mistral (not used yet)");
+    expect(liveAdapterLabel(mistral, "ok")).toBe("Mistral Small via Mistral");
+    expect(liveAdapterLabel(mistral, "failed")).toBe("offline rules (Mistral Small via Mistral unavailable)");
+    expect(liveAdapterLabel(createLlmAdapter("mock", {}), "failed")).toBe("offline rules");
   });
 
   it("labels models for people", () => {

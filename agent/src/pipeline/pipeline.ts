@@ -9,7 +9,7 @@ import { inspectProposal } from "../firewall/firewall.js";
 import type { LlmAdapter, LlmProvider } from "../llm/adapter.js";
 import type { ActionProposal } from "../llm/actionProposal.js";
 import type { ApprovalCap, Intake } from "../llm/mock.js";
-import { adapterLabel, createLlmAdapter, MockAdapter } from "../llm/provider.js";
+import { createLlmAdapter, liveAdapterLabel, MockAdapter, type ModelCallState } from "../llm/provider.js";
 import { withHourlyCap } from "../llm/hourlyCap.js";
 import { groundProposal } from "../llm/grounding.js";
 import { precheckAction } from "../policy/precheck.js";
@@ -55,6 +55,8 @@ export class AgentPipeline {
   private readonly executor: AgentExecutor;
   private readonly adapter: LlmAdapter;
   private readonly mockAdapter = new MockAdapter();
+  /** What the last model call did, for an honest AI label in the console. */
+  private modelState: ModelCallState = "unused";
   private readonly riskIntel: RiskIntelGateway | undefined;
 
   constructor(
@@ -79,8 +81,8 @@ export class AgentPipeline {
   async run(intake: Intake): Promise<PipelineResult> { return this.evaluate(intake, false); }
 
   /** What proposes actions right now, for the console: "GPT-OSS 120B via Groq" or "offline rules". */
-  llmInfo(): { provider: LlmProvider; model: string | null; label: string } {
-    return { provider: this.adapter.provider, model: this.adapter.model ?? null, label: adapterLabel(this.adapter) };
+  llmInfo(): { provider: LlmProvider; model: string | null; label: string; status: ModelCallState } {
+    return { provider: this.adapter.provider, model: this.adapter.model ?? null, label: liveAdapterLabel(this.adapter, this.modelState), status: this.modelState };
   }
 
   /**
@@ -94,8 +96,10 @@ export class AgentPipeline {
     let proposal: ActionProposal;
     try {
       proposal = await llm.adapter.propose(intake, Object.keys(this.contacts).sort());
+      if (llm.adapter.provider !== "mock") this.modelState = "ok";
       assertProposalSemantics(proposal);
     } catch {
+      if (llm.adapter.provider !== "mock" && llm.adapter === this.adapter) this.modelState = "failed";
       llm.adapter = this.mockAdapter;
       llm.fallback = true;
       proposal = await llm.adapter.propose(intake, Object.keys(this.contacts).sort());
@@ -325,7 +329,9 @@ export class AgentPipeline {
     }
     try {
       explanation = await llm.adapter.explain({ route: structured.route, structuredResult });
+      if (llm.adapter.provider !== "mock") this.modelState = "ok";
     } catch {
+      if (llm.adapter.provider !== "mock") this.modelState = "failed";
       llm.adapter = this.mockAdapter;
       llm.fallback = true;
       explanation = await this.mockAdapter.explain({ route: structured.route, structuredResult });

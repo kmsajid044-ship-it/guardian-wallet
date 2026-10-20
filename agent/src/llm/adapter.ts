@@ -3,7 +3,7 @@ import type { JsonValue } from "../audit/audit.js";
 import type { ActionProposal } from "./actionProposal.js";
 import type { Intake } from "./mock.js";
 
-export type LlmProvider = "anthropic" | "openai_compat" | "groq" | "gemini" | "mock";
+export type LlmProvider = "anthropic" | "openai_compat" | "groq" | "gemini" | "mistral" | "mock";
 export type ExplanationInput = { route: string; structuredResult: JsonValue };
 
 export interface LlmAdapter {

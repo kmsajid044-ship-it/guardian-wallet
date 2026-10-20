@@ -16,7 +16,7 @@ const ConfigSchema = z.object({
   CHAIN_ID: z.coerce.number().int().positive().default(1337),
   DEPLOYMENTS_FILE: z.string().min(1).default("./deployments/fisco.json"),
   AUDIT_DB_PATH: z.string().min(1).default("./agent/data/audit.sqlite"),
-  LLM_PROVIDER: z.enum(["anthropic", "openai_compat", "groq", "gemini", "mock"]).default("mock"),
+  LLM_PROVIDER: z.enum(["anthropic", "openai_compat", "groq", "gemini", "mistral", "mock"]).default("mock"),
   OWNER_TIMEZONE: z.string().min(1).default("Asia/Shanghai"),
   OWNER_ACTIVE_HOURS: z.string().regex(/^(?:[01][0-9]|2[0-3])-(?:[01][0-9]|2[0-4])$/).default("08-22"),
   RISK_INTEL_URL: z.string().url().optional(),
