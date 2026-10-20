@@ -1,10 +1,17 @@
 ## FinTechathon 2026 submission (Team Entropy, Topic F)
 
+<table>
+  <tr>
+    <td width="50%" align="center"><a href="https://github.com/kmsajid044-ship-it/guardian-wallet/raw/main/docs/Guardian_Wallet_Demo.mp4"><img src="docs/assets/video-poster.png" alt="Guardian Wallet demo video" width="100%"></a><br><a href="https://github.com/kmsajid044-ship-it/guardian-wallet/raw/main/docs/Guardian_Wallet_Demo.mp4"><b>▶ Watch the 2-minute demo video</b></a></td>
+    <td width="50%" align="center"><a href="https://github.com/kmsajid044-ship-it/guardian-wallet/blob/main/docs/Guardian_Wallet_Deck.pdf"><img src="docs/assets/deck-poster.png" alt="Guardian Wallet presentation deck" width="100%"></a><br><a href="https://github.com/kmsajid044-ship-it/guardian-wallet/blob/main/docs/Guardian_Wallet_Deck.pdf"><b>📄 Open the presentation deck (PDF)</b></a></td>
+  </tr>
+</table>
+
 | # | Submission item | Where |
 |---|---|---|
 | 1 | Technical documentation | [docs/TECHNICAL.md](https://github.com/kmsajid044-ship-it/guardian-wallet/blob/main/docs/TECHNICAL.md) |
-| 2 | Presentation deck | [docs/Guardian_Wallet_Deck.pdf](https://github.com/kmsajid044-ship-it/guardian-wallet/blob/main/docs/Guardian_Wallet_Deck.pdf) |
-| 3 | Demo video (2:04, captioned, no audio) | [docs/Guardian_Wallet_Demo.mp4](https://github.com/kmsajid044-ship-it/guardian-wallet/blob/main/docs/Guardian_Wallet_Demo.mp4) |
+| 2 | Presentation deck | [**Presentation deck (PDF)**](https://github.com/kmsajid044-ship-it/guardian-wallet/blob/main/docs/Guardian_Wallet_Deck.pdf) |
+| 3 | Demo video (2:04, captioned, no audio) | [**Demo video (MP4, 2:04)**](https://github.com/kmsajid044-ship-it/guardian-wallet/raw/main/docs/Guardian_Wallet_Demo.mp4) |
 | 4 | Source code, README, deployment, tests | This repository; see [Quick start](https://github.com/kmsajid044-ship-it/guardian-wallet/blob/main/README.md#quick-start) |
 | 5 | Security self-assessment | [docs/SECURITY_SELF_ASSESSMENT.md](https://github.com/kmsajid044-ship-it/guardian-wallet/blob/main/docs/SECURITY_SELF_ASSESSMENT.md) |
 | 6 | Execution evidence (real on-chain transaction hashes, FISCO BCOS) | [docs/EXECUTION_EVIDENCE.md](https://github.com/kmsajid044-ship-it/guardian-wallet/blob/main/docs/EXECUTION_EVIDENCE.md) and [evidence/evidence.json](https://github.com/kmsajid044-ship-it/guardian-wallet/blob/main/evidence/evidence.json) |
@@ -25,6 +32,8 @@
 </p>
 
 <p align="center">
+  <a href="https://github.com/kmsajid044-ship-it/guardian-wallet/raw/main/docs/Guardian_Wallet_Demo.mp4"><b>Demo video</b></a> ·
+  <a href="https://github.com/kmsajid044-ship-it/guardian-wallet/blob/main/docs/Guardian_Wallet_Deck.pdf"><b>Deck</b></a> ·
   <a href="https://104-208-100-228.sslip.io"><b>Live demo</b></a> ·
   <a href="docs/USER_GUIDE.md">User guide</a> ·
   <a href="docs/DEMO_SCRIPT.md">Demo script</a> ·
