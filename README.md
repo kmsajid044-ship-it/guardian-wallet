@@ -8,7 +8,7 @@ A research prototype for the 2026 Shenzhen FinTechathon, International Track, To
 
 **The LLM proposes. Code verifies. The contract enforces. The human decides above the line.**
 
-- The agent turns a chat request into a structured proposal. It works with contact IDs, never raw addresses, and its key can call only four contract functions: `pay`, `requestApproval`, `saveToSavings`, `payServiceFee`.
+- The agent turns a chat request into a structured proposal, with a real LLM (Groq, optional) or offline rules; a grounding check rejects any amount, currency, or contact the request does not actually contain. It works with contact IDs, never raw addresses, and its key can call only four contract functions: `pay`, `requestApproval`, `saveToSavings`, `payServiceFee`.
 - Deterministic code checks every proposal before signing: an injection firewall, a mirror of the contract policy, a local simulation, an explained risk score, and a permission tier (T0–T3).
 - The `GuardianWallet` contract enforces the same policy again on-chain, so even a fully compromised agent key cannot exceed a limit, pay an unknown recipient, resume a paused wallet, or change its own policy.
 - Payments of 200 USD or more wait for the owner. The owner or guardian can pause everything at any time; only the owner can resume.
@@ -45,6 +45,14 @@ Use `pnpm run setup`, not `pnpm setup`: `setup` is a built-in pnpm command (it a
 
 `pnpm demo` starts Risk Intel (8788), the agent API (8787), and the owner console (5173); Ctrl-C stops all three. `AGENT_PORT`, `RISK_INTEL_PORT`, and `WEB_PORT` move them. For development, the services also run individually: `pnpm risk-intel:dev`, `pnpm --filter agent dev`, `pnpm --filter web dev`.
 
+For a clean demo (for example before recording the video), one command resets everything:
+
+```bash
+./scripts/demo-reset.sh
+```
+
+It stops a running demo, restarts the four FISCO BCOS nodes (ledger data kept), deploys fresh contracts, seeds the synthetic demo balances and contacts, moves the previous audit log aside to `.demo/`, and starts the demo with the owner console on http://localhost:3000 (`WEB_PORT` changes the port). The AI provider follows `.env`. The video narration with exact clicks is [docs/DEMO_SCRIPT.md](docs/DEMO_SCRIPT.md).
+
 ## Real AI (optional)
 
 Without a key the app runs fully on offline rules (the deterministic parser), and the top bar shows "AI: offline rules". To let a real LLM read requests, with your own free Groq key:
@@ -79,6 +87,7 @@ Everything runs locally. There is no hosted deployment and no connection to any 
 |---|---|---|
 | Local FISCO BCOS, four nodes, chain ID 1337 (primary) | `./scripts/chain-up.sh`, `./scripts/deploy-fisco.sh`, `./scripts/seed.sh` | `deployments/fisco.json` |
 | Local Anvil, chain ID 31337 (development fallback) | `./scripts/dev-up.sh` | `deployments/local.json` |
+| Clean demo state on FISCO BCOS (fresh deploy and seed, console on port 3000) | `./scripts/demo-reset.sh` | `deployments/fisco.json` |
 | Stop FISCO BCOS | `./scripts/chain-down.sh` | |
 
 `CHAIN_BACKEND` (`fisco` or `evm-local`) selects the backend; startup rejects any RPC endpoint that is not loopback and any chain ID outside the backend's local mapping. A production web build fails if the local demo owner key variable is set; deployed pages must sign owner actions with an injected browser wallet.
@@ -96,6 +105,8 @@ cd contracts && forge test -vv      # unit, fuzz, and invariant tests I1–I8
 pnpm --filter agent test:parity     # agent pre-check vs contract on both backends (needs FISCO running)
 pnpm eval                           # all 62 scenarios (42 original + 20 held-out); writes eval/results.json and docs/EVAL_REPORT.md
 pnpm eval --suite=heldout "--record=label"  # one suite, recorded as a labelled row in eval/history.json
+pnpm eval --suite=heldout2                  # the 10 held-out-2 scenarios (K01–K10), run on their own
+LLM_PROVIDER=groq pnpm eval --llm=configured --pace=4000  # real AI; raw output to eval/llm-runs/<run-id>/
 pnpm eval N01 X03                   # selected scenarios; --llm=configured uses the configured LLM provider
 pnpm attacks                        # 11 Attack Lab scenarios; `pnpm attacks A2 A9` or `--api` for the running agent
 pnpm evidence                       # on-chain execution evidence on FISCO BCOS; exports evidence/
@@ -118,7 +129,7 @@ scripts/     Setup, demo, chain, deployment, evidence, and repository checks
 docs/        Technical design, security self-assessment, threat model, reports, licenses
 ```
 
-Design: [SPEC.md](SPEC.md) and [docs/TECHNICAL.md](docs/TECHNICAL.md). Security: [docs/SECURITY_SELF_ASSESSMENT.md](docs/SECURITY_SELF_ASSESSMENT.md) and [docs/THREAT_MODEL.md](docs/THREAT_MODEL.md). Licenses: [docs/LICENSES.md](docs/LICENSES.md).
+Design: [SPEC.md](SPEC.md) and [docs/TECHNICAL.md](docs/TECHNICAL.md) (including Working / Partial / Planned). Limits: [docs/KNOWN_LIMITATIONS.md](docs/KNOWN_LIMITATIONS.md). Submission: [docs/SUBMISSION_CHECKLIST.md](docs/SUBMISSION_CHECKLIST.md). Demo video: [docs/DEMO_SCRIPT.md](docs/DEMO_SCRIPT.md). Security: [docs/SECURITY_SELF_ASSESSMENT.md](docs/SECURITY_SELF_ASSESSMENT.md) and [docs/THREAT_MODEL.md](docs/THREAT_MODEL.md). Licenses: [docs/LICENSES.md](docs/LICENSES.md).
 
 ## Compliance note
 

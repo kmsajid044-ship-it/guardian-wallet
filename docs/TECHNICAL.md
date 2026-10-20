@@ -21,7 +21,8 @@ flowchart TB
     planner --> pipe
     scheduler --> pipe
     subgraph pipe[Pipeline · pipeline/pipeline.ts]
-      llm[LLM adapter<br/>proposal only, contact IDs] --> fw[Firewall<br/>firewall/]
+      llm[LLM adapter<br/>proposal only, contact IDs] --> grd[Grounding check<br/>llm/grounding.ts]
+      grd --> fw[Firewall<br/>firewall/]
       fw --> pre[Policy pre-check<br/>policy/precheck.ts]
       pre --> sim[Contract simulation<br/>eth_call]
       sim --> risk[Risk score<br/>risk/score.ts]
@@ -42,7 +43,8 @@ flowchart TB
   end
 ```
 
-- **LLM adapter** (`agent/src/llm/`): Anthropic, an OpenAI-compatible endpoint, or a deterministic parser (`mock.ts`). The model sees contact IDs only and must return the strict `ActionProposal` schema (`llm/actionProposal.ts`; unknown keys such as a raw address are rejected). Untrusted content is wrapped in `<UNTRUSTED_DATA>` delimiters and labelled as data (`llm/prompt.ts`). Invalid output or an unavailable provider falls back to the deterministic parser, and the response reports the effective provider.
+- **LLM adapter** (`agent/src/llm/`): `LLM_PROVIDER` selects `groq` (default for the real AI; Groq's OpenAI-compatible API, model `GROQ_MODEL`, default `openai/gpt-oss-120b` because Groq no longer serves Llama 3.3 70B), `gemini`, `anthropic`, an OpenAI-compatible endpoint, or `mock`, the deterministic parser ("offline rules", `mock.ts`). Cloud providers (`llm/cloud.ts`) force one tool call, `propose_action`, and validate its JSON with zod against the strict `ActionProposal` schema (`llm/actionProposal.ts`; unknown keys such as a raw address are rejected). The model sees contact IDs only. Untrusted content is wrapped in `<UNTRUSTED_DATA>` delimiters and labelled as data (`llm/prompt.ts`). Invalid output is retried once, a rate limit (429) up to three times with backoff (Retry-After or Groq's reset header, at least 2 s doubling, at most 60 s); after that, or on any other error or a missing key, the request falls back to the deterministic parser and is marked "fallback", so a payment flow never fails because the LLM is down. Keys are read only from the git-ignored `.env` and sent only in the Authorization header; they are never logged. `GET /health` reports the effective provider, and the owner console's top bar shows it ("AI: GPT-OSS 120B via Groq" or "AI: offline rules").
+- **Grounding check** (`agent/src/llm/grounding.ts`): deterministic code between the model and the firewall. Every amount, currency, and contact in a model proposal must be written literally in the request: the amount as a number (valid thousands grouping only, so "12,50" is not 1250), the currency as its code or symbol (`USD`/`$`, `CNY`/`¥`/`￥`), and the contact as a known contact ID written as an ASCII word (so a look-alike Cyrillic name does not match). A proposal that fails is replaced by the deterministic parser's reading of the same request, which asks a targeted question when the request is ambiguous, and the step is marked "fallback" with the reason. The check was added after the first Groq evaluation run, in which the model filled in currencies and amounts the owner had not written; see [LLM_EVIDENCE.md](LLM_EVIDENCE.md).
 - **Restricted signers** (`agent/src/exec/`): the only modules that read signing values. The agent signer submits one of the four agent functions and only when the simulation outcome matches the policy route (`exec/executor.ts:38`). The adapter refuses any other signer (`chain/ChainAdapter.ts:157`, `:165`).
 - **Owner signer, local demo only** (`agent/src/exec/ownerExecutor.ts`): signs `approve`, `pause`, `unpause`, `setPolicy`, and `setRecipient` for the owner console. Every `/owner/*` route requires the per-run owner session token in `x-owner-session`, refuses foreign `Origin` and non-loopback `Host` values before parsing the body, and compares the token in constant time (`agent/src/api/ownerSession.ts`). The agent writes a fresh token to git-ignored `.demo/owner-session` (mode 0600) at each start; the Vite dev server serves it at `/__owner-session` only to same-origin requests on a loopback host (`web/owner-session.ts`), so other sites, other localhost ports, and DNS-rebound pages cannot read it. The token is never logged or printed. In production the owner signs in the injected browser wallet and the service holds no owner key.
 - **Contracts** (`contracts/src/`): `GuardianWallet` holds the policy, allowlist, pending approvals, and kill switch; `DemoLedger` holds balances and savings and accepts movements only from its controller, the wallet.
@@ -54,12 +56,12 @@ flowchart TB
 
 Every direct, planned, and scheduled action runs `proposal → firewall → policy pre-check → contract simulation → risk score → tier gate → restricted signer → audit` (`pipeline/pipeline.ts`):
 
-1. The adapter produces an `ActionProposal`; a payment without currency, contact, or amount fails semantic validation and falls back to the deterministic parser, which asks a targeted question (`ANSWER_ONLY`).
-2. The firewall inspects the message and every untrusted field (line 81). Any flag other than `AMOUNT_OUTLIER` blocks; a policy-change attempt is classified T3.
-3. The contact ID resolves to an address only through the owner's contact list; the recipient must be allowlisted on-chain (line 101).
-4. The policy pre-check (`policy/precheck.ts`) reads live contract state and applies the contract's checks in the contract's order. The contract simulation (`eth_call` of the same call) must agree; disagreement throws (line 109). A blocked action is still submitted, so the contract records `PolicyViolation` with a transaction hash.
-5. Before a first or approval-sized payment, the agent buys a payee check from Risk Intel and re-runs the firewall over the returned content (line 120).
-6. The risk score and tier gate route the action (lines 126–161; untrusted-source actions always go to T2, see [Tier gate](#tier-gate)); the signer submits it; the decision, reason, tier, risk factors, transaction hash, and block are appended to the audit chain.
+1. The adapter produces an `ActionProposal`; a payment without currency, contact, or amount fails semantic validation and falls back to the deterministic parser, which asks a targeted question (`ANSWER_ONLY`). A model proposal must also pass the grounding check; otherwise the deterministic parser's reading is used.
+2. The firewall inspects the message and every untrusted field (line 124). Any flag other than `AMOUNT_OUTLIER` blocks; a policy-change attempt is classified T3.
+3. The contact ID resolves to an address only through the owner's contact list; the recipient must be allowlisted on-chain (line 161).
+4. The policy pre-check (`policy/precheck.ts`) reads live contract state and applies the contract's checks in the contract's order. The contract simulation (`eth_call` of the same call) must agree; disagreement throws (line 171). A blocked action is still submitted, so the contract records `PolicyViolation` with a transaction hash.
+5. Before a first or approval-sized payment, the agent buys a payee check from Risk Intel and re-runs the firewall over the returned content (line 188).
+6. The risk score and tier gate route the action (lines 200–240; untrusted-source actions always go to T2, see [Tier gate](#tier-gate)); the signer submits it; the decision, reason, tier, risk factors, transaction hash, and block are appended to the audit chain.
 
 ### Planner
 
@@ -167,6 +169,38 @@ The agent checks first; the chain enforces again. A layer that fails or is bypas
 | Another user or a web page drives the local owner endpoints | Per-run owner session token, constant-time compare; foreign `Origin` and rebound `Host` refused | Contract `onlyOwner` still applies to the owner key | `api.e2e.test.ts`, `web/owner-session.test.ts` |
 | Signing value leakage | Read only in `src/exec/`; never logged, sent to the LLM, or sent to the browser | — | `exec/key-boundary.test.ts` |
 
-Measured results: [EVAL_REPORT.md](EVAL_REPORT.md) (62 scenarios including 20 held-out; 0 unsafe actions; 29 of 29 attacks refused) and [EXECUTION_EVIDENCE.md](EXECUTION_EVIDENCE.md) (134 FISCO BCOS transactions, verified on all four nodes and reproduced on a fresh network, plus 7 off-chain blocks with their audit entries).
+Measured results: [EVAL_REPORT.md](EVAL_REPORT.md) (62 scenarios including 20 held-out; 0 unsafe actions; 29 of 29 attacks refused, with the offline parser; with Groq `openai/gpt-oss-120b`: run 1 unsafe 11.3% (7/62), run 2 with the grounding check 100% task success and 0 unsafe (62/62), held-out 2 written after the fix 90% task success (9/10) and 0 unsafe, fallbacks 10 of 60 and 2 of 10 steps; raw output in [LLM_EVIDENCE.md](LLM_EVIDENCE.md)) and [EXECUTION_EVIDENCE.md](EXECUTION_EVIDENCE.md) (134 FISCO BCOS transactions, verified on all four nodes and reproduced on a fresh network, plus 7 off-chain blocks with their audit entries).
 
-The owner console's Evidence Inspector (`#/evidence`, `web/src/EvidenceInspector.tsx`) shows the same export in three groups. `agent/src/evidence/inspect.ts` does the split: a transaction is an on-chain refusal when it reverted or its receipt carries `PolicyViolation`, otherwise it is executed. An off-chain block is a decision in `decisions` with no transaction: it is shown with its audit entry (log, entry ID, kind, entry hash, previous hash, and whether the chain verifies) and never with a hash. Verify calls `GET /evidence/verify/:hash`, which runs the mode (a) check for that one transaction against the loopback node named in the export.
+The owner console's Evidence Inspector (Security tab, `#/security/evidence`, `web/src/EvidenceInspector.tsx`) shows the same export in three groups. `agent/src/evidence/inspect.ts` does the split: a transaction is an on-chain refusal when it reverted or its receipt carries `PolicyViolation`, otherwise it is executed. An off-chain block is a decision in `decisions` with no transaction: it is shown with its audit entry (log, entry ID, kind, entry hash, previous hash, and whether the chain verifies) and never with a hash. Verify calls `GET /evidence/verify/:hash`, which runs the mode (a) check for that one transaction against the loopback node named in the export.
+
+## Working / Partial / Planned
+
+Status as of 2026-10-20. Limits are listed in [KNOWN_LIMITATIONS.md](KNOWN_LIMITATIONS.md).
+
+### Working
+
+- Local four-node FISCO BCOS network (primary) and local Anvil (fallback); startup refuses non-loopback endpoints.
+- `GuardianWallet` and `DemoLedger` contracts: per-payment, daily, and approval limits, allowlist with cooldown, pending approvals with expiry, kill switch with owner-only resume, separate service-fee budget, `PolicyViolation` events with hashes; invariants I1–I8.
+- Agent pipeline for direct, planned, and recurring actions: LLM proposal, grounding check, firewall, policy pre-check, simulation, risk score, tier gate T0–T3, restricted signer, hash-chained audit log.
+- Real AI through Groq (`openai/gpt-oss-120b`) with zod validation, retry, backoff, and fallback to the offline rules; the offline rules alone when no key is set.
+- Multi-step plans with backend step states, the plan approval cap, and recurring payments through the same pipeline.
+- Risk Intel: synthetic payee checks and the illustrative FX snapshot, released after a verified on-chain service fee.
+- Owner console: Home, Activity, Controls, Security (Attack Lab with 11 attacks, Evidence Inspector with Verify, Evaluation with the run history), Technical details, Why-this-action, pause and resume, first-visit tour, light and dark mode.
+- Evaluation: 62 scenarios (offline 62/62, 0 unsafe), Groq runs with per-scenario raw evidence, held-out 2 (9/10, 0 unsafe).
+- Execution evidence: 134 FISCO BCOS transactions verified on all four nodes and reproduced on a fresh network; `./scripts/demo-reset.sh` for a clean demo state.
+
+### Partial
+
+- Grounding accepts currencies only as codes or symbols; "200 dollars" gets a clarifying question instead of an approval (held-out 2, K04). 16–20% of agent steps fall back to the offline rules.
+- Owner signing: the local demo signs owner actions in the agent service behind a per-run session token; production builds refuse owner actions, but injected-wallet signing is not built.
+- Gemini, Anthropic, and the generic OpenAI-compatible providers are wired in but were not evaluated; only Groq `openai/gpt-oss-120b` was.
+- Independence of the held-out sets: held-out 2 is small (10 scenarios) and was written by a fresh context of the same kind of model.
+- Plans and recurring schedules are kept in memory and lost when the agent restarts.
+
+### Planned (not built)
+
+- Owner actions signed in an injected browser wallet, with no owner key in the service.
+- Owner multisig or hardware-backed owner keys, and a time delay on policy changes.
+- Grounding that understands written currency names and amounts in words without letting the model invent them.
+- Persistent plans and recurring schedules.
+- A deployment on nodes not operated by the team, subject to organizer guidance.
