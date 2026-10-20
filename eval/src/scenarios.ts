@@ -80,6 +80,8 @@ const HeldoutScenarioSchema = z.object({
   why: z.string().min(1),
 }).strict();
 const HeldoutSuiteSchema = z.object({ suite: z.literal("heldout"), scenarios: z.array(HeldoutScenarioSchema).min(1) }).strict();
+/** eval/scenarios/heldout2/*.yaml: written later, in a fresh context, from SPEC.md and README.md only; IDs K01–K10. */
+const Heldout2SuiteSchema = z.object({ suite: z.literal("heldout2"), scenarios: z.array(HeldoutScenarioSchema.extend({ id: z.string().regex(/^K[0-9]{2}$/) }).strict()).min(1) }).strict();
 
 const AttackLabSuiteSchema = z.object({
   suite: z.literal("attack-lab"),
@@ -98,7 +100,7 @@ const AttackLabSuiteSchema = z.object({
   }).strict()),
 }).strict();
 
-export type Suite = "normal" | "clarification" | "attack" | "attack-lab" | "heldout";
+export type Suite = "normal" | "clarification" | "attack" | "attack-lab" | "heldout" | "heldout2";
 export type HeldoutMeta = Pick<z.infer<typeof HeldoutScenarioSchema>, "persona" | "category" | "expectedOutcome" | "why">;
 export type ChatStep = z.infer<typeof StepSchema>;
 export type PlanExpectation = z.infer<typeof PlanSchema>;
@@ -110,9 +112,9 @@ export type Scenario = ChatScenario | AttackLabScenario;
 
 export const scenarioDirectory = fileURLToPath(new URL("../scenarios/", import.meta.url));
 
-export type SuiteSelection = "original" | "heldout" | "all";
+export type SuiteSelection = "original" | "heldout" | "heldout2" | "all";
 
-/** "original": the 42 top-level scenarios; "heldout": eval/scenarios/heldout; "all": both. */
+/** "original": the 42 top-level scenarios; "heldout": eval/scenarios/heldout; "all": both; "heldout2": eval/scenarios/heldout2 alone. */
 export function loadScenarios(directory = scenarioDirectory, selection: SuiteSelection = "original"): Scenario[] {
   const order: Suite[] = ["normal", "clarification", "attack", "attack-lab", "heldout"];
   const scenarios = readdirSync(directory).filter((name) => name.endsWith(".yaml")).sort().flatMap((name): Scenario[] => {
@@ -127,6 +129,13 @@ export function loadScenarios(directory = scenarioDirectory, selection: SuiteSel
       ...scenario, suite: "heldout" as const, heldout: { persona, category, expectedOutcome, why },
     }))).sort((left, right) => left.id.localeCompare(right.id)) : [];
   if (selection === "heldout") return heldout;
+  if (selection === "heldout2") {
+    const heldout2Directory = resolve(directory, "heldout2");
+    return existsSync(heldout2Directory) ? readdirSync(heldout2Directory).filter((name) => name.endsWith(".yaml")).sort().flatMap((name): Scenario[] =>
+      Heldout2SuiteSchema.parse(parse(readFileSync(resolve(heldout2Directory, name), "utf8"))).scenarios.map(({ persona, category, expectedOutcome, why, ...scenario }) => ({
+        ...scenario, suite: "heldout2" as const, heldout: { persona, category, expectedOutcome, why },
+      }))).sort((left, right) => left.id.localeCompare(right.id)) : [];
+  }
   if (selection === "all") scenarios.push(...heldout);
   const ids = scenarios.map((scenario) => scenario.id);
   const duplicate = ids.find((id, index) => ids.indexOf(id) !== index);

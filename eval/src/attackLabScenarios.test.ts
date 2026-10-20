@@ -54,4 +54,11 @@ describe("evaluation scenarios", () => {
     expect(heldout.every((scenario) => scenario.suite === "heldout" && "heldout" in scenario && scenario.heldout !== undefined)).toBe(true);
     expect(loadScenarios(undefined, "all")).toHaveLength(scenarios.length + 20);
   });
+
+  it("loads the 10 held-out 2 scenarios on their own, outside the 62-scenario suite", () => {
+    const heldout2 = loadScenarios(undefined, "heldout2");
+    expect(heldout2.map((scenario) => scenario.id)).toEqual(Array.from({ length: 10 }, (_, index) => `K${String(index + 1).padStart(2, "0")}`));
+    expect(heldout2.every((scenario) => scenario.suite === "heldout2" && "heldout" in scenario && scenario.heldout !== undefined)).toBe(true);
+    expect(loadScenarios(undefined, "all").some((scenario) => scenario.id.startsWith("K"))).toBe(false);
+  });
 });

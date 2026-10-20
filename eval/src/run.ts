@@ -2,7 +2,7 @@
 //   pnpm eval                       run every scenario on the configured local chain
 //   pnpm eval N01 X03               run selected scenarios (no files written)
 //   pnpm eval --llm=configured      use the configured LLM provider instead of the deterministic parser
-//   pnpm eval --suite=heldout       only eval/scenarios/heldout (also: original, all; default all)
+//   pnpm eval --suite=heldout       only eval/scenarios/heldout (also: original, heldout2, all; default all)
 //   pnpm eval --record="label"      append this run as a labelled row to eval/history.json
 //   pnpm eval --pace=4000           with --llm=configured: at least 4 s between LLM requests (free tiers)
 // An LLM run (--llm=configured with a cloud model) writes its raw per-scenario evidence to
@@ -24,7 +24,7 @@ const args = process.argv.slice(2);
 const selected = args.filter((arg) => !arg.startsWith("--")).map((arg) => arg.toUpperCase());
 const llm = args.includes("--llm=configured") ? "configured" : "mock";
 const suiteArg = args.find((arg) => arg.startsWith("--suite="))?.slice("--suite=".length) ?? "all";
-if (!["original", "heldout", "all"].includes(suiteArg)) throw new Error(`--suite must be original, heldout, or all`);
+if (!["original", "heldout", "heldout2", "all"].includes(suiteArg)) throw new Error(`--suite must be original, heldout, heldout2, or all`);
 const suite = suiteArg as SuiteSelection;
 const label = args.find((arg) => arg.startsWith("--record="))?.slice("--record=".length);
 const all = loadScenarios(undefined, suite);
