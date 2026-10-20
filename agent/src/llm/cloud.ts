@@ -50,7 +50,7 @@ const ResponseSchema = z.object({
 export const PROVIDER_DEFAULTS: Record<CloudProvider, { baseUrl: string; model: string; name: string }> = {
   groq: { baseUrl: "https://api.groq.com/openai/v1", model: "openai/gpt-oss-120b", name: "Groq" },
   gemini: { baseUrl: "https://generativelanguage.googleapis.com/v1beta/openai", model: "gemini-2.5-flash", name: "Gemini" },
-  mistral: { baseUrl: "https://api.mistral.ai/v1", model: "mistral-small-latest", name: "Mistral" },
+  mistral: { baseUrl: "https://api.mistral.ai/v1", model: "ministral-8b-2512", name: "Mistral" },
 };
 
 class RateLimited extends Error { constructor(readonly waitMs: number, message: string) { super(message); } }
@@ -212,5 +212,7 @@ export function modelLabel(model: string): string {
   if (gemini) return `Gemini ${gemini[1]} ${gemini[2]![0]!.toUpperCase()}${gemini[2]!.slice(1)}`;
   const mistral = /^(mistral|ministral|magistral)-(small|medium|large|tiny)/.exec(id);
   if (mistral) return `${mistral[1]![0]!.toUpperCase()}${mistral[1]!.slice(1)} ${mistral[2]![0]!.toUpperCase()}${mistral[2]!.slice(1)}`;
+  const ministral = /^(ministral|mistral)-(\d+)b/.exec(id);
+  if (ministral) return `${ministral[1]![0]!.toUpperCase()}${ministral[1]!.slice(1)} ${ministral[2]}B`;
   return model;
 }

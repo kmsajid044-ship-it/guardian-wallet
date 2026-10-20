@@ -89,21 +89,23 @@ describe("provider selection", () => {
     expect(adapterLabel(createLlmAdapter("gemini", { GEMINI_API_KEY: "k" }))).toBe("Gemini 2.5 Flash via Gemini");
     expect(createLlmAdapter("gemini", {}).provider).toBe("mock");
     const mistral = createLlmAdapter("mistral", { MISTRAL_API_KEY: "test-key-not-real" });
-    expect(mistral).toMatchObject({ provider: "mistral", model: "mistral-small-latest" });
-    expect(adapterLabel(mistral)).toBe("Mistral Small via Mistral");
+    expect(mistral).toMatchObject({ provider: "mistral", model: "ministral-8b-2512" });
+    expect(adapterLabel(mistral)).toBe("Ministral 8B via Mistral");
     expect(createLlmAdapter("mistral", { MISTRAL_API_KEY: "k", MISTRAL_MODEL: "mistral-medium-latest" }).model).toBe("mistral-medium-latest");
     expect(createLlmAdapter("mistral", {}).provider).toBe("mock");
   });
 
   it("names the model in the console only once a call has succeeded", () => {
     const mistral = createLlmAdapter("mistral", { MISTRAL_API_KEY: "test-key-not-real" });
-    expect(liveAdapterLabel(mistral, "unused")).toBe("Mistral Small via Mistral (not used yet)");
-    expect(liveAdapterLabel(mistral, "ok")).toBe("Mistral Small via Mistral");
-    expect(liveAdapterLabel(mistral, "failed")).toBe("offline rules (Mistral Small via Mistral unavailable)");
+    expect(liveAdapterLabel(mistral, "unused")).toBe("Ministral 8B via Mistral (not used yet)");
+    expect(liveAdapterLabel(mistral, "ok")).toBe("Ministral 8B via Mistral");
+    expect(liveAdapterLabel(mistral, "failed")).toBe("offline rules (Ministral 8B via Mistral unavailable)");
     expect(liveAdapterLabel(createLlmAdapter("mock", {}), "failed")).toBe("offline rules");
   });
 
   it("labels models for people", () => {
+    expect(modelLabel("ministral-8b-2512")).toBe("Ministral 8B");
+    expect(modelLabel("mistral-small-2603")).toBe("Mistral Small");
     expect(modelLabel("llama-3.3-70b-versatile")).toBe("Llama 3.3 70B");
     expect(modelLabel("openai/gpt-oss-120b")).toBe("GPT-OSS 120B");
   });
