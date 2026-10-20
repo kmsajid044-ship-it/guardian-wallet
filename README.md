@@ -17,6 +17,13 @@ It runs on a four-node local FISCO BCOS network, a permissioned chain operated b
 
 > Simulated demo units denominated in CNY for illustration. No value, not issued, not redeemable, not a digital currency, not linked to e-CNY.
 
+## Start here
+
+- **Try it online:** https://104-208-100-228.sslip.io (nothing to install)
+- **How to use the console:** [docs/USER_GUIDE.md](docs/USER_GUIDE.md), also under Menu → Guide in the console
+- **Run it locally:** [Setup](#setup)
+- **Results and evidence in one page:** [docs/FINAL_REPORT.md](docs/FINAL_REPORT.md)
+
 ## Online demo
 
 **https://104-208-100-228.sslip.io**: the full owner console, with nothing to install.
