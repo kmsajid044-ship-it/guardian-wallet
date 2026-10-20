@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState, type KeyboardEvent, type ReactNode } from "react";
 import { Ban, CircleCheck, FileX2, Info, ShieldCheck, TriangleAlert } from "lucide-react";
-import { Chip, Empty, ErrorState, InfoTip, PageHeader, SkeletonRows, TERMS, Term, TierBadge, statusWord } from "./ui";
+import { Chip, Empty, ErrorState, PageHeader, SkeletonRows, TERMS, Term, TierBadge, statusWord } from "./ui";
 
 /** Mirrors agent/src/evidence/inspect.ts. Every value is read from evidence/evidence.json by the agent. */
 type EvidenceEvent = { contract: string; address: string; name: string; args: Record<string, string | boolean> };
@@ -55,9 +55,8 @@ export function EvidenceInspector({ api }: { api: Api }) {
     document.getElementById(`tab-${next.key}`)?.focus();
   }
   return <div className="space-y-6">
-    <PageHeader lead="Every money movement is recorded on our FISCO BCOS chain. Press Verify to check it yourself.">
-      {data ? <span data-testid="evidence-network">{data.network.backend === "fisco" ? "FISCO BCOS" : data.network.backend} · chain ID {data.network.chainId} · blocks {data.network.firstBlock}–{data.network.lastBlock} · exported {new Date(data.generatedAt).toLocaleString()}</span> : null}
-    </PageHeader>
+    <PageHeader lead="Every money movement is recorded on our FISCO BCOS chain. Press Verify to check it yourself.">Every money movement is recorded on our FISCO BCOS chain. Press Verify to check it yourself.</PageHeader>
+    {data && <p data-testid="evidence-network" className="-mt-4 text-small text-muted">{data.network.backend === "fisco" ? "FISCO BCOS" : data.network.backend} · chain ID {data.network.chainId} · blocks {data.network.firstBlock}–{data.network.lastBlock} · exported {new Date(data.generatedAt).toLocaleString()}</p>}
     <div role="note" className="flex gap-3 rounded-card border border-[color-mix(in_srgb,var(--color-cobalt)_25%,transparent)] bg-cobalt-soft px-5 py-4 text-body text-fg">
       <Info aria-hidden className="mt-0.5 size-5 shrink-0 text-cobalt" /><p data-testid="evidence-info">{EVIDENCE_INFO}</p>
     </div>
@@ -149,7 +148,7 @@ function TxCard({ tx, api }: { tx: InspectedTx; api: Api }) {
     <p className="label mt-3">Decoded events</p>
     {tx.events.length ? <ul data-testid="tx-events" className="mt-1 space-y-1 break-all font-mono text-small">{tx.events.map((event, index) => <li key={index}><span className="text-muted">{event.contract}</span> {eventText(event)}</li>)}</ul> : <p data-testid="tx-events" className="mt-1 text-small text-muted">No events{tx.status === "reverted" ? `; reverted with ${tx.refusal ?? "no reason"}` : ""}</p>}
     <div className="mt-3 flex flex-wrap items-center gap-3">
-      <span className="inline-flex items-center gap-1"><button data-testid="tx-verify" onClick={() => void check()} disabled={verify?.state === "busy"} className="secondary-button"><ShieldCheck aria-hidden className="size-4" />Verify</button><InfoTip term="verify" text={TERMS.verify} /></span>
+      <span className="inline-flex items-center gap-1"><button data-testid="tx-verify" onClick={() => void check()} disabled={verify?.state === "busy"} className="secondary-button"><ShieldCheck aria-hidden className="size-4" />Verify</button></span>
       {verify && <span data-testid="tx-verify-result" className={`status-pill whitespace-normal ${tone}`}>{verify.text}</span>}
     </div>
   </article>;
@@ -164,8 +163,8 @@ function BlockCard({ block }: { block: InspectedBlock }) {
       <span className="inline-flex items-center gap-2"><Chip tone="bad" icon={Ban}>{statusWord(block.outcome)}</Chip>{block.tier && <TierBadge tier={block.tier} />}</span>
     </div>
     <p className="mt-1 text-body text-fg2">{block.reason}</p>
-    <p data-testid="offchain-no-tx" className="mt-2 inline-flex items-center gap-1 text-small font-medium text-muted">No transaction: nothing was sent to the chain, so there is no hash.<InfoTip term="off-chain block" text={TERMS.offChain} /></p>
-    <p className="label mt-3 inline-flex items-center gap-1">Audit-log record<InfoTip term="audit log" text={TERMS.auditLog} /></p>
+    <p data-testid="offchain-no-tx" className="mt-2 inline-flex items-center gap-1 text-small font-medium text-muted">No transaction: nothing was sent to the chain, so there is no hash.</p>
+    <p className="label mt-3 inline-flex items-center gap-1">Audit-log record</p>
     <dl className="mt-1 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
       {field("Log · entry", `${block.log} #${block.audit.id}`, "audit-entry")}
       {field("Kind", block.audit.kind, "audit-kind", true)}

@@ -13,20 +13,20 @@ async function blockHeight(request: import("@playwright/test").APIRequestContext
   return BigInt((await response.json() as { result: string }).result);
 }
 
-test("approves and rejects real pending items from the Control Center", async ({ page, request }) => {
+test("approves and declines real pending items from Home", async ({ page, request }) => {
   await useLiveAgent(page, agent);
-  await page.goto("/#/agent");
+  await page.goto("/#/");
   await expect(page.getByTestId("chain-badge")).toHaveText(/^Local Anvil \(dev fallback\) · 31337 · #\d+$/);
   for (const amount of ["250", "260"]) {
-    await page.getByLabel("Message the agent").fill(`Pay Ana ${amount} USD`);
+    await page.getByLabel("What should your AI do?").fill(`Pay Ana $${amount}`);
     await page.getByRole("button", { name: "Send", exact: true }).click();
-    await expect(page.getByTestId("chat-result")).toContainText("Needs your approval", { timeout: 30_000 });
+    await expect(page.getByTestId("chat-summary")).toHaveText(`Needs your OK: $${amount}.00 to Ana. It's above your $200 limit.`, { timeout: 30_000 });
   }
 
-  await page.getByRole("navigation", { name: "Main" }).getByRole("link", { name: "Control Center" }).click();
   const first = page.getByTestId("pending-1");
-  await expect(first.getByTestId("pending-why")).toHaveText("It is above your 200 USD approval limit.");
-  await first.getByText("Details", { exact: true }).click();
+  await expect(first.getByTestId("pending-sentence")).toHaveText("$250.00 to Ana");
+  await expect(first.getByTestId("pending-why")).toContainText("It's above your $200 limit.");
+  await page.getByTestId("tech-switch").click();
   await expect(first.getByTestId("pending-amount")).toHaveText("250");
   await expect(first.getByTestId("pending-operation")).toHaveText("requestApproval");
   await expect(first.getByTestId("pending-recipient")).toHaveText("ana");
@@ -36,12 +36,12 @@ test("approves and rejects real pending items from the Control Center", async ({
 
   const before = await blockHeight(request);
   await first.getByTestId("reject-1").click();
-  await expect(page.getByTestId("confirmed-1")).toHaveText(/^Pending #1 rejected · confirmed on chain in block \d+ · 0x/, { timeout: 30_000 });
-  const rejectedBlock = BigInt((await page.getByTestId("confirmed-1").innerText()).match(/block (\d+)/)![1]!);
-  expect(rejectedBlock).toBeGreaterThan(before);
+  await expect(page.getByTestId("confirmed-1")).toHaveText(/^Request #1 declined · confirmed on chain in block \d+$/, { timeout: 30_000 });
+  const declinedBlock = BigInt((await page.getByTestId("confirmed-1").innerText()).match(/block (\d+)/)![1]!);
+  expect(declinedBlock).toBeGreaterThan(before);
   await expect(page.getByTestId("pending-1")).toHaveCount(0, { timeout: 15_000 });
 
   await page.getByTestId("approve-2").click();
-  await expect(page.getByTestId("confirmed-2")).toHaveText(/^Pending #2 approved and paid · confirmed on chain in block \d+ · 0x/, { timeout: 30_000 });
-  await expect(page.getByTestId("approval-inbox")).toContainText("No approvals waiting", { timeout: 15_000 });
+  await expect(page.getByTestId("confirmed-2")).toHaveText(/^Request #2 approved and paid · confirmed on chain in block \d+$/, { timeout: 30_000 });
+  await expect(page.getByTestId("pending-2")).toHaveCount(0, { timeout: 15_000 });
 });

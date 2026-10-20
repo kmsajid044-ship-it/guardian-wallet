@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Play, ShieldCheck, X } from "lucide-react";
 import { motion } from "motion/react";
 import { useTransition } from "./effects";
-import { ErrorState, Hash, InfoTip, StatusChip, TERMS, Term, TierBadge } from "./ui";
+import { ErrorState, Hash, StatusChip, TERMS, Term, TierBadge } from "./ui";
 
 /** Mirrors agent/src/planner/planner.ts. Every state and number here is what the agent returned. */
 export type PlanStepState = "PLANNED" | "VALIDATED" | "PENDING_APPROVAL" | "EXECUTED" | "BLOCKED" | "FAILED";
@@ -17,7 +17,7 @@ type Api = <T>(path: string, init?: RequestInit) => Promise<T>;
 type Receipt = { status: string; blockNumber: string };
 
 /** The plan as an ordered list of steps; the owner runs it only after reviewing the checks. */
-export function PlanView({ plan, api, onChange }: { plan: Plan; api: Api; onChange(plan: Plan): Promise<void> | void }) {
+export function PlanView({ plan, api, onChange, actions = true }: { plan: Plan; api: Api; onChange(plan: Plan): Promise<void> | void; actions?: boolean }) {
   const [busy, setBusy] = useState("");
   const [error, setError] = useState("");
   async function act(kind: "run" | "cancel") {
@@ -37,7 +37,7 @@ export function PlanView({ plan, api, onChange }: { plan: Plan; api: Api; onChan
     {disclaimers.map((text) => <p key={text} data-testid="currency-disclaimer" className="text-small text-muted">{text}</p>)}
     <p className="text-small text-muted">States come from the agent's checks and the chain. A transaction and block appear only once the node has returned a receipt.</p>
     {error && <ErrorState message={error} retry={() => void act("run")} />}
-    {plan.status === "DRAFT" && <div className="flex flex-wrap gap-3">
+    {actions && plan.status === "DRAFT" && <div className="flex flex-wrap gap-3">
       <button data-testid="plan-run" onClick={() => void act("run")} disabled={busy !== ""} className="primary-button"><Play aria-hidden className="size-4" />{busy === "run" ? "Running…" : "Run plan"}</button>
       <button data-testid="plan-cancel" onClick={() => void act("cancel")} disabled={busy !== ""} className="secondary-button"><X aria-hidden className="size-4" />Cancel plan</button>
     </div>}
@@ -78,7 +78,7 @@ function StepRow({ step, api }: { step: PlanStep; api: Api }) {
     {hash && block && <div className="mt-3 flex flex-wrap items-center gap-x-5 gap-y-2 rounded-control bg-subtle p-3 text-body">
       <span className="inline-flex items-center gap-2"><Term tip={TERMS.txHash}>Transaction</Term><Hash value={hash} testId="step-tx" /></span>
       <span className="inline-flex items-center gap-1"><Term tip={TERMS.block}>Block</Term><span className="mono">#<span data-testid="step-block">{block}</span></span></span>
-      <span className="inline-flex items-center gap-1"><button data-testid="step-verify" onClick={() => void verify()} className="secondary-button"><ShieldCheck aria-hidden className="size-4" />Verify</button><InfoTip term="verify" text={TERMS.verify} /></span>
+      <span className="inline-flex items-center gap-1"><button data-testid="step-verify" onClick={() => void verify()} className="secondary-button"><ShieldCheck aria-hidden className="size-4" />Verify</button></span>
       {receipt && <span data-testid="step-receipt" className="font-medium">{receipt}</span>}
     </div>}
   </li>;

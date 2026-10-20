@@ -2,6 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useId, useRef, useSt
 import { Ban, CalendarClock, CheckCircle2, CircleDashed, CircleHelp, Clock, Copy, Check, Info, ListChecks, RefreshCw, TriangleAlert, X, XCircle } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { useTransition } from "./effects";
+import { useTech } from "./tech";
 
 /*
  * Shared console building blocks. Plain words lead; the exact technical value from the backend
@@ -14,9 +15,9 @@ export type Tone = "ok" | "warn" | "bad" | "info" | "neutral";
 const STATUS: Record<string, { label: string; tone: Tone; icon: Icon }> = {
   EXECUTED: { label: "Done", tone: "ok", icon: CheckCircle2 },
   COMPLETED: { label: "Done", tone: "ok", icon: CheckCircle2 },
-  PENDING_APPROVAL: { label: "Needs your approval", tone: "warn", icon: Clock },
-  NEEDS_APPROVAL: { label: "Needs your approval", tone: "warn", icon: Clock },
-  WAITING_APPROVAL: { label: "Needs your approval", tone: "warn", icon: Clock },
+  PENDING_APPROVAL: { label: "Needs your OK", tone: "warn", icon: Clock },
+  NEEDS_APPROVAL: { label: "Needs your OK", tone: "warn", icon: Clock },
+  WAITING_APPROVAL: { label: "Needs your OK", tone: "warn", icon: Clock },
   BLOCKED: { label: "Blocked", tone: "bad", icon: Ban },
   STOPPED: { label: "Stopped", tone: "bad", icon: Ban },
   REVERTED: { label: "Refused by the contract", tone: "bad", icon: Ban },
@@ -27,7 +28,7 @@ const STATUS: Record<string, { label: string; tone: Tone; icon: Icon }> = {
   RUNNING: { label: "Running", tone: "info", icon: CircleDashed },
   CANCELLED: { label: "Cancelled", tone: "neutral", icon: X },
   PLAN: { label: "Plan ready", tone: "info", icon: ListChecks },
-  ANSWER_ONLY: { label: "Needs more detail", tone: "info", icon: CircleHelp },
+  ANSWER_ONLY: { label: "Asking you", tone: "info", icon: CircleHelp },
   SCHEDULE_READY: { label: "Scheduled", tone: "info", icon: CalendarClock },
   SCHEDULED: { label: "Scheduled", tone: "info", icon: CalendarClock },
 };
@@ -35,7 +36,7 @@ const STATUS: Record<string, { label: string; tone: Tone; icon: Icon }> = {
 /** Plain-English word for a backend status code; unknown codes are shown as they are. */
 export function statusWord(code: string): string { return STATUS[code]?.label ?? code.replaceAll("_", " ").toLowerCase(); }
 
-export const TIERS: Record<string, string> = { T0: "View only", T1: "AI can do alone", T2: "Needs your approval", T3: "Only you" };
+export const TIERS: Record<string, string> = { T0: "View only", T1: "AI can do alone", T2: "Needs your OK", T3: "Only you" };
 
 /** One-sentence explanations behind every (i). */
 export const TERMS = {
@@ -53,6 +54,8 @@ export const TERMS = {
   auditLog: "Every decision is recorded in a log where each entry is chained to the previous one by a hash, so edits show up.",
   verify: "Asks the chain node for the receipt again and compares it with the record.",
   demoBalance: "Simulated demo units on the test ledger. No real money.",
+  proof: "The payment's record on the FISCO BCOS chain. Verify asks the chain for it again.",
+  pause: "Pausing is enforced by the wallet contract. Only you can resume.",
   offChain: "Stopped before anything was signed, so there is no transaction and no hash; the proof is the audit-log entry.",
 } as const;
 
@@ -60,19 +63,27 @@ export function Chip({ tone, icon: IconComponent, children, testId, title }: { t
   return <span data-testid={testId} title={title} className={`status-pill chip-${tone}`}>{IconComponent && <IconComponent aria-hidden className="size-3.5 shrink-0" />}{children}</span>;
 }
 
-/** Status in plain words with an icon, plus the exact backend code in a mono tag. */
+/** Status in plain words with an icon; with Technical details on, also the exact backend code. */
 export function StatusChip({ code, testId, codeTestId }: { code: string; testId?: string; codeTestId?: string }) {
+  const { on } = useTech();
   const known = STATUS[code] ?? { label: statusWord(code), tone: "neutral" as Tone, icon: CircleDashed };
   return <span className="inline-flex flex-wrap items-center gap-1.5">
     <Chip tone={known.tone} icon={known.icon} testId={testId}>{known.label}</Chip>
-    <code data-testid={codeTestId} className="code-tag" title="Technical value from the backend">{code}</code>
+    {on && <code data-testid={codeTestId} className="code-tag" title="Technical value from the backend">{code}</code>}
   </span>;
+}
+
+/** Shown only while Technical details is on. */
+export function TechOnly({ children }: { children: ReactNode }) {
+  const { on } = useTech();
+  return on ? <>{children}</> : null;
 }
 
 /** Permission tier in plain words, with the T-code shown small next to it. */
 export function TierBadge({ tier, testId, codeTestId }: { tier?: string | null | undefined; testId?: string; codeTestId?: string }) {
+  const { on } = useTech();
   if (!tier) return <span data-testid={testId} className="text-muted">—</span>;
-  return <span className="inline-flex items-center gap-1.5"><span data-testid={testId}>{TIERS[tier] ?? tier}</span><code data-testid={codeTestId} className="code-tag">{tier}</code></span>;
+  return <span className="inline-flex items-center gap-1.5"><span data-testid={testId}>{TIERS[tier] ?? tier}</span>{on && <code data-testid={codeTestId} className="code-tag">{tier}</code>}</span>;
 }
 
 /** Small (i) with a one-sentence explanation on hover or keyboard focus. */
@@ -84,9 +95,10 @@ export function InfoTip({ term, text }: { term: string; text: string }) {
   </span>;
 }
 
-/** A label with its (i). */
+/** A label; its explanation is the native title. */
 export function Term({ children, tip }: { children: ReactNode; tip: string }) {
-  return <span className="inline-flex items-center gap-1">{children}<InfoTip term={typeof children === "string" ? children.toLowerCase() : "this"} text={tip} /></span>;
+  // Tooltips are kept only for Demo money, Proof, and Pause; elsewhere the label stands alone.
+  return <span className="inline-flex items-center gap-1" title={tip}>{children}</span>;
 }
 
 export const shortHash = (hash: string) => `${hash.slice(0, 6)}…${hash.slice(-4)}`;
@@ -107,7 +119,7 @@ export function Hash({ value, testId, full = false }: { value: string; testId?: 
 export function PageHeader({ lead, children, action }: { lead: string; children?: ReactNode; action?: ReactNode }) {
   return <section className="flex flex-col justify-between gap-4 md:flex-row md:items-end">
     <div className="max-w-3xl">
-      <p data-testid="page-lead" className="sr-only">{lead}</p>
+      <p data-testid="section-lead" className="sr-only">{lead}</p>
       {children && <p className="text-body text-fg2">{children}</p>}
     </div>
     {action && <div className="shrink-0">{action}</div>}

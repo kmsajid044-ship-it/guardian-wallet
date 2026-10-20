@@ -1,22 +1,22 @@
 {
-  "measuredAt": "2026-10-19T15:04:36.195Z",
+  "measuredAt": "2026-10-20T05:28:23.634Z",
   "viewport": "1440x900 @2x",
-  "browser": "Chrome 155.0.8059.80",
+  "browser": "Chrome 155.0.8059.85",
   "effects": "on",
   "results": {
     "home": {
-      "fps": 60,
-      "p95FrameMs": 18,
+      "fps": 59.9,
+      "p95FrameMs": 17.5,
       "frames": 300
     },
-    "wallet": {
-      "fps": 59.9,
-      "p95FrameMs": 18.2,
+    "activity": {
+      "fps": 60,
+      "p95FrameMs": 17.6,
       "frames": 300
     },
     "attack-lab": {
-      "fps": 60,
-      "p95FrameMs": 18.3,
+      "fps": 59.9,
+      "p95FrameMs": 17.6,
       "frames": 300
     }
   }
