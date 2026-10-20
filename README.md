@@ -17,6 +17,13 @@ It runs on a four-node local FISCO BCOS network, a permissioned chain operated b
 
 > Simulated demo units denominated in CNY for illustration. No value, not issued, not redeemable, not a digital currency, not linked to e-CNY.
 
+## Start here
+
+- **Try it online:** https://104-208-100-228.sslip.io (nothing to install)
+- **How to use the console:** [docs/USER_GUIDE.md](docs/USER_GUIDE.md), also under Menu → Guide in the console
+- **Run it locally:** [Setup](#setup)
+- **Results and evidence in one page:** [docs/FINAL_REPORT.md](docs/FINAL_REPORT.md)
+
 ## Online demo
 
 **https://104-208-100-228.sslip.io**: the full owner console, with nothing to install.
@@ -54,6 +61,8 @@ pnpm run setup && pnpm demo
 ```
 
 `pnpm run setup` installs dependencies; creates a git-ignored `.env` with fresh test-only identities if none exists (keys are never printed); builds the contracts; starts the four-node FISCO BCOS network; and deploys and seeds the contracts if the recorded deployment has no code on this chain. `pnpm bootstrap` is an alias.
+
+If setup stops with `InsufficientFunds` on a brand-new network, run `pnpm run setup` again; if the chain still reports block 0, rebuild it as described in [docs/BLOCKERS.md](docs/BLOCKERS.md).
 
 Use `pnpm run setup`, not `pnpm setup`: `setup` is a built-in pnpm command (it adds `PNPM_HOME` to your shell profile) and always takes precedence over a package script with the same name.
 
@@ -154,6 +163,10 @@ Design: [SPEC.md](SPEC.md) and [docs/TECHNICAL.md](docs/TECHNICAL.md) (including
 - All contacts, payees, and risk results are synthetic.
 - Signing keys exist only in the git-ignored `.env`; `.env.example` holds placeholders. The agent signing key is read only under `agent/src/exec/`, and a test enforces this.
 - Whether the organizers accept transaction hashes from a team-operated permissioned chain as evidence has not yet been confirmed. `pnpm verify-evidence --fresh` lets anyone reproduce the results on a fresh network of their own.
+
+## How we built this
+
+Guardian Wallet was designed by Team Entropy: K.M. Sajidul Haq, Tanjimul Astak Siam, and Farhan Al Nahian. It was implemented with AI coding assistants under our direction. Every result in this repository (tests, evaluation reports, Attack Lab results, and on-chain evidence) was produced by the scripts in this repository and can be re-run from them.
 
 ## License
 

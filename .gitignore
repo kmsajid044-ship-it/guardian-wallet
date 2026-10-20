@@ -25,3 +25,4 @@ contracts/cache/*/1337/
 web/test-results/
 .demo/
 .claude/
+.freebuff/

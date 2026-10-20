@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ComponentType, type FormEvent, type ReactNode } from "react";
-import { Ban, BarChart3, Bot, CheckCircle2, ChevronDown, CircleCheck, CircleDot, CircleHelp, Clock, FileCheck2, Hand, History, House, Menu, Moon, Pause, Play, ShieldAlert, ShieldCheck, SlidersHorizontal, Sun } from "lucide-react";
+import { Ban, BarChart3, BookOpen, Bot, CheckCircle2, ChevronDown, CircleCheck, CircleDot, CircleHelp, Clock, FileCheck2, Hand, History, House, Menu, Moon, Pause, Play, ShieldAlert, ShieldCheck, SlidersHorizontal, Sun } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { AttackLab } from "./AttackLab";
 import { EffectsProvider, useEffectsSetting, useTransition } from "./effects";
 import { Ambient, AnimatedNumber, PageMotion, ReduceEffectsSwitch } from "./motion-kit";
 import { Scene3D } from "./three/Scene3D";
 import { EvidenceInspector } from "./EvidenceInspector";
+import { GuideContent } from "./Guide";
 import { PlanView, type Plan } from "./PlanView";
 import { ValueDashboard } from "./ValueDashboard";
 import { money, personName, withCurrencyCodes } from "./money";
@@ -27,6 +28,8 @@ const pages: Page[] = [
   { href: "/controls", label: "Controls", icon: SlidersHorizontal, lead: "Set your limits, choose who the AI may pay, and pause it." },
   { href: "/security", label: "Security", icon: ShieldCheck, lead: "Proof that the safeguards work, for reviewers." },
 ];
+/** Static user guide, opened from the top-bar menu (not one of the four tabs). */
+const guidePage: Page = { href: "/guide", label: "Guide", icon: BookOpen, lead: "How to use the console, step by step." };
 const securityTabs = [
   { key: "attack-lab", label: "Attack Lab", icon: ShieldAlert },
   { key: "evidence", label: "Evidence Inspector", icon: FileCheck2 },
@@ -89,7 +92,7 @@ function parseRoute(hash: string): { route: string; security: SecurityTab } {
     const tab = path.split("/")[2] as SecurityTab | undefined;
     return { route: "/security", security: securityTabs.some((item) => item.key === tab) ? tab! : "attack-lab" };
   }
-  return { route: pages.some((page) => page.href === path) ? path : "/", security: "attack-lab" };
+  return { route: pages.some((page) => page.href === path) || path === guidePage.href ? path : "/", security: "attack-lab" };
 }
 
 export default function App() {
@@ -101,7 +104,7 @@ function Console() {
   const [dark, setDark] = useState(true);
   const [hash, setHash] = useState(location.hash.slice(1));
   const { route, security } = parseRoute(hash);
-  const page = pages.find((item) => item.href === route) ?? pages[0]!;
+  const page = [...pages, guidePage].find((item) => item.href === route) ?? pages[0]!;
   const [state, setState] = useState<State>(initialState);
   const [pending, setPending] = useState<Pending[]>([]);
   const [contacts, setContacts] = useState<Contact[]>([]);
@@ -184,6 +187,7 @@ function Console() {
           {route === "/activity" && <Activity entries={audit} contacts={contacts} loaded={loaded} />}
           {route === "/controls" && <Controls state={state} contacts={contacts} refresh={refresh} askPause={askPause} resume={resume} switching={switching} />}
           {route === "/security" && <Security tab={security} />}
+          {route === guidePage.href && <GuideContent />}
         </PageMotion></main>
         <Footer backend={chain?.backend} />
       </div>
@@ -232,6 +236,7 @@ function TopBar({ route, chain, ai, dark, setDark, showTour }: { route: string; 
       <div ref={menuRef} className="relative">
         <button aria-label="Menu" aria-haspopup="menu" aria-expanded={menu} className="icon-button" onClick={() => setMenu(!menu)}><Menu aria-hidden className="size-4" /></button>
         {menu && <div role="menu" className="glass card-tight absolute right-0 z-30 mt-2 w-56 !p-2">
+          <a role="menuitem" href={`#${guidePage.href}`} data-testid="menu-guide" onClick={() => setMenu(false)} className="flex w-full items-center gap-2 rounded-control px-3 py-2 text-left text-body hover:bg-inner"><BookOpen aria-hidden className="size-4" />Guide</a>
           <button role="menuitem" type="button" onClick={() => { setMenu(false); showTour(); }} className="w-full rounded-control px-3 py-2 text-left text-body hover:bg-inner">Show tour again</button>
         </div>}
       </div>
