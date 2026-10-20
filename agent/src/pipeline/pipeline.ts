@@ -10,6 +10,7 @@ import type { LlmAdapter, LlmProvider } from "../llm/adapter.js";
 import type { ActionProposal } from "../llm/actionProposal.js";
 import type { ApprovalCap, Intake } from "../llm/mock.js";
 import { adapterLabel, createLlmAdapter, MockAdapter } from "../llm/provider.js";
+import { withHourlyCap } from "../llm/hourlyCap.js";
 import { groundProposal } from "../llm/grounding.js";
 import { precheckAction } from "../policy/precheck.js";
 import type { PolicyReader } from "../policy/precheck.js";
@@ -69,7 +70,7 @@ export class AgentPipeline {
     this.chainAdapter = createChainAdapter(config, deployment);
     this.reader = this.chainAdapter.policyReader();
     this.executor = AgentExecutor.create(config, deployment, environment);
-    this.adapter = adapter ?? createLlmAdapter(config.LLM_PROVIDER, environment);
+    this.adapter = adapter ?? withHourlyCap(createLlmAdapter(config.LLM_PROVIDER, environment), environment);
     this.riskIntel = riskIntel ?? (config.RISK_INTEL_URL
       ? new RiskIntelClient(config.RISK_INTEL_URL, config, deployment, client, this.executor, audit)
       : undefined);

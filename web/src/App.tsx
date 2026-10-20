@@ -10,6 +10,7 @@ import { PlanView, type Plan } from "./PlanView";
 import { ValueDashboard } from "./ValueDashboard";
 import { money, personName, withCurrencyCodes } from "./money";
 import { TechProvider, TechSwitch, Tour, tourDone, useTech } from "./tech";
+import { chainSentence, onlineChainLabel, OnlineDemoBanner, PUBLIC_DEMO, resetOnlineDemo } from "./onlineDemo";
 import { Chip, ConfirmDialog, Empty, ErrorState, Hash, InfoTip, SkeletonRows, StatusChip, TERMS, TierBadge, ToastProvider, statusWord, useToast } from "./ui";
 
 const API = import.meta.env.VITE_AGENT_API_URL ?? "http://127.0.0.1:8787";
@@ -65,6 +66,8 @@ async function api<T>(path: string, init?: RequestInit): Promise<T> {
 // which the Vite dev server hands only to this same-origin page (web/owner-session.ts).
 // Production builds sign owner actions in the injected browser wallet instead.
 async function ownerApi<T>(path: string, init: RequestInit): Promise<T> {
+  // Online demo: every visitor is the demo owner, and the gateway adds the session server-side.
+  if (PUBLIC_DEMO) return api<T>(path, init);
   if (!import.meta.env.DEV) throw new Error("Owner actions are signed in the browser wallet outside local development");
   const session = await fetch("/__owner-session", { cache: "no-store", credentials: "same-origin" });
   const body = await session.json() as { token?: string };
@@ -150,12 +153,21 @@ function Console() {
   const askPause = () => setConfirmPause(true);
   const resume = () => void setPaused(false);
   function showTour() { if (route !== "/") location.hash = "/"; setTour(true); }
+  async function resetDemo() {
+    try {
+      await resetOnlineDemo(API);
+      setDecisions([]);
+      await refresh();
+      toast({ tone: "ok", text: "Demo reset: fresh contracts and synthetic seed data on the running chain." });
+    } catch (cause) { toast({ tone: "bad", text: cause instanceof Error ? cause.message : "Reset failed" }); }
+  }
 
   return <div>
     <div className="app-root min-h-screen bg-page text-fg">
       <Ambient />
       <div className="relative z-[1] flex min-h-screen min-w-0 flex-col">
         <TopBar route={route} chain={chain} ai={ai} dark={dark} setDark={setDark} showTour={showTour} />
+        {PUBLIC_DEMO && <OnlineDemoBanner backend={chain?.backend} onReset={resetDemo} />}
         <AnimatePresence initial={false}>{state.paused && <motion.div key="paused" data-testid="paused-banner" role="status" initial={{ y: -24, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: -24, opacity: 0 }} transition={bannerMotion} className="relative z-[19] border-b border-[color-mix(in_srgb,var(--color-warn)_30%,transparent)] bg-warn-bg">
           <div className="mx-auto flex w-full max-w-[1200px] flex-wrap items-center justify-between gap-3 px-6 py-3 text-body font-medium text-warn lg:px-10">
             <span className="inline-flex items-center gap-2"><Hand aria-hidden className="size-4" />Paused. The AI can't pay anyone.</span>
@@ -173,7 +185,7 @@ function Console() {
           {route === "/controls" && <Controls state={state} contacts={contacts} refresh={refresh} askPause={askPause} resume={resume} switching={switching} />}
           {route === "/security" && <Security tab={security} />}
         </PageMotion></main>
-        <Footer />
+        <Footer backend={chain?.backend} />
       </div>
     </div>
     <ConfirmDialog open={confirmPause} title="Pause AI?" confirmLabel="Pause AI" danger onCancel={() => setConfirmPause(false)} onConfirm={() => void setPaused(true)}>
@@ -209,7 +221,7 @@ function TopBar({ route, chain, ai, dark, setDark, showTour }: { route: string; 
       </nav>
       <span className="status-pill border-line bg-surface text-fg2" title="Read from the node by the agent">
         <span aria-hidden className={`size-2 rounded-full ${chain ? "bg-ok" : "bg-muted"}`} />
-        <span data-testid="chain-badge" className="mono">{chain ? `${backendNames[chain.backend] ?? chain.backend} · ${chain.chainId} · #${chain.blockHeight}` : "Disconnected"}</span>
+        <span data-testid="chain-badge" className="mono">{chain ? `${PUBLIC_DEMO ? onlineChainLabel(chain.backend) : backendNames[chain.backend] ?? chain.backend} · ${chain.chainId} · #${chain.blockHeight}` : "Disconnected"}</span>
       </span>
       {ai && <span data-testid="ai-provider" className="status-pill border-line bg-surface text-fg2" title="What turns your words into a proposal. Every proposal is still checked by the rules and the contract.">
         <Bot aria-hidden className="size-3.5" />AI: {ai}
@@ -227,11 +239,11 @@ function TopBar({ route, chain, ai, dark, setDark, showTour }: { route: string; 
   </header>;
 }
 
-function Footer() {
+function Footer({ backend }: { backend: string | undefined }) {
   return <footer className="border-t border-line px-6 py-4 text-small text-muted lg:px-10">
     <div className="mx-auto max-w-[1200px] space-y-1">
       <p data-testid="positioning">{POSITIONING}</p>
-      <p>Research prototype. Demo money on a simulated ledger, no real money. Permissioned FISCO BCOS chain operated by the team.</p>
+      <p>Research prototype. Demo money on a simulated ledger, no real money. {chainSentence(backend)}</p>
       <p data-testid="footer-disclaimer">{CNY_DISCLAIMER}</p>
     </div>
   </footer>;

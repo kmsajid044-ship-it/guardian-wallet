@@ -1,0 +1,17 @@
+**/node_modules
+.git
+.env
+.env.*
+!.env.example
+.fisco
+.demo
+.freebuff
+.claude
+**/dist
+contracts/out
+contracts/cache
+contracts/broadcast
+web/test-results
+agent/data
+*.sqlite
+*.sqlite-*

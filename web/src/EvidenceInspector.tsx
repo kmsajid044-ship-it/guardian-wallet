@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState, type KeyboardEvent, type ReactNode } from "react";
+import { PUBLIC_DEMO } from "./onlineDemo";
 import { Ban, CircleCheck, FileX2, Info, ShieldCheck, TriangleAlert } from "lucide-react";
 import { Chip, Empty, ErrorState, PageHeader, SkeletonRows, TERMS, Term, TierBadge, statusWord } from "./ui";
 
@@ -148,8 +149,11 @@ function TxCard({ tx, api }: { tx: InspectedTx; api: Api }) {
     <p className="label mt-3">Decoded events</p>
     {tx.events.length ? <ul data-testid="tx-events" className="mt-1 space-y-1 break-all font-mono text-small">{tx.events.map((event, index) => <li key={index}><span className="text-muted">{event.contract}</span> {eventText(event)}</li>)}</ul> : <p data-testid="tx-events" className="mt-1 text-small text-muted">No events{tx.status === "reverted" ? `; reverted with ${tx.refusal ?? "no reason"}` : ""}</p>}
     <div className="mt-3 flex flex-wrap items-center gap-3">
-      <span className="inline-flex items-center gap-1"><button data-testid="tx-verify" onClick={() => void check()} disabled={verify?.state === "busy"} className="secondary-button"><ShieldCheck aria-hidden className="size-4" />Verify</button></span>
-      {verify && <span data-testid="tx-verify-result" className={`status-pill whitespace-normal ${tone}`}>{verify.text}</span>}
+      {PUBLIC_DEMO
+        // The online demo runs a fresh chain, which never holds these recorded hashes.
+        ? <p data-testid="tx-verify-online-note" className="text-small text-muted">Recorded on the team's FISCO BCOS network, not on this online demo's fresh chain. Re-verify with <code className="code-tag">./scripts/verify-evidence.sh --all</code> from the GitHub repo.</p>
+        : <><span className="inline-flex items-center gap-1"><button data-testid="tx-verify" onClick={() => void check()} disabled={verify?.state === "busy"} className="secondary-button"><ShieldCheck aria-hidden className="size-4" />Verify</button></span>
+          {verify && <span data-testid="tx-verify-result" className={`status-pill whitespace-normal ${tone}`}>{verify.text}</span>}</>}
     </div>
   </article>;
 }

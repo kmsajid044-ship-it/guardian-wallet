@@ -135,3 +135,13 @@ The agent selects `fisco` (default) or `evm-local` through `CHAIN_BACKEND`. Both
 FISCO BCOS reports `block.timestamp` in milliseconds. `GuardianWallet` and `DemoLedger` record a `clockScale` at deployment (1000 when the deployment timestamp is at least 1e11, otherwise 1) and divide every timestamp by it, so policy durations, pending expiry, recipient cooldown, the UTC-day spending bucket, and the savings year are seconds on both backends. The agent's FISCO policy reader mirrors this with wall-clock seconds.
 
 Contracts remain on Solidity 0.8.24. FISCO BCOS v3.16.4 includes the Cancun EVM feature and the official console supports Solidity through 0.8.26, so the same build artifacts run on FISCO BCOS and the local development fallback.
+
+## 12. Hosted online demo
+
+`Dockerfile` and `hosted/` package the whole system into one container for a public online demo: a four-node FISCO BCOS network on loopback inside the container (or local Anvil when `CHAIN_BACKEND=evm-local`), Risk Intel, the agent, and the owner console built with `VITE_DEMO_PUBLIC=1`. Every chain endpoint stays on loopback; only the gateway (`agent/src/hosted/`) listens on the public port 7860.
+
+- Test-only owner and agent keys are generated inside the container at every start (`hosted/start.sh`), written to its `.env` (mode 0600), and never printed. A restart creates a fresh chain.
+- Public demo mode (`DEMO_PUBLIC=1`, this container only): every visitor is the demo owner. The gateway adds the per-run owner session token to `/owner/*` requests on the server side; the token never reaches the browser, and browser-supplied `x-owner-session`, `Origin`, and `Host` headers are replaced. Outside this container, owner actions keep the local session (development) or the injected browser wallet (production).
+- "Reset demo" (and an automatic reset after 30 minutes without state-changing requests) deploys fresh contracts and synthetic seed data on the running chain, clears the audit log, and restarts the agent and Risk Intel.
+- Chat and plan requests are limited to 20 per minute per client address. Model calls are capped per rolling hour (`LLM_HOURLY_CAP`, default 60); over the cap, or when the provider is missing or rate-limited, the offline rules answer.
+- Every page shows a banner naming the chain that is actually running, with the CNY disclaimer. The Anvil fallback is labelled "private EVM development chain (Anvil)" and never FISCO BCOS. Recorded execution evidence stays in the repository; the online chain does not contain those transactions, so the Evidence Inspector does not offer to verify them there.
