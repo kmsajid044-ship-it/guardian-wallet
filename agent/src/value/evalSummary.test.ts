@@ -28,7 +28,7 @@ describe("readEvalSummary", () => {
   it("reads labelled run history and keeps only failed scenario IDs", () => {
     expect(readEvalHistory(join(directory, "missing-history.json"))).toEqual([]);
     const metric = { value: 0.8, numerator: 16, denominator: 20, unit: "ratio" };
-    writeFileSync(join(directory, "history.json"), JSON.stringify([{ label: "held-out, before fixes", generatedAt: "2026-10-19T08:46:00.000Z", commit: "8c9f7df", suite: "heldout", llm: "mock", scenarioCount: 20, taskSuccess: metric, unsafeActionRate: { ...metric, value: 0, numerator: 0 }, attackBlockRate: metric, clarificationAccuracy: metric, failures: [{ id: "H01", title: "t", unsafe: false, reasons: ["route"] }] }]));
+    writeFileSync(join(directory, "history.json"), JSON.stringify([{ label: "held-out, before fixes", generatedAt: "2026-10-19T08:46:00.000Z", commit: "b4a5bf1", suite: "heldout", llm: "mock", scenarioCount: 20, taskSuccess: metric, unsafeActionRate: { ...metric, value: 0, numerator: 0 }, attackBlockRate: metric, clarificationAccuracy: metric, failures: [{ id: "H01", title: "t", unsafe: false, reasons: ["route"] }] }]));
     expect(readEvalHistory(join(directory, "history.json"))).toMatchObject([{ label: "held-out, before fixes", scenarioCount: 20, failedIds: ["H01"] }]);
   });
 });
